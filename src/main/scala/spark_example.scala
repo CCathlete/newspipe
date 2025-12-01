@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory
 import org.slf4j.Logger
 
 object MarketingAttributionJob2 {
+  val logger: Logger = LoggerFactory.getLogger(getClass().getName())
 
   def main(args: Array[String]): Unit = {
     val sesh: SparkSession = SparkSession
@@ -87,7 +88,7 @@ object MarketingAttributionJob2 {
 
     val partitionKeys: Seq[String] = Seq("sale_id")
     val partKeys: String = partitionKeys.mkString(", ")
-    val orderBy: String = "click_time_sec desc"
+    var orderBy: String = "click_time_sec desc"
     val lastClicksSales: Option[DataFrame] =
       for (sDF <- salesClicks) yield {
         val result: DataFrame = sesh.sql(s"""
@@ -104,6 +105,110 @@ object MarketingAttributionJob2 {
         result.createOrReplaceTempView(("lastclicks_sales"))
         result
       }
+
+    orderBy = "view_time_sec asc"
+    val firstCampaignsSales: Option[DataFrame] =
+      for (sDF <- salesClicks) yield {
+        val result: DataFrame = sesh.sql(s"""
+          select * from (
+          select *,
+          row_number() over (partition by $partKeys
+          order by $orderBy
+          ) as rn
+          from sales_campaigns
+          )
+          where rn = 1
+          """)
+
+        result.createOrReplaceTempView(("firstcampaigns_sales"))
+        result
+      }
+
+    val finalAttributeJoined: Option[DataFrame] =
+      for (lcsDF <- lastClicksSales; fcs <- firstCampaignsSales) yield {
+        val result: DataFrame = sesh.sql(s"""
+          select
+            lcs.sale_id,
+            cast(lcs.revenue as int) as revenue,
+            from_unixtime(lcs.sale_time_sec) as sale_timestamp,
+            year(from_unixtime(lcs.sale_time_sec)) as sale_year,
+            month(from_unixtime(lcs.sale_time_sec)) as sale_month,
+            dayofmonth(from_unixtime(lcs.sale_time_sec)) as sale_day,
+            lcs.user_id,
+            click_id,
+            from_unixtime(click_time_sec) as last_click_time,
+            lcs.campaign_id as last_click_campaign_id,
+            fcs.campaign_id as first_campaign_id,
+            from_unixtime(view_time_sec) as first_campaign_view_time,
+            current_timestamp() as processedat
+          from
+            lastclicks_sales lcs
+          join
+            firstcampaigns_sales fcs using(sale_id)
+          """)
+
+        result.write
+          .mode("overwrite")
+          .partitionBy("sale_year", "sale_month")
+          .parquet(s"$GOLD_PATH/campaign-click-sale")
+
+        result
+      }
+
+    logger.info("Successfully wrote data to the Gold layer.")
+
+    val creationQuery: String = s"""
+    create table if not exists $TARGET_REDSHIFT_TABLE (
+    sale_id bigint not null,
+    revenue integer,
+    sale_timestamp timestamp without time zone,
+    sale_year integer,
+    sale month integer,
+    sale_day integer,
+    user_id text not null,
+    click_id text not null,
+    last_click_time timestamp without time zone,
+    last_click_campaign_id text,
+    first_campaign_id text,
+    first_campaign_view_time timestamp without time zone,
+    processedat timestamp without time zone
+    )
+    distkey(sale_id)
+    sortkey(sale_timestamp)
+    """
+    var writeOpts: Map[String, String] = Map(
+      "url" -> REDSHIFT_URI,
+      "dbtable" -> "dummy_for_creation",
+      "driver" -> "com.amazon.redshift.jdbc.Driver",
+      "preactions" -> creationQuery,
+      "mode" -> "overwrite"
+    )
+
+    sesh.emptyDataFrame.write
+      .format("jdbc")
+      .options(writeOpts)
+      .save()
+
+    finalAttributeJoined.map(df => {
+      df.write
+        .format("io.github.spark-redshift-connector")
+        .options(
+          Map(
+            "url" -> REDSHIFT_URI,
+            "dbtable" -> TARGET_REDSHIFT_TABLE,
+            "tempdir" -> s"$GOLD_PATH/redshift_temp/",
+            "aws_iam_role" -> "arn:aws:iam::xxxxxxxxxx:role/RedshiftS3AccessRole",
+            "mode" -> "append"
+          )
+        )
+        .save()
+    })
+
+    logger.info(
+      s"Successfully wrote data to redshift table: $TARGET_REDSHIFT_TABLE"
+    )
+
+    sesh.stop()
 
   }
 }
