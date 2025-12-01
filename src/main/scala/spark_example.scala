@@ -85,5 +85,25 @@ object MarketingAttributionJob2 {
         result
       }
 
+    val partitionKeys: Seq[String] = Seq("sale_id")
+    val partKeys: String = partitionKeys.mkString(", ")
+    val orderBy: String = "click_time_sec desc"
+    val lastClicksSales: Option[DataFrame] =
+      for (sDF <- salesClicks) yield {
+        val result: DataFrame = sesh.sql(s"""
+      select * from (
+      select *,
+      row_number() over (partition by $partKeys
+      order by $orderBy
+      ) as rn
+      from sales_clicks
+      )
+      where rn = 1
+      """)
+
+        result.createOrReplaceTempView(("lastclicks_sales"))
+        result
+      }
+
   }
 }
