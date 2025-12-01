@@ -7,7 +7,7 @@ import org.apache.spark.sql.types.LongType
 // For simplicity here, we'll use println and exception handling.
 // Alternatively, you can use the built-in Spark logging.
 
-object MarketingAttributionJob {
+object _MarketingAttributionJob {
 
   def main(args: Array[String]): Unit = {
     // 1. Initialize Spark Session
@@ -66,12 +66,13 @@ object MarketingAttributionJob {
     // --- 5. Windowed Joins and Attribution Logic ---
 
     // Scala uses the multiline string literal """...""" similar to Python for SQL.
-    val salesClicks: DataFrame = sesh.sql(s"""
+    val salesClicks: DataFrame = sesh.sql(s"""--sql
       SELECT *
       FROM sales
       LEFT JOIN clicks USING(user_id)
       WHERE click_time_sec
       BETWEEN (sale_time_sec - $LOOKBACK_WINDOW_SECONDS) AND sale_time_sec
+      ;
     """)
     salesClicks.createOrReplaceTempView("sales_clicks")
 

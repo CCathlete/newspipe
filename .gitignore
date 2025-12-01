@@ -24,3 +24,7 @@ hs_err_pid*
 replay_pid*
 .vscode
 .metals
+project
+target
+.bloop
+.bsp
