@@ -3,6 +3,7 @@ package notebookCode
 // 1. Imports
 import scala.io.Source
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql._
 import java.util.Properties
 
 object TrinoExploration {
@@ -37,13 +38,13 @@ object TrinoExploration {
     trinoProperties.setProperty("password", trinoPassword)
 
 // 5. Function to run SQL on Trino and get a DataFrame
-  def trinoQuery(sql: String) = {
+  def trinoQueryRunner(sql: String) = {
     spark.read
       .jdbc(trinoUrl, s"($sql) AS subquery", trinoProperties)
   }
 
 // 6. Example query
-  val df = trinoQuery("SELECT * FROM my_silver_table LIMIT 20")
+  val df: DataFrame = trinoQueryRunner("SELECT * FROM my_silver_table LIMIT 20")
 
 // 8. Optional: print schema
   df.printSchema()
