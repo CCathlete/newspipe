@@ -8,6 +8,7 @@ from typing import List, Dict, Any
 import requests
 import feedparser
 from feedparser import FeedParserDict
+import doggopyr
 
 
 # --- Configuration ---
@@ -36,7 +37,9 @@ def fetch_and_parse_feed(url: str, source_name: str) -> List[Dict[str, Any]]:
             # feedparser returns a time.struct_time object
             published_dt = entry.get("published_parsed")
             pub_date_str = (
-                datetime(*published_dt[:6], tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
+                datetime(*published_dt[:6], tzinfo=None).strftime(
+                    "%Y-%m-%d %H:%M:%S",
+                )
                 if published_dt
                 else None
             )
