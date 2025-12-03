@@ -36,13 +36,13 @@ def fetch_and_parse_feed(url: str, source_name: str) -> List[Dict[str, Any]]:
             # feedparser returns a time.struct_time object
             published_dt = entry.get("published_parsed")
             pub_date_str = (
-                datetime(*published_dt[:6]).strftime("%Y-%m-%d %H:%M:%S")
+                datetime(*published_dt[:6], tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
                 if published_dt
                 else None
             )
 
             # 2. Extract and structure the data
-            item = {
+            item: Dict[str, Any] = {
                 "feed_source": source_name,
                 "title": entry.get("title"),
                 "link": entry.get("link"),
@@ -64,6 +64,9 @@ def fetch_and_parse_feed(url: str, source_name: str) -> List[Dict[str, Any]]:
 
 
 def main():
+    """
+    Entry point for the Spark job.
+    """
     # 1. Fetch and Parse
     news_items = fetch_and_parse_feed(RSS_FEED_URL, FEED_SOURCE)
 
@@ -81,5 +84,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # NOTE: You need to install the libraries: pip install requests feedparser
     main()
