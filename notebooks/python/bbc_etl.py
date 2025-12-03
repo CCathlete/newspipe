@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 import requests
 import feedparser
 from feedparser import FeedParserDict
-import doggopyr
+from doggopyr.tools.helper_functions import Module as hf
 
 
 # --- Configuration ---
@@ -86,5 +86,5 @@ def main():
         print("Next step: Use PySpark to read this file from MinIO and process it.")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" or hf.is_jupy():
     main()
