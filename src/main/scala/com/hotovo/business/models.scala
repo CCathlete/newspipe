@@ -1,4 +1,4 @@
-package com.hotovo.domain
+package com.hotovo.business
 
 import io.circe._
 import io.circe.generic.semiauto._

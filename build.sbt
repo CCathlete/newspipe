@@ -29,6 +29,9 @@ libraryDependencies ++= Seq(
   "dev.zio" %% "zio-http" % "3.3.3", // For the OllamaClient REST call
   "io.getquill" %% "quill-zio" % "4.8.5", // Uses latest stable Quill with ZIO integration
   "io.getquill" %% "quill-jdbc" % "4.8.5",
+  "com.softwaremill.sttp.client4" %% "core" % "4.0.13",
+  "com.softwaremill.sttp.client4" %% "circe" % "4.0.13",
+  "com.softwaremill.sttp.client4" %% "zio" % "4.0.13",
 
   // 5. Type-Level Libraries (Circe for JSON handling with Ollama)
   "io.circe" %% "circe-core" % "0.14.6",
