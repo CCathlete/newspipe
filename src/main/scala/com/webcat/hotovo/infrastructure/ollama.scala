@@ -5,9 +5,11 @@ import zio.config._
 import zio.Config._
 import zio.ConfigProvider
 import sttp.client4._
+import sttp.client4.asStringAlways // Needed for raw string response
 import sttp.client4.circe._
 import sttp.client4.httpclient.zio.HttpClientZioBackend
 import io.circe._
+import io.circe.parser._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
 
@@ -18,18 +20,35 @@ case class OllamaRequest(
     prompt: String,
     stream: Boolean = false
 )
+
 // Circe Encoder for serialization to JSON
 object OllamaRequest {
   implicit val encoder: Encoder[OllamaRequest] = deriveEncoder
 }
 
-/** Defines the successful response structure from the Ollama /api/generate
-  * endpoint. Uses Circe derivation for Decoders.
+/** The structured response from Ollama that dictates the next action and
+  * provides keys for storing the chunk in the Bronze layer.
+  *
+  * controlAction can be: "CONTINUE", "NEW_ARTICLE", "IRRELEVANT"
   */
-case class OllamaResponse(response: String)
-// Circe Decoder for deserialization from JSON
-object OllamaResponse {
-  implicit val decoder: Decoder[OllamaResponse] = deriveDecoder
+case class OllamaBronzeTaggingResponse(
+    chunkId: String, // Unique ID for this specific chunk
+    articleId: String, // ID used to group chunks into an article (new or existing)
+    controlAction: String // "CONTINUE", "NEW_ARTICLE", "IRRELEVANT"
+)
+
+object OllamaBronzeTaggingResponse {
+  // Circe Decoder
+  implicit val decoder: Decoder[OllamaBronzeTaggingResponse] = deriveDecoder
+}
+
+/** Intermediate structure to parse the *outer* JSON envelope from the Ollama
+  * /api/generate endpoint, containing the raw LLM output.
+  */
+case class OllamaIntermediateResponse(response: String)
+// Circe Decoder for deserialization from the outer JSON
+object OllamaIntermediateResponse {
+  implicit val decoder: Decoder[OllamaIntermediateResponse] = deriveDecoder
 }
 
 // --- ZIO Service Definition (Trait) ---
@@ -40,26 +59,27 @@ trait OllamaClient {
 
   /** Generates a text interpretation from the model.
     */
-  def getInterpretation(prompt: String): ZIO[Any, Throwable, String]
+  def getInterpretation(prompt: String): Task[String]
 
-  /** Checks if an HTML chunk is relevant to geopolitics.
+  /** Queries Ollama for relevance and grouping identifiers for the Bronze
+    * layer.
+    * @param currentArticleId
+    *   The ID of the article currently being processed (or "NEW").
+    * @param htmlChunk
+    *   The HTML content chunk to analyze.
+    * @return
+    *   A structured response containing the chunk's unique ID and its article
+    *   ID.
     */
-  def isChunkRelevant(htmlChunk: String): ZIO[Any, Throwable, Boolean]
-
-  /** Extracts the headline and summary from a relevant HTML chunk.
-    */
-  def extractHeadlineAndSummary(
-      relevantHtmlChunk: String
-  ): ZIO[Any, Throwable, String]
+  def tagBronzeChunk(
+      currentArticleId: String,
+      htmlChunk: String
+  ): Task[OllamaBronzeTaggingResponse]
 }
 
 // --- Implementation (Concrete Class) ---
 
 /** Concrete implementation of the OllamaClient service.
-  *
-  * It depends on a Configuration for the server details and the
-  * HttpClientZioBackend. The ZIO environment for its methods is 'Any' because
-  * the dependencies (backend) are managed by the ZLayer.
   */
 class OllamaClientLive(
     serverUrl: String,
@@ -81,13 +101,16 @@ class OllamaClientLive(
       .body(
         requestPayload.asJson.noSpaces
       ) // Use Circe Encoder
-      .response(asJson[OllamaResponse]) // Use Circe Decoder
+      .response(
+        asJson[OllamaIntermediateResponse]
+      )
 
     // Use the injected backend to send the request
     request.send(backend).flatMap { response =>
       response.body match {
-        case Right(ollamaRes) => ZIO.succeed(ollamaRes.response)
-        case Left(error)      =>
+        case Right(intermediateRes) => ZIO.succeed(intermediateRes.response)
+
+        case Left(error) =>
           ZIO.fail(
             new RuntimeException(
               s"Ollama request failed: ${error.toString}. Error detail: ${response.code}"
@@ -107,39 +130,48 @@ class OllamaClientLive(
 
   // --- Web Interpretation Logic (Prompt Engineering) ---
 
-  private val relevanceSystemPrompt: String =
-    """You are an expert news article analyzer focused on geopolitics.
-    Your task is to determine if a given chunk of HTML text is highly relevant
-    to geopolitics, international relations, or specific country conflicts.
-    Respond ONLY with 'RELEVANT' if it is, or 'IRRELEVANT' if it is not.
-    Do not add any other explanation, punctuation, or text.
+  private val bronzeTaggingPrompt: String =
+    """You are a stateless, expert data extraction tagger for a geopolitical news pipeline.
+    Your task is to analyze a single chunk of HTML content and provide grouping identifiers
+    for storage in the Bronze layer.
+
+    Input:
+    1. CURRENT_ARTICLE_ID: The unique ID of the article being assembled. Use 'NEW' if no article is currently open.
+    2. HTML_CHUNK: The new chunk of text.
+
+    Rules:
+    1. Generate a NEW, globally unique identifier for 'chunkId' (e.g., a UUID).
+    2. If the chunk is NOT relevant to geopolitics, set 'control_action' to "IRRELEVANT" and keep 'articleId' as CURRENT_ARTICLE_ID.
+    3. If the chunk IS relevant and CURRENT_ARTICLE_ID is 'NEW', set 'control_action' to "NEW_ARTICLE" and generate a NEW unique ID for 'articleId'.
+    4. If the chunk IS relevant and CURRENT_ARTICLE_ID is a valid ID, set 'control_action' to "CONTINUE" and use the CURRENT_ARTICLE_ID.
+
+    Output MUST be a single JSON object matching the schema:
+    {"chunkId": "...", "articleId": "...", "controlAction": "..."}
     """.stripMargin
 
-  private val extractionSystemPrompt: String =
-    """You are an expert data extraction agent.
-    From the provided HTML text, you must extract the article headline and a concise,
-    three-sentence summary.
-    Format your output strictly as a JSON object with two keys:
-    {"headline": "...", "summary": "..."}
-    """.stripMargin
-
-  override def isChunkRelevant(
+  override def tagBronzeChunk(
+      currentArticleId: String,
       htmlChunk: String
-  ): Task[Boolean] = {
-    val fullPrompt = s"$relevanceSystemPrompt\n\nHTML Content:\n$htmlChunk"
+  ): ZIO[Any, Throwable, OllamaBronzeTaggingResponse] = {
 
-    getInterpretation(fullPrompt).map { response =>
-      response.trim.toUpperCase == "RELEVANT"
-    }
-  }
+    val userPrompt =
+      s"CURRENT_ARTICLE_ID: $currentArticleId\n\nHTML_CHUNK:\n$htmlChunk"
 
-  override def extractHeadlineAndSummary(
-      relevantHtmlChunk: String
-  ): ZIO[Any, Throwable, String] = {
-    val fullPrompt =
-      s"$extractionSystemPrompt\n\nHTML Content:\n$relevantHtmlChunk"
+    val fullPrompt = s"$bronzeTaggingPrompt\n\n$userPrompt"
 
-    getInterpretation(fullPrompt)
+    generate(fullPrompt) // Returns Task[String] (the raw JSON string)
+      .flatMap { jsonString =>
+        // Decode the simple Bronze Tagging structure
+        decode[OllamaBronzeTaggingResponse](jsonString) match {
+          case Right(control) => ZIO.succeed(control)
+          case Left(error)    =>
+            ZIO.fail(
+              new RuntimeException(
+                s"Failed to parse Ollama Bronze Tagging JSON response. Response: '$jsonString'. Error: ${error.getMessage}"
+              )
+            )
+        }
+      }
   }
 }
 
@@ -177,7 +209,7 @@ object OllamaClient {
   val live: ZLayer[
     OllamaConfig with HttpClientZioBackend,
     Throwable,
-    OllamaClientLive
+    OllamaClient
   ] =
     ZLayer {
       for {
@@ -186,12 +218,12 @@ object OllamaClient {
       } yield new OllamaClientLive(config.serverUrl, config.modelName, backend)
     }
 
-  def extractHeadlineAndSummary(
-      relevantHTMLChunk: String
-  ): ZIO[OllamaClient, Throwable, Any] =
-
+  // Accessor method for the primary Bronze Tagging function
+  def tagBronzeChunk(
+      currentArticleId: String,
+      htmlChunk: String
+  ): ZIO[OllamaClient, Throwable, OllamaBronzeTaggingResponse] =
     ZIO.serviceWithZIO[OllamaClient](
-      _.extractHeadlineAndSummary(relevantHTMLChunk)
+      _.tagBronzeChunk(currentArticleId, htmlChunk)
     )
-
 }
