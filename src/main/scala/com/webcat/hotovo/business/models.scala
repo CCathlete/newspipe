@@ -1,4 +1,4 @@
-package com.hotovo.business
+package com.webcat.hotovo.business
 
 import io.circe._
 import io.circe.generic.semiauto._
