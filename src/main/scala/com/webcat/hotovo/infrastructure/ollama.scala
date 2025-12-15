@@ -149,6 +149,7 @@ class OllamaClientLive(
   */
 case class OllamaConfig(serverUrl: String, modelName: String = "llama3")
 
+// Companion object of the OllamaClient trait (acts as a type).
 object OllamaClient {
 
   // --- ZIO Config Definition ---
