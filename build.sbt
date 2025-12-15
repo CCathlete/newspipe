@@ -28,7 +28,7 @@ libraryDependencies ++= Seq(
   "dev.zio" %% "zio" % "2.1.23", // Stable ZIO 2.x
   "dev.zio" %% "zio-http" % "3.3.3", // For the OllamaClient REST call
   "dev.zio" %% "zio-config" % "4.0.6",
-  "dev.zio" %% "zio-config-magnolia" % "4.0.6",
+  "dev.zio" %% "zio-config-magnolia" % "4.0.4",
   "io.getquill" %% "quill-zio" % "4.8.5", // Uses latest stable Quill with ZIO integration
   "io.getquill" %% "quill-jdbc" % "4.8.5",
   "com.softwaremill.sttp.client4" %% "core" % "4.0.13",

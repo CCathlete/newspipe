@@ -2,6 +2,8 @@ package com.webcat.hotovo.infrastructure
 
 import zio._
 import zio.config._
+import zio.Config._
+import zio.ConfigProvider
 import sttp.client4._
 import sttp.client4.circe._
 import sttp.client4.httpclient.zio.HttpClientZioBackend
@@ -148,39 +150,34 @@ class OllamaClientLive(
 case class OllamaConfig(serverUrl: String, modelName: String = "llama3")
 
 object OllamaClient {
-  type OllamaClientEnv = OllamaClient
 
   // --- ZIO Config Definition ---
 
-  // 1. Define a ZIO Config Descriptor: Tells ZIO Config how to find and parse the values.
-  private val ollamaConfigDescriptor: Config =
-    (ConfigDescriptor.string("serverUrl")
-      ?? "URL of the Ollama server, e.g., http://localhost:11434")
-      .zip(
-        ConfigDescriptor
-          .string("modelName")
-          .default("llama3") ?? "The specific Ollama model to use"
-      )
-      .toFunction(
-        OllamaConfig.apply _
-      ) // Automatically map the configuration to the case class
+  // Blueprint to create a config ZLayer.
+  private val ollamaConfigSpec: Config[OllamaConfig] =
+    (
+      string("OLLAMA_SERVER_URL") ?? "URL of the Ollama server" zip
+        string("OLLAMA_MODEL_NAME") ?? "The specific Ollama model to use"
+    ).to[OllamaConfig]
 
-  // 2. The Configuration ZLayer: Loads the config from the default sources (e.g., system props, env vars).
-  // E=Config.Error (A type of Throwable), R=Any
-  val configLayer: ZLayer[Any, Config.Error, OllamaConfig] =
-    ZLayer.fromZIO(
-      ZIO
-        .config(ollamaConfigDescriptor)
-        .tapError(e =>
-          ZIO.logError(
-            s"Configuration error loading OllamaConfig: ${e.message}"
-          )
+  // Turns the blueprint into a ZLayer.
+  val configProvider: ConfigProvider = ConfigProvider.defaultProvider
+  val configLayer: ZLayer[Any, Config.Error, OllamaConfig] = ZLayer.fromZIO(
+    configProvider
+      .load(ollamaConfigSpec)
+      .tapError(e =>
+        ZIO.logError(
+          s"Configuration error loading OllamaConfig: ${e.getMessage}"
         )
-    )
+      )
+  )
 
-  // 3. The Live ZLayer (Requires OllamaConfig from above)
-  val live
-      : ZLayer[OllamaConfig & HttpClientZioBackend, Nothing, OllamaClientEnv] =
+  // --- Live ZLayer ---
+  val live: ZLayer[
+    OllamaConfig with HttpClientZioBackend,
+    Throwable,
+    OllamaClientLive
+  ] =
     ZLayer {
       for {
         config <- ZIO.service[OllamaConfig]
@@ -188,22 +185,12 @@ object OllamaClient {
       } yield new OllamaClientLive(config.serverUrl, config.modelName, backend)
     }
 
-  // --- Accessor Methods (Updated to use the type-safe ArticleData) ---
-
-  def getInterpretation(
-      prompt: String
-  ): ZIO[OllamaClientEnv, Throwable, String] =
-    ZIO.serviceWithZIO[OllamaClientEnv](_.getInterpretation(prompt))
-
-  def isChunkRelevant(
-      htmlChunk: String
-  ): ZIO[OllamaClientEnv, Throwable, Boolean] =
-    ZIO.serviceWithZIO[OllamaClientEnv](_.isChunkRelevant(htmlChunk))
-
   def extractHeadlineAndSummary(
-      relevantHtmlChunk: String
-  ): ZIO[OllamaClientEnv, Throwable, ArticleData] = // Updated return type
-    ZIO.serviceWithZIO[OllamaClientEnv](
-      _.extractHeadlineAndSummary(relevantHtmlChunk)
+      relevantHTMLChunk: String
+  ): ZIO[OllamaClient, Throwable, Any] =
+
+    ZIO.serviceWithZIO[OllamaClient](
+      _.extractHeadlineAndSummary(relevantHTMLChunk)
     )
+
 }
