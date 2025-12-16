@@ -12,6 +12,10 @@ import io.circe._
 import io.circe.parser._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
+import com.webcat.hotovo.business.{
+  TagBronzeChunkResponse => OllamaBronzeTaggingResponse,
+  TagBronzeChunkRequest
+}
 
 /** Defines the request payload structure for the Ollama /api/generate endpoint.
   */
@@ -24,22 +28,6 @@ case class OllamaRequest(
 // Circe Encoder for serialization to JSON
 object OllamaRequest {
   implicit val encoder: Encoder[OllamaRequest] = deriveEncoder
-}
-
-/** The structured response from Ollama that dictates the next action and
-  * provides keys for storing the chunk in the Bronze layer.
-  *
-  * controlAction can be: "CONTINUE", "NEW_ARTICLE", "IRRELEVANT"
-  */
-case class OllamaBronzeTaggingResponse(
-    chunkId: String, // Unique ID for this specific chunk
-    articleId: String, // ID used to group chunks into an article (new or existing)
-    controlAction: String // "CONTINUE", "NEW_ARTICLE", "IRRELEVANT"
-)
-
-object OllamaBronzeTaggingResponse {
-  // Circe Decoder
-  implicit val decoder: Decoder[OllamaBronzeTaggingResponse] = deriveDecoder
 }
 
 /** Intermediate structure to parse the *outer* JSON envelope from the Ollama
@@ -154,8 +142,10 @@ class OllamaClientLive(
       htmlChunk: String
   ): ZIO[Any, Throwable, OllamaBronzeTaggingResponse] = {
 
+    val requestModel = TagBronzeChunkRequest(currentArticleId, htmlChunk)
+
     val userPrompt =
-      s"CURRENT_ARTICLE_ID: $currentArticleId\n\nHTML_CHUNK:\n$htmlChunk"
+      s"CURRENT_ARTICLE_ID: ${requestModel.currentArticleId}\n\nHTML_CHUNK:\n${requestModel.htmlChunk}"
 
     val fullPrompt = s"$bronzeTaggingPrompt\n\n$userPrompt"
 
