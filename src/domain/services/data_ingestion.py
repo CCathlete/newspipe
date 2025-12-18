@@ -23,7 +23,7 @@ class IngestionPipeline:
             # Monadic bind_async: Only call Ollama if scraping was successful
             # We use Success(current_article_id) to pipe the state forward
 
-            tag_result: Result[BronzeTagResponse, Exception] | None = None
+            tag_result: Result[BronzeTagResponse, Exception]
 
             match chunk_result:
                 case Success(chunk):
@@ -32,22 +32,22 @@ class IngestionPipeline:
                         content=chunk
                     )
 
+                    match tag_result:
+                        case Success(tag):
+                            current_article_id = tag.article_id
+                            records.append(BronzeRecord(
+                                chunk_id=tag.chunk_id,
+                                article_id=tag.article_id,
+                                content=chunk_result.unwrap(),  # Safe because tag_result succeeded
+                                control_action=tag.control_action
+                            ))
+
+                        case _: pass
+
                 case Failure(e):
                     log.error("pipeline_step_failed", error=str(e))
                     # We continue to next chunk even if one fails.
                     continue
-
-                case _: pass
-
-            match tag_result:
-                case Success(tag):
-                    current_article_id = tag.article_id
-                    records.append(BronzeRecord(
-                        chunk_id=tag.chunk_id,
-                        article_id=tag.article_id,
-                        content=chunk_result.unwrap(),  # Safe because tag_result succeeded
-                        control_action=tag.control_action
-                    ))
 
                 case _: pass
 
