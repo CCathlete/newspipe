@@ -40,7 +40,7 @@ class LakehouseConnector:
         )
         log.info(
             "A dataFrame with %s rows has been created from records.",
-            df.count()
+            len(records)
         )
 
         # Partitioning by article_id for optimized geo-political analysis later
