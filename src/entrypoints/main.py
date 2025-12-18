@@ -24,6 +24,8 @@ async def run_ingestion(
             print(f"Pipeline failed: {str(e)}")
             sys.exit(1)
 
+        case _: pass
+
 
 async def main():
     container = DataPlatformContainer()
