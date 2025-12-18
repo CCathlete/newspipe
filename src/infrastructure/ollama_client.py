@@ -1,15 +1,24 @@
+from dataclasses import dataclass
 import httpx
 from returns.result import Result, Success, Failure
 from ..domain.models import BronzeTagResponse
 
 
+@dataclass(slots=True)
 class OllamaClient:
-    def __init__(self, url: str, model: str, client: httpx.AsyncClient):
-        self.url = f"{url.rstrip('/')}/api/generate"
-        self.model = model
-        self.client = client
+    model: str
+    client: httpx.AsyncClient
+    url: str
 
-    async def tag_chunk(self, article_id: str, content: str) -> Result[BronzeTagResponse, Exception]:
+    def __post_init__(self):
+        self.url: str = f"{self.url.rstrip('/')}/api/generate"
+
+    async def tag_chunk(
+            self,
+            article_id: str,
+            content: str
+    ) -> Result[BronzeTagResponse, Exception]:
+
         prompt: str = f"ID: {article_id}\nContent: {content}\nOutput valid JSON with chunkId, articleId, controlAction."
 
         payload: dict[str, str | bool] = {

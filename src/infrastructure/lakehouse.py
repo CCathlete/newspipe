@@ -1,22 +1,22 @@
+from dataclasses import dataclass, field
 from pyspark.sql import SparkSession, DataFrame
 from returns.result import safe
 from typing import cast, Any
 from ..domain.models import BronzeRecord
 
 
+@dataclass(slots=True)
 class LakehouseConnector:
-    def __init__(
-        self, spark: SparkSession,
-        bucket_path: str = "s3a://lakehouse/bronze/tagged_chunks",
-    ) -> None:
+    spark: SparkSession
+    bucket_path: str = "s3a://lakehouse/bronze/tagged_chunks"
 
-        self.spark = spark
-        self.path = bucket_path.rstrip("/") + "/"
+    path: str = field(init=False)
+
+    def __post_init__(self):
+        self.path = self.bucket_path.rstrip("/") + "/"
 
     @safe
-    def write_records(
-        self, records: list[BronzeRecord],
-    ) -> int:
+    def write_records(self, records: list[BronzeRecord],) -> int:
 
         if not records:
             return 0
