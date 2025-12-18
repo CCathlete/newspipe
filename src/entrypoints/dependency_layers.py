@@ -5,6 +5,7 @@ import structlog
 from pyspark.sql import SparkSession
 from dependency_injector import containers, providers
 
+from ..domain.services.data_ingestion import IngestionPipeline
 from ..infrastructure.scraper import StreamScraper
 from ..infrastructure.ollama_client import OllamaClient
 from ..infrastructure.lakehouse import LakehouseConnector
@@ -49,5 +50,13 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         LakehouseConnector,
         spark=spark,
         bucket_path=config.lakehouse.bronze_path,
+        logger=logger_provider
+    )
+
+    pipeline = providers.Factory(
+        IngestionPipeline,
+        scraper=scraper,
+        ollama=ollama,
+        lakehouse=lakehouse,
         logger=logger_provider
     )
