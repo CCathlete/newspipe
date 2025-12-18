@@ -1,3 +1,5 @@
+# src/infrastructure/scraper.py
+
 from dataclasses import dataclass
 import httpx
 from collections.abc import AsyncIterator

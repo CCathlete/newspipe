@@ -1,3 +1,5 @@
+# src/infrastructure/ollama_client.py
+
 from dataclasses import dataclass
 import httpx
 from returns.result import Result, Success, Failure
