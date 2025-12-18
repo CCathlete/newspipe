@@ -1,21 +1,21 @@
 # src/infrastructure/lakehouse.py
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pyspark.sql import SparkSession, DataFrame
 from returns.result import safe
 from typing import cast, Any
 from ..domain.models import BronzeRecord
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class LakehouseConnector:
     spark: SparkSession
     bucket_path: str = "s3a://lakehouse/bronze/tagged_chunks"
 
-    path: str = field(init=False)
-
-    def __post_init__(self):
-        self.path = self.bucket_path.rstrip("/") + "/"
+    # Getter method, no setters, for setting we use dataclass.replace.
+    @property
+    def path(self) -> str:
+        return self.bucket_path.rstrip("/") + "/"
 
     @safe
     def write_records(self, records: list[BronzeRecord],) -> int:

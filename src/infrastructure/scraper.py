@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 from returns.result import Result, Success, Failure
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class StreamScraper:
     client: httpx.AsyncClient
     chunk_size: int = 4096

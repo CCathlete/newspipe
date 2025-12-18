@@ -6,14 +6,15 @@ from returns.result import Result, Success, Failure
 from ..domain.models import BronzeTagResponse
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class OllamaClient:
     model: str
     client: httpx.AsyncClient
-    url: str
+    base_url: str
 
-    def __post_init__(self):
-        self.url: str = f"{self.url.rstrip('/')}/api/generate"
+    @property
+    def url(self) -> str:
+        return f"{self.base_url.rstrip('/')}/api/generate"
 
     async def tag_chunk(
             self,
