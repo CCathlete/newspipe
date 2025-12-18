@@ -1,4 +1,5 @@
 import httpx
+import structlog
 from pyspark.sql import SparkSession
 from dependency_injector import containers, providers
 
@@ -23,21 +24,28 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         SparkSession.builder.appName("NewsAnalysis").getOrCreate
     )
 
+    logger_provider = providers.Singleton(
+        structlog.get_logger
+    )
+
     # Service Layers - analogous to ZLayer.live
     scraper = providers.Factory(
         StreamScraper,
-        client=http_client
+        client=http_client,
+        logger=logger_provider
     )
 
     ollama = providers.Factory(
         OllamaClient,
         model=config.ollama.model,
         base_url=config.ollama.base_url,
-        client=http_client
+        client=http_client,
+        logger=logger_provider
     )
 
     lakehouse = providers.Factory(
         LakehouseConnector,
         spark=spark,
-        bucket_path=config.lakehouse.bronze_path
+        bucket_path=config.lakehouse.bronze_path,
+        logger=logger_provider
     )
