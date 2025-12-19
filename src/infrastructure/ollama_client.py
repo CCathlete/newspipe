@@ -14,6 +14,8 @@ class OllamaClient:
     model: str
     client: httpx.AsyncClient
     base_url: str
+    embedding_model: str = "nomic-embed-text"  # Lightweight embedding model.
+    ollama_server_url: str = "http://localhost:11434"
 
     logger: FilteringBoundLogger = field(init=False)
 
@@ -71,4 +73,19 @@ class OllamaClient:
 
         except Exception as e:
             log.error("ollama_tagging_failed", error=str(e))
+            return Failure(e)
+
+    async def embed_text(self, text: str) -> Result[list[float], Exception]:
+        endpoint: str = f"{self.ollama_server_url.rstrip('/')}/api/embeddings"
+        payload: dict[str, Any] = {
+            "model": self.embedding_model,
+            "prompt": text,
+        }
+
+        try:
+            res = await self.client.post(endpoint, json=payload, timeout=10.0)
+            res.raise_for_status()
+            return Success(res.json()["embedding"])
+
+        except Exception as e:
             return Failure(e)

@@ -24,3 +24,6 @@ class BronzeRecord(BaseModel):
     content: str
     control_action: str
     ingested_at: float = Field(default_factory=time.time)
+    language: str = "sk"  # e.g., "sk", "he", "en", "ar"
+    embedding: list[float] | None = None
+    gram_type: str = "GM3"

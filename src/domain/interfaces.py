@@ -13,6 +13,8 @@ class ScraperProvider(Protocol):
 class AIProvider(Protocol):
     async def tag_chunk(self, article_id: str,
                         content: str) -> Result[BronzeTagResponse, Exception]: ...
+    async def embed_text(
+        self, text: str) -> Result[list[float], Exception]: ...
 
 
 class StorageProvider(Protocol):
