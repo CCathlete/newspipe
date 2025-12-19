@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from structlog.typing import FilteringBoundLogger
-from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql import SparkSession, DataFrame, functions as F
 from returns.result import safe
 from typing import cast, Any
 
@@ -38,14 +38,21 @@ class LakehouseConnector:
         df: DataFrame = self.spark.createDataFrame(
             cast(Any, data),
         )
-        log.info(
-            "A dataFrame with %s rows has been created from records.",
-            len(records)
+
+        df_partitioned = df.withColumn(
+            colName="ingested_date",
+            col=F.from_unixtime(F.col("ingested_at"), "yyyy-MM-dd")
         )
 
-        # Partitioning by article_id for optimized geo-political analysis later
+        log.info("Writing JSON to partitioned lakehouse", path=self.path)
+
+        df_partitioned.write.mode("append").partitionBy(
+            "ingested_date"
+        ).json(self.path)
+
+        # Partitioning by source url for optimized geo-political analysis later
         df.write.mode("append").partitionBy(
-            "article_id"
+            "source_url"
         ) .json(self.path)
 
         log.info("Records written to lakehouse")
