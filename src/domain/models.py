@@ -20,7 +20,7 @@ class BronzeTagResponse(BaseModel):
 
 class BronzeRecord(BaseModel):
     chunk_id: str
-    article_id: str
+    source_url: str  # The origin of the stream.
     content: str
     control_action: str
     ingested_at: float = Field(default_factory=time.time)

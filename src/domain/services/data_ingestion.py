@@ -1,3 +1,5 @@
+# src/domain/services/data_ingestion.py
+
 import json
 from dataclasses import dataclass, field
 from structlog.typing import FilteringBoundLogger
@@ -45,7 +47,7 @@ class IngestionPipeline:
                             current_article_id = tag.article_id
                             records.append(BronzeRecord(
                                 chunk_id=tag.chunk_id,
-                                article_id=tag.article_id,
+                                source_url=url,
                                 content=chunk_result.unwrap(),
                                 control_action=tag.control_action
                             ))
