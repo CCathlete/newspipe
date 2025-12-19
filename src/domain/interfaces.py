@@ -16,3 +16,9 @@ class AIProvider(Protocol):
 class StorageProvider(Protocol):
     def write_records(
         self, records: list[BronzeRecord]) -> Result[int, Exception]: ...
+
+
+class KafkaProvider(Protocol):
+    async def produce(
+        self, topic: str, value: bytes, key: bytes | None = None
+    ) -> Result[bool, Exception]: ...

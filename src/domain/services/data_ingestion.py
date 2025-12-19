@@ -1,8 +1,15 @@
+import json
 from dataclasses import dataclass, field
 from structlog.typing import FilteringBoundLogger
 from returns.result import Success, Failure, Result
+from returns.maybe import Some
 from ..models import BronzeRecord, BronzeTagResponse
-from ..interfaces import ScraperProvider, StorageProvider, AIProvider
+from ..interfaces import (
+    ScraperProvider,
+    StorageProvider,
+    AIProvider,
+    KafkaProvider,
+)
 
 
 @dataclass(slots=True, frozen=True)
@@ -10,6 +17,7 @@ class IngestionPipeline:
     scraper: ScraperProvider
     ollama: AIProvider
     lakehouse: StorageProvider
+    kafka_producer: KafkaProvider
 
     logger: FilteringBoundLogger = field(init=False)
 
@@ -38,9 +46,33 @@ class IngestionPipeline:
                             records.append(BronzeRecord(
                                 chunk_id=tag.chunk_id,
                                 article_id=tag.article_id,
-                                content=chunk_result.unwrap(),  # Safe because tag_result succeeded
+                                content=chunk_result.unwrap(),
                                 control_action=tag.control_action
                             ))
+
+                            match tag.control_action:
+                                case "CLICKLINK":
+                                    # 1. Extract the URL monadically into a local variable
+                                    # This keeps the logic pure and resolves the 'self' scoping issue
+                                    target_url = tag.metadata.map(
+                                        lambda m: m.get("url")
+                                    ).bind_optional(lambda url: url)
+
+                                    # 2. Execute the side effect if we have a value
+                                    # Using 'Success' here just to keep the pattern matching consistent
+                                    match target_url:
+                                        case Some(url_val):
+                                            await self.kafka_producer.produce(
+                                                topic="discovery_queue",
+                                                value=json.dumps(
+                                                    {"url": url_val}).encode()
+                                            )
+                                        case _: pass
+
+                                case _: pass
+
+                        case Failure(e):
+                            log.warning("ollama_tagging_failed", error=str(e))
 
                         case _: pass
 

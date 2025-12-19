@@ -3,7 +3,9 @@
 import httpx
 import structlog
 from pyspark.sql import SparkSession
+from aiokafka import AIOKafkaProducer
 from dependency_injector import containers, providers
+
 
 from ..domain.services.data_ingestion import IngestionPipeline
 from ..infrastructure.scraper import StreamScraper
@@ -20,6 +22,12 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     http_client = providers.Resource(
         httpx.AsyncClient,
         timeout=httpx.Timeout(60.0)
+    )
+
+    # Kafka Producer Resource
+    kafka_producer = providers.Resource(
+        AIOKafkaProducer,
+        bootstrap_servers=config.kafka.bootstrap_servers
     )
 
     # Spark is usually provided as a singleton
@@ -58,5 +66,6 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         scraper=scraper,
         ollama=ollama,
         lakehouse=lakehouse,
+        kafka_producer=kafka_producer,
         logger=logger_provider
     )
