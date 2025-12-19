@@ -5,13 +5,14 @@ from dataclasses import dataclass, field
 from structlog.typing import FilteringBoundLogger
 from returns.result import Success, Failure, Result
 from returns.maybe import Some
-from ..models import BronzeRecord, BronzeTagResponse
+from ..models import BronzeRecord
 from ..interfaces import (
     ScraperProvider,
     StorageProvider,
     AIProvider,
     KafkaProvider,
 )
+from .linguistic_model import LinguisticService
 
 
 @dataclass(slots=True, frozen=True)
@@ -72,8 +73,13 @@ class IngestionPipeline:
 
                         case Failure(e):
                             log.warning("tagging_failed", error=str(e))
+
+                        case _: pass
+
                 case Failure(e):
                     log.error("stream_failed", error=str(e))
                     continue
+
+                case _: pass
 
         return self.lakehouse.write_records(records)
