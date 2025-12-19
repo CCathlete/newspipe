@@ -1,8 +1,11 @@
 # src/domain/services/linguistic_model.py
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from returns.maybe import Some
 from returns.result import Result, Success, Failure
+from structlog.typing import FilteringBoundLogger
+
 from ..interfaces import AIProvider
 from ..models import BronzeRecord
 
@@ -11,6 +14,7 @@ from ..models import BronzeRecord
 class LinguisticService:
     ai_provider: AIProvider
     language: str = "sk"
+    logger: FilteringBoundLogger = field(init=False)
 
     def tokenize(self, text: str) -> list[str]:
         return re.findall(r"\w+", text, re.UNICODE)
@@ -28,6 +32,7 @@ class LinguisticService:
     ) -> Result[list[BronzeRecord], Exception]:
         grams: list[str] = self.create_gm3(text)
         results: list[BronzeRecord] = []
+        log = self.logger.bind()
 
         for gram in grams:
             match await self.ai_provider.embed_text(gram):
@@ -39,11 +44,14 @@ class LinguisticService:
                             content=gram,
                             control_action="NONE",
                             language=self.language,
-                            embedding=vector,
+                            embedding=Some(vector),
                             gram_type="GM3"
                         )
                     )
-                case Failure(_): continue
+
+                case Failure(_):
+                    log.warning("embedding_failed", gram=gram)
+                    continue
 
                 case _: pass
 

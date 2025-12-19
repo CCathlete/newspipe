@@ -8,7 +8,7 @@ import time
 
 class BronzeTagResponse(BaseModel):
     chunk_id: str = Field(alias="chunkId")
-    article_id: str = Field(alias="articleId")
+    source_url: str  # The origin of the stream.
     control_action: Literal[
         "IRRELEVANT",
         "NEW_ARTICLE",
@@ -25,5 +25,6 @@ class BronzeRecord(BaseModel):
     control_action: str
     ingested_at: float = Field(default_factory=time.time)
     language: str = "sk"  # e.g., "sk", "he", "en", "ar"
-    embedding: list[float] | None = None
+    embedding: Maybe[list[float]] = Field(default=Nothing)
+
     gram_type: str = "GM3"

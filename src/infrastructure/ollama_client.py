@@ -23,15 +23,15 @@ class OllamaClient:
         return f"{self.ollama_server_url.rstrip('/')}/api/generate"
 
     @property
-    def embed_url(self) -> str:
+    def embedding_url(self) -> str:
         return f"{self.ollama_server_url.rstrip('/')}/api/embeddings"
 
     async def tag_chunk(
         self,
-        article_id: str,
+        source_url: str,  # The origin of the stream.
         content: str
     ) -> Result[BronzeTagResponse, Exception]:
-        log = self.logger.bind(article_id=article_id)
+        log = self.logger.bind(source_url=source_url)
 
         system_instruction: str = (
             "You are a geopolitical news classifier. Analyze the HTML chunk.\n"
@@ -41,7 +41,7 @@ class OllamaClient:
 
         prompt: str = (
             f"{system_instruction}\n"
-            f"Context Article ID: {article_id}\n"
+            f"Context source url: {source_url}\n"
             f"HTML Content: {content[:2000]}\n"
             "Output JSON only."
         )
@@ -77,7 +77,7 @@ class OllamaClient:
             "prompt": text,
         }
         try:
-            res = await self.client.post(self.embed_url, json=payload, timeout=10.0)
+            res = await self.client.post(self.embedding_url, json=payload, timeout=10.0)
             res.raise_for_status()
             return Success(res.json()["embedding"])
         except Exception as e:

@@ -28,20 +28,17 @@ class IngestionPipeline:
     async def execute(self, url: str) -> Result[int, Exception]:
         log = self.logger.bind(url=url)
         records: list[BronzeRecord] = []
-        current_article_id: str = "INIT"
 
         async for chunk_result in await self.scraper.scrape_and_chunk(url):
             match chunk_result:
                 case Success(chunk):
                     tag_result = await self.ollama.tag_chunk(
-                        article_id=current_article_id,
+                        source_url=url,
                         content=chunk
                     )
 
                     match tag_result:
                         case Success(tag):
-                            # Update the state for the next chunk's context
-                            current_article_id = tag.article_id
 
                             # 1. Create and add the Raw Record
                             base_record = BronzeRecord(
