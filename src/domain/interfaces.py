@@ -1,3 +1,5 @@
+# src/domain/interfaces.py
+
 from typing import Protocol, AsyncIterator
 from returns.result import Result
 from .models import BronzeTagResponse, BronzeRecord
