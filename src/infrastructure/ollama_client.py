@@ -13,33 +13,30 @@ from ..domain.models import BronzeTagResponse
 class OllamaClient:
     model: str
     client: httpx.AsyncClient
-    base_url: str
-    embedding_model: str = "nomic-embed-text"  # Lightweight embedding model.
-    ollama_server_url: str = "http://localhost:11434"
+    ollama_server_url: str
+    embedding_model: str = "nomic-embed-text"
 
     logger: FilteringBoundLogger = field(init=False)
 
     @property
-    def url(self) -> str:
-        return f"{self.base_url.rstrip('/')}/api/generate"
+    def generate_url(self) -> str:
+        return f"{self.ollama_server_url.rstrip('/')}/api/generate"
+
+    @property
+    def embed_url(self) -> str:
+        return f"{self.ollama_server_url.rstrip('/')}/api/embeddings"
 
     async def tag_chunk(
         self,
         article_id: str,
         content: str
     ) -> Result[BronzeTagResponse, Exception]:
-
         log = self.logger.bind(article_id=article_id)
 
-        # Enhanced prompt for directional logic
         system_instruction: str = (
             "You are a geopolitical news classifier. Analyze the HTML chunk.\n"
             "Actions:\n"
-            "1. 'NEW_ARTICLE': Chunk contains a headline/start of a relevant story.\n"
-            "2. 'CONTINUE': Chunk is a continuation of the current story.\n"
-            "3. 'CLICKLINK': Chunk contains a URL to a full article or related geopolitical event. "
-            "Put the URL in metadata.url.\n"
-            "4. 'IRRELEVANT': Chunk is navigation, ads, or unrelated news.\n"
+            "'NEW_ARTICLE', 'CONTINUE', 'CLICKLINK', 'IRRELEVANT'.\n"
         )
 
         prompt: str = (
@@ -48,44 +45,40 @@ class OllamaClient:
             f"HTML Content: {content[:2000]}\n"
             "Output JSON only."
         )
+        log.info("Tagging chunk", prompt=prompt)
 
         payload: dict[str, Any] = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
             "format": "json",
-            "options": {"temperature": 0}  # Deterministic for extraction
+            "options": {"temperature": 0}
         }
 
         try:
-            res: httpx.Response = await self.client.post(self.url, json=payload, timeout=30.0)
+            res = await self.client.post(
+                self.generate_url,
+                json=payload,
+                timeout=30.0
+            )
             res.raise_for_status()
-
-            raw_response = res.json().get("response", "{}")
-
-            # Pydantic handles the conversion of metadata dict to Maybe[dict]
-            # based on our previous model definition.
-            validated = BronzeTagResponse.model_validate_json(raw_response)
-
-            log.info("ollama_tagging_succeeded",
-                     action=validated.control_action)
+            validated = BronzeTagResponse.model_validate_json(
+                res.json().get("response", "{}"))
+            log.info("Tagged chunk", validated=validated)
             return Success(validated)
 
         except Exception as e:
-            log.error("ollama_tagging_failed", error=str(e))
+            log.error("Error tagging chunk", error=e)
             return Failure(e)
 
     async def embed_text(self, text: str) -> Result[list[float], Exception]:
-        endpoint: str = f"{self.ollama_server_url.rstrip('/')}/api/embeddings"
         payload: dict[str, Any] = {
             "model": self.embedding_model,
             "prompt": text,
         }
-
         try:
-            res = await self.client.post(endpoint, json=payload, timeout=10.0)
+            res = await self.client.post(self.embed_url, json=payload, timeout=10.0)
             res.raise_for_status()
             return Success(res.json()["embedding"])
-
         except Exception as e:
             return Failure(e)

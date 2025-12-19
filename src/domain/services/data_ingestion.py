@@ -20,21 +20,16 @@ class IngestionPipeline:
     ollama: AIProvider
     lakehouse: StorageProvider
     kafka_producer: KafkaProvider
+    linguistic_service: LinguisticService | None = None
 
     logger: FilteringBoundLogger = field(init=False)
 
     async def execute(self, url: str) -> Result[int, Exception]:
         log = self.logger.bind(url=url)
         records: list[BronzeRecord] = []
-        current_article_id: str = "INIT"  # Will be updated by LLM
+        current_article_id: str = "INIT"
 
-        # Consume the stream
         async for chunk_result in await self.scraper.scrape_and_chunk(url):
-            # Monadic bind_async: Only call Ollama if scraping was successful
-            # We use Success(current_article_id) to pipe the state forward
-
-            tag_result: Result[BronzeTagResponse, Exception]
-
             match chunk_result:
                 case Success(chunk):
                     tag_result = await self.ollama.tag_chunk(
@@ -44,46 +39,41 @@ class IngestionPipeline:
 
                     match tag_result:
                         case Success(tag):
+                            # Update the state for the next chunk's context
                             current_article_id = tag.article_id
-                            records.append(BronzeRecord(
+
+                            # 1. Create and add the Raw Record
+                            base_record = BronzeRecord(
                                 chunk_id=tag.chunk_id,
                                 source_url=url,
-                                content=chunk_result.unwrap(),
-                                control_action=tag.control_action
-                            ))
+                                content=chunk,
+                                control_action=tag.control_action,
+                                language=self.linguistic_service.language if self.linguistic_service else "sk"
+                            )
+                            records.append(base_record)
 
-                            match tag.control_action:
-                                case "CLICKLINK":
-                                    # 1. Extract the URL monadically into a local variable
-                                    # This keeps the logic pure and resolves the 'self' scoping issue
-                                    target_url = tag.metadata.map(
-                                        lambda m: m.get("url")
-                                    ).bind_optional(lambda url: url)
+                            # 2. Toggleable Gram Building
+                            if self.linguistic_service:
+                                match await self.linguistic_service.generate_semantic_records(chunk, base_record):
+                                    case Success(grams):
+                                        records.extend(grams)
+                                    case _: pass
 
-                                    # 2. Execute the side effect if we have a value
-                                    # Using 'Success' here just to keep the pattern matching consistent
-                                    match target_url:
-                                        case Some(url_val):
-                                            await self.kafka_producer.produce(
-                                                topic="discovery_queue",
-                                                value=json.dumps(
-                                                    {"url": url_val}).encode()
-                                            )
-                                        case _: pass
-
-                                case _: pass
+                            # 3. Kafka side-effects
+                            if tag.control_action == "CLICKLINK":
+                                match tag.metadata.map(lambda m: m.get("url")).bind_optional(lambda x: x):
+                                    case Some(url_val):
+                                        await self.kafka_producer.produce(
+                                            topic="discovery_queue",
+                                            value=json.dumps(
+                                                {"url": url_val}).encode()
+                                        )
+                                    case _: pass
 
                         case Failure(e):
-                            log.warning("ollama_tagging_failed", error=str(e))
-
-                        case _: pass
-
+                            log.warning("tagging_failed", error=str(e))
                 case Failure(e):
-                    log.error("pipeline_step_failed", error=str(e))
-                    # We continue to next chunk even if one fails.
+                    log.error("stream_failed", error=str(e))
                     continue
 
-                case _: pass
-
-        # Final terminal action: Write to Lakehouse
         return self.lakehouse.write_records(records)
