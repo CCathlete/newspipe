@@ -1,12 +1,14 @@
 # src/domain/models.py
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from returns.maybe import Maybe, Nothing
 from typing import Literal
 import time
 
 
 class BronzeTagResponse(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     chunk_id: str = Field(alias="chunkId")
     source_url: str  # The origin of the stream.
     control_action: Literal[
@@ -19,6 +21,8 @@ class BronzeTagResponse(BaseModel):
 
 
 class BronzeRecord(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     chunk_id: str
     source_url: str  # The origin of the stream.
     content: str
