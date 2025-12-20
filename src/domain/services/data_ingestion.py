@@ -26,7 +26,11 @@ class IngestionPipeline:
 
     logger: FilteringBoundLogger = field(init=False)
 
-    async def execute(self, url: str) -> Result[int, Exception]:
+    async def execute(
+        self,
+        url: str,
+        language: str = "en",
+    ) -> Result[int, Exception]:
         log = self.logger.bind(url=url)
         records: list[BronzeRecord] = []
 
@@ -50,14 +54,18 @@ class IngestionPipeline:
                                 source_url=url,
                                 content=chunk,
                                 control_action=tag.control_action,
-                                language=self.linguistic_service.language if self.linguistic_service else "sk",
+                                language=language if self.linguistic_service else "sk",
                                 ingested_at=session_timestamp
                             )
                             records.append(base_record)
 
                             # 2. Toggleable Gram Building
                             if self.linguistic_service:
-                                match await self.linguistic_service.generate_semantic_records(chunk, base_record):
+                                match await self.linguistic_service.generate_semantic_records(
+                                        text=chunk,
+                                        language=language,
+                                        base_record=base_record,
+                                ):
 
                                     case Success(grams):
                                         records.extend(grams)

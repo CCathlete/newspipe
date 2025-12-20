@@ -13,7 +13,6 @@ from ..models import BronzeRecord
 @dataclass(slots=True, frozen=True)
 class LinguisticService:
     ai_provider: AIProvider
-    language: str = "sk"
     logger: FilteringBoundLogger = field(init=False)
 
     def tokenize(self, text: str) -> list[str]:
@@ -28,6 +27,7 @@ class LinguisticService:
     async def generate_semantic_records(
         self,
         text: str,
+        language: str,
         base_record: BronzeRecord
     ) -> Result[list[BronzeRecord], Exception]:
         grams: list[str] = self.create_gm3(text)
@@ -43,7 +43,7 @@ class LinguisticService:
                             source_url=base_record.source_url,
                             content=gram,
                             control_action="NONE",
-                            language=self.language,
+                            language=language,
                             embedding=Some(vector),
                             gram_type="GM3"
                         )
