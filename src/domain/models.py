@@ -1,6 +1,7 @@
 # src/domain/models.py
 
 from pydantic import BaseModel, Field, ConfigDict
+from sparkdantic import SparkModel
 from returns.maybe import Maybe, Nothing
 from typing import Literal
 import time
@@ -20,7 +21,7 @@ class BronzeTagResponse(BaseModel):
     metadata: Maybe[dict[str, str]] = Field(default=Nothing)
 
 
-class BronzeRecord(BaseModel):
+class BronzeRecord(SparkModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     chunk_id: str

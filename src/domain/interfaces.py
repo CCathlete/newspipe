@@ -1,8 +1,18 @@
 # src/domain/interfaces.py
 
-from typing import Protocol, AsyncIterator
+from typing import Any, Iterable, Protocol, AsyncIterator
+from pyspark.sql import DataFrame
+from pyspark.sql.types import StructType
 from returns.result import Result
 from .models import BronzeTagResponse, BronzeRecord
+
+
+class SparkSessionInterface(Protocol):
+    def createDataFrame(
+        self,
+        data: Iterable[Any],
+        schema: StructType
+    ) -> DataFrame: ...
 
 
 class ScraperProvider(Protocol):

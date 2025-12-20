@@ -1,20 +1,20 @@
 # src/infrastructure/lakehouse.py
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
-from pyspark.sql import SparkSession, DataFrame, functions as F
+from pyspark.sql import DataFrame, functions as F
+from pyspark.sql.types import StructType, Row
 from returns.result import safe
-from typing import cast, Any
 
 from ..domain.models import BronzeRecord
+from ..domain.interfaces import SparkSessionInterface
 
 
 @dataclass(slots=True, frozen=True)
 class LakehouseConnector:
-    spark: SparkSession
+    spark: SparkSessionInterface
+    logger: FilteringBoundLogger
     bucket_path: str = "s3a://lakehouse/bronze/tagged_chunks"
-
-    logger: FilteringBoundLogger = field(init=False)
 
     # Getter method, no setters, for setting we use dataclass.replace.
 
@@ -32,14 +32,13 @@ class LakehouseConnector:
             return 0
 
         log.info("Writing records to lakehouse", records_count=len(records))
-        # Convert Pydantic models to dictionaries for Spark
-        data: list[dict[str, str]] = [r.model_dump() for r in records]
 
-        df: DataFrame = self.spark.createDataFrame(
-            cast(Any, data),
-        )
+        schema: StructType = BronzeRecord.model_spark_schema()
+        data: list[Row] = [Row(**r.model_dump()) for r in records]
 
-        df_partitioned = df.withColumn(
+        df: DataFrame = self.spark.createDataFrame(data=data, schema=schema)
+
+        df_partitioned: DataFrame = df.withColumn(
             colName="ingested_date",
             col=F.from_unixtime(F.col("ingested_at"), "yyyy-MM-dd")
         )
@@ -49,11 +48,6 @@ class LakehouseConnector:
         df_partitioned.write.mode("append").partitionBy(
             "ingested_date"
         ).json(self.path)
-
-        # Partitioning by source url for optimized geo-political analysis later
-        df.write.mode("append").partitionBy(
-            "source_url"
-        ) .json(self.path)
 
         log.info("Records written to lakehouse")
 
