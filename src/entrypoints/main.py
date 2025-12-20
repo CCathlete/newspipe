@@ -44,7 +44,7 @@ async def main_async() -> None:
         "ollama": {"model": "llama3", "base_url": "http://localhost:11434"},
         "lakehouse": {"bronze_path": "s3a://lakehouse/bronze"},
         "app": {"default_language": "en"},
-        "kafka": {"bootstrap_servers": "localhost:9092"}
+        "kafka": {"bootstrap_servers": "localhost:29092"}
     })
 
     container.wire(modules=[__name__])
