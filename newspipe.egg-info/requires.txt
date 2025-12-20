@@ -1,4 +1,5 @@
 pyspark
+sparkdantic
 returns
 pydantic
 dependency-injector

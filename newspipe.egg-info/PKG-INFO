@@ -4,6 +4,7 @@ Version: 0.1.0
 Requires-Python: <3.13,>=3.12
 License-File: LICENSE
 Requires-Dist: pyspark
+Requires-Dist: sparkdantic
 Requires-Dist: returns
 Requires-Dist: pydantic
 Requires-Dist: dependency-injector

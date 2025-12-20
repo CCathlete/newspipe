@@ -33,7 +33,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
 
     # Spark is usually provided as a singleton
     spark = providers.Singleton(
-        SparkSession.builder.appName("NewsAnalysis").getOrCreate
+        SparkSession.Builder().appName("NewsAnalysis").getOrCreate
     )
 
     logger_provider = providers.Singleton(
