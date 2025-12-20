@@ -19,4 +19,4 @@ dependencies = [
 where = ["src"]
 
 [project.scripts]
-newspipe-ingest = "newspipe.entrypoints.main:main"
+newspipe-ingest = "entrypoints.main:main"

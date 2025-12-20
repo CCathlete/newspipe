@@ -1,0 +1,7 @@
+pyspark
+returns
+pydantic
+dependency-injector
+httpx
+structlog
+aiokafka

@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: newspipe
+Version: 0.1.0
+License-File: LICENSE
+Requires-Dist: pyspark
+Requires-Dist: returns
+Requires-Dist: pydantic
+Requires-Dist: dependency-injector
+Requires-Dist: httpx
+Requires-Dist: structlog
+Requires-Dist: aiokafka
+Dynamic: license-file
