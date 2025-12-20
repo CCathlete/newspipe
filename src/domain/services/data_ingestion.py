@@ -36,7 +36,7 @@ class IngestionPipeline:
         # We generate a consistent timestamp for all chunks in this session
         session_timestamp = datetime.now(UTC).timestamp()
 
-        async for chunk_result in await self.scraper.scrape_and_chunk(url):
+        async for chunk_result in self.scraper.scrape_and_chunk(url):
             match chunk_result:
                 case Success(chunk):
                     tag_result = await self.ollama.tag_chunk(

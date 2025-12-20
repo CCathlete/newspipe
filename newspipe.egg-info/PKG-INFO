@@ -3,7 +3,7 @@ Name: newspipe
 Version: 0.1.0
 Requires-Python: <3.13,>=3.12
 License-File: LICENSE
-Requires-Dist: pyspark
+Requires-Dist: pyspark<4.0.0,>=3.5.0
 Requires-Dist: sparkdantic
 Requires-Dist: returns
 Requires-Dist: pydantic

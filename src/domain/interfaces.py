@@ -16,7 +16,7 @@ class SparkSessionInterface(Protocol):
 
 
 class ScraperProvider(Protocol):
-    async def scrape_and_chunk(
+    def scrape_and_chunk(
         self,
         url: str,
     ) -> AsyncIterator[Result[str, Exception]]: ...

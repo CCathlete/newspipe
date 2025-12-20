@@ -33,7 +33,18 @@ class DataPlatformContainer(containers.DeclarativeContainer):
 
     # Spark is usually provided as a singleton
     spark = providers.Singleton(
-        SparkSession.Builder().appName("NewsAnalysis").getOrCreate
+        SparkSession
+        .Builder()
+        .master("spark://localhost:7077")
+        .appName("NewsAnalysis")
+        .config("spark.hadoop.fs.s3a.endpoint", config.lakehouse.endpoint)
+        # MinIO specific requirements
+        .config("spark.hadoop.fs.s3a.access.key", config.lakehouse.username)
+        .config("spark.hadoop.fs.s3a.secret.key", config.lakehouse.password)
+        .config("spark.hadoop.fs.s3a.path.style.access", "true")
+        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+        .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+        .getOrCreate
     )
 
     logger_provider = providers.Singleton(

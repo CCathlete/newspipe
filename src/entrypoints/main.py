@@ -1,14 +1,18 @@
 # src/entrypoints/main.py
 
+from returns.result import Success, Failure, Result
+from ..domain.services.data_ingestion import IngestionPipeline
+from .dependency_layers import DataPlatformContainer
 import asyncio
 import json
+import os
 from pathlib import Path
 from typing import Coroutine, Any
 from dependency_injector.wiring import inject, Provide
-
-from .dependency_layers import DataPlatformContainer
-from ..domain.services.data_ingestion import IngestionPipeline
-from returns.result import Success, Failure, Result
+from dotenv import load_dotenv
+root_path: Path = Path(__file__).parents[2]
+env_path: Path = root_path / ".env"
+load_dotenv(env_path)
 
 
 @inject
@@ -42,7 +46,12 @@ async def main_async() -> None:
 
     container.config.from_dict({
         "ollama": {"model": "llama3", "base_url": "http://localhost:11434"},
-        "lakehouse": {"bronze_path": "s3a://lakehouse/bronze"},
+        "lakehouse": {
+            "bronze_path": "s3a://lakehouse/bronze",
+            "endpoint": "http://localhost:9000",
+            "username": os.getenv("MINIO_ACCESS_KEY"),
+            "password": os.getenv("MINIO_SECRET_KEY"),
+        },
         "app": {"default_language": "en"},
         "kafka": {"bootstrap_servers": "localhost:29092"}
     })
@@ -54,9 +63,7 @@ async def main_async() -> None:
 
         # Everything happens inside the initialized context
         try:
-            seed_path = Path(
-                __file__
-            ).parents[2] / "input_files" / "seed_urls.json"
+            seed_path = root_path / "input_files" / "seed_urls.json"
 
             with open(seed_path, "r") as f:
                 seeds: dict[str, list[str]] = json.load(f)

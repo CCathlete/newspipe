@@ -15,6 +15,7 @@ dependencies = [
     "httpx",
     "structlog",
     "aiokafka",
+    "dotenv",
 ]
 
 [tool.setuptools.packages.find]
