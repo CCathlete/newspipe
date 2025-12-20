@@ -1,13 +1,11 @@
 # src/infrastructure/scraper.py
 
+import httpx
 from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
-import httpx
 from collections.abc import AsyncIterator
 from returns.result import Result, Success, Failure
 from returns.maybe import Maybe, Some, Nothing
-from dataclasses import dataclass
-from structlog.typing import FilteringBoundLogger
 from selectolax.parser import HTMLParser
 
 
