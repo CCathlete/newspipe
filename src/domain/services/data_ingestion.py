@@ -2,6 +2,7 @@
 
 import json
 from dataclasses import dataclass, field
+from datetime import datetime, UTC
 from structlog.typing import FilteringBoundLogger
 from returns.result import Success, Failure, Result
 from returns.maybe import Some
@@ -29,6 +30,9 @@ class IngestionPipeline:
         log = self.logger.bind(url=url)
         records: list[BronzeRecord] = []
 
+        # We generate a consistent timestamp for all chunks in this session
+        session_timestamp = datetime.now(UTC).timestamp()
+
         async for chunk_result in await self.scraper.scrape_and_chunk(url):
             match chunk_result:
                 case Success(chunk):
@@ -39,34 +43,46 @@ class IngestionPipeline:
 
                     match tag_result:
                         case Success(tag):
-
                             # 1. Create and add the Raw Record
+                            # Using the session_timestamp since tag doesn't hold one
                             base_record = BronzeRecord(
                                 chunk_id=tag.chunk_id,
                                 source_url=url,
                                 content=chunk,
                                 control_action=tag.control_action,
-                                language=self.linguistic_service.language if self.linguistic_service else "sk"
+                                language=self.linguistic_service.language if self.linguistic_service else "sk",
+                                ingested_at=session_timestamp
                             )
                             records.append(base_record)
 
                             # 2. Toggleable Gram Building
                             if self.linguistic_service:
                                 match await self.linguistic_service.generate_semantic_records(chunk, base_record):
+
                                     case Success(grams):
                                         records.extend(grams)
+
+                                    case Failure(e):
+                                        log.warning(
+                                            "gram_generation_failed", error=str(e))
+
                                     case _: pass
 
-                            # 3. Kafka side-effects
+                            # 3. Kafka side-effects for CLICKLINK
                             if tag.control_action == "CLICKLINK":
-                                match tag.metadata.map(lambda m: m.get("url")).bind_optional(lambda x: x):
+                                # Monadic extraction from the 'metadata' Field
+                                match tag.metadata.bind_optional(lambda m: m.get("url")):
+
                                     case Some(url_val):
                                         await self.kafka_producer.produce(
                                             topic="discovery_queue",
                                             value=json.dumps(
                                                 {"url": url_val}).encode()
                                         )
-                                    case _: pass
+
+                                    case _:
+                                        log.debug(
+                                            "clicklink_missing_url", chunk_id=tag.chunk_id)
 
                         case Failure(e):
                             log.warning("tagging_failed", error=str(e))
