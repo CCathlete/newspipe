@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "newspipe"
 version = "0.1.0"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "pyspark",
     "returns",
@@ -16,7 +17,7 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
 
 [project.scripts]
-newspipe-ingest = "entrypoints.main:main"
+newspipe-ingest = "src.entrypoints.main:main"

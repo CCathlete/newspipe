@@ -1,0 +1,2 @@
+[console_scripts]
+newspipe-ingest = src.entrypoints.main:main
