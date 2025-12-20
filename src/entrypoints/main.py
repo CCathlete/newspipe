@@ -37,7 +37,7 @@ async def run_discovery(
                 case _: pass
 
 
-async def main() -> None:
+async def main_async() -> None:
     container = DataPlatformContainer()
 
     container.config.from_dict({
@@ -68,9 +68,9 @@ async def main() -> None:
                 await shutdown_task
 
 
-def main_sync() -> None:
-    asyncio.run(main())
+def main() -> None:
+    asyncio.run(main_async())
 
 
 if __name__ == "__main__":
-    main_sync()
+    main()
