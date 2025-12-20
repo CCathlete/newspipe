@@ -46,7 +46,7 @@ async def main() -> None:
 
         # Everything happens inside the initialized context
         try:
-            seed_path = Path(__file__).parent.parent.parent / \
+            seed_path = Path(__file__).parents[2] / \
                 "input_files" / "seed_urls.json"
             with open(seed_path, "r") as f:
                 seeds: list[str] = json.load(f)
