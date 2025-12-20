@@ -16,7 +16,7 @@ dependencies = [
     "structlog",
     "aiokafka",
     "dotenv",
-    "selectolax",
+    "crawl4ai",
 ]
 
 [tool.setuptools.packages.find]
