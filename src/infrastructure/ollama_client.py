@@ -2,7 +2,7 @@
 
 import httpx
 from typing import Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure
 
@@ -14,9 +14,8 @@ class OllamaClient:
     model: str
     client: httpx.AsyncClient
     ollama_server_url: str
+    logger: FilteringBoundLogger
     embedding_model: str = "nomic-embed-text"
-
-    logger: FilteringBoundLogger = field(init=False)
 
     @property
     def generate_url(self) -> str:

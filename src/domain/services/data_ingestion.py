@@ -1,7 +1,7 @@
 # src/domain/services/data_ingestion.py
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, UTC
 from structlog.typing import FilteringBoundLogger
 from returns.result import Success, Failure, Result
@@ -22,9 +22,8 @@ class IngestionPipeline:
     ollama: AIProvider
     lakehouse: StorageProvider
     kafka_producer: KafkaProvider
+    logger: FilteringBoundLogger
     linguistic_service: LinguisticService | None = None
-
-    logger: FilteringBoundLogger = field(init=False)
 
     async def execute(
         self,

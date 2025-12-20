@@ -1,7 +1,7 @@
 # src/domain/services/linguistic_model.py
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from returns.maybe import Some
 from returns.result import Result, Success, Failure
 from structlog.typing import FilteringBoundLogger
@@ -13,7 +13,7 @@ from ..models import BronzeRecord
 @dataclass(slots=True, frozen=True)
 class LinguisticService:
     ai_provider: AIProvider
-    logger: FilteringBoundLogger = field(init=False)
+    logger: FilteringBoundLogger
 
     def tokenize(self, text: str) -> list[str]:
         return re.findall(r"\w+", text, re.UNICODE)

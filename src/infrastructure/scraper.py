@@ -1,6 +1,6 @@
 # src/infrastructure/scraper.py
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
 import httpx
 from collections.abc import AsyncIterator
@@ -10,9 +10,8 @@ from returns.result import Result, Success, Failure
 @dataclass(slots=True, frozen=True)
 class StreamScraper:
     client: httpx.AsyncClient
+    logger: FilteringBoundLogger
     chunk_size: int = 4096
-
-    logger: FilteringBoundLogger = field(init=False)
 
     async def scrape_and_chunk(
         self,
