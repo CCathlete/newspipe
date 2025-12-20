@@ -1,6 +1,6 @@
 # src/domain/models.py
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from sparkdantic import SparkModel
 from returns.maybe import Maybe, Nothing
 from typing import Literal
@@ -20,6 +20,15 @@ class BronzeTagResponse(BaseModel):
     ] = Field(alias="controlAction")
     metadata: Maybe[dict[str, str]] = Field(default=Nothing)
 
+    # For libraries that might not work with Nothing we can set an automatic
+    # callback that would convert it to None.
+    @field_serializer("metadata")
+    def serialize_maybe_embedding(
+        self,
+        metadata: Maybe[dict[str, str]]
+    ) -> dict[str, str] | None:
+        return metadata.unwrap() if metadata != Nothing else None
+
 
 class BronzeRecord(SparkModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -33,3 +42,7 @@ class BronzeRecord(SparkModel):
     embedding: Maybe[list[float]] = Field(default=Nothing)
 
     gram_type: str = "GM3"
+
+    @field_serializer("embedding")
+    def serialize_maybe_embedding(self, embedding: Maybe[list[float]]) -> list[float] | None:
+        return embedding.unwrap() if embedding != Nothing else None
