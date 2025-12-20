@@ -52,7 +52,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     ollama = providers.Factory(
         OllamaClient,
         model=config.ollama.model,
-        base_url=config.ollama.base_url,
+        ollama_server_url=config.ollama.base_url,
         client=http_client,
         logger=logger_provider
     )
