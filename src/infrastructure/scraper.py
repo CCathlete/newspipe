@@ -56,7 +56,7 @@ class StreamScraper:
                             case Nothing:
                                 log.info(
                                     "No clean text found in chunk.",
-                                    Nothing,
+                                    result=str(Nothing),
                                 )
                                 continue
 

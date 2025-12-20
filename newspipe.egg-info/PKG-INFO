@@ -12,4 +12,5 @@ Requires-Dist: httpx
 Requires-Dist: structlog
 Requires-Dist: aiokafka
 Requires-Dist: dotenv
+Requires-Dist: selectolax
 Dynamic: license-file
