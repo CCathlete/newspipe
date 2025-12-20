@@ -8,6 +8,7 @@ from dependency_injector import containers, providers
 
 
 from ..domain.services.data_ingestion import IngestionPipeline
+from ..domain.services.linguistic_model import LinguisticService
 from ..infrastructure.scraper import StreamScraper
 from ..infrastructure.ollama_client import OllamaClient
 from ..infrastructure.lakehouse import LakehouseConnector
@@ -39,6 +40,8 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         structlog.get_logger
     )
 
+    # --- Infrastructure Layers ---
+
     # Service Layers - analogous to ZLayer.live
     scraper = providers.Factory(
         StreamScraper,
@@ -58,6 +61,15 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         LakehouseConnector,
         spark=spark,
         bucket_path=config.lakehouse.bronze_path,
+        logger=logger_provider
+    )
+
+    # --- Domain Service Layers ---
+
+    linguistic_service = providers.Factory(
+        LinguisticService,
+        ai_provider=ollama,
+        language=config.app.default_language,
         logger=logger_provider
     )
 
