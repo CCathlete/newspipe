@@ -11,4 +11,5 @@ Requires-Dist: dependency-injector
 Requires-Dist: httpx
 Requires-Dist: structlog
 Requires-Dist: aiokafka
+Requires-Dist: dotenv
 Dynamic: license-file

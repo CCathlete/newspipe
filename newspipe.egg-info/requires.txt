@@ -6,3 +6,4 @@ dependency-injector
 httpx
 structlog
 aiokafka
+dotenv
