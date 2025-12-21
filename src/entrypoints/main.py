@@ -53,7 +53,11 @@ async def main_async() -> None:
             "password": os.getenv("MINIO_SECRET_KEY"),
         },
         "app": {"default_language": "en"},
-        "kafka": {"bootstrap_servers": "localhost:29092"}
+        "kafka": {"bootstrap_servers": "localhost:29092"},
+        "stream_scraper": {
+            "window_size": 500,
+            "overlap": 50,
+        },
     })
 
     container.wire(modules=[__name__])

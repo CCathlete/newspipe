@@ -5,41 +5,23 @@ from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
 from collections.abc import AsyncIterator
 from returns.result import Result, Success, Failure
-from crawl4ai import (
-    CrawlerRunConfig,
-    cache_context,
-    markdown_generation_strategy
-)
-from crawl4ai.chunking_strategy import OverlappingWindowChunking
 
-from ..domain.interfaces import Crawler, CrawlerResult
+from ..domain.interfaces import Crawler, CrawlerResult, ChunkingStrategy, CrawlerRunConfig
 
 
 @dataclass(slots=True, frozen=True)
 class StreamScraper:
     logger: FilteringBoundLogger
     crawler_factory: Callable[[], Crawler]
-    # We define the chunking logic inside the crawler config
-    # 500 words is roughly 2-3 paragraphs, good for geopolitical context
-    chunk_size: int = 500
 
     async def scrape_and_chunk(
         self,
         url: str,
+        strategy: ChunkingStrategy,
+        run_config: CrawlerRunConfig,
     ) -> AsyncIterator[Result[str, Exception]]:
         log = self.logger.bind(url=url)
         log.info("Starting Crawl4AI semantic scraping.")
-
-        # Configure semantic chunking
-        run_config = CrawlerRunConfig(
-            cache_mode=cache_context.CacheMode.BYPASS,
-            chunking_strategy=OverlappingWindowChunking(
-                window_size=self.chunk_size,
-                overlap=50
-            ),
-            markdown_generator=markdown_generation_strategy
-            .DefaultMarkdownGenerator(options={"ignore_links": False})
-        )
 
         try:
             async with self.crawler_factory() as crawler:
@@ -49,22 +31,28 @@ class StreamScraper:
                 )
 
                 if not result.success:
-                    yield Failure(RuntimeError(result.error_message))
+                    yield Failure(RuntimeError(result.error_message or "Unknown crawl error"))
                     return
 
-                # Crawl4AI provides semantic chunks in the metadata
-                # We turn these into your expected stream
-                chunks = result.metadata.get("chunks", [])
+                # 2. Extract chunks explicitly using the strategy
+                # If Crawl4AI didn't put them in metadata, we generate them from the markdown
+                content_to_chunk = result.markdown
+
+                if not content_to_chunk:
+                    yield Failure(RuntimeError("No content retrieved from URL"))
+                    return
+
+                # The strategy object has a chunk method
+                chunks: list[str] = strategy.chunk(content_to_chunk)
 
                 if not chunks:
-                    # Fallback: if no strategy chunks found, yield the whole markdown
-                    yield Success(result.markdown)
+                    yield Success(content_to_chunk)
                     return
 
                 for chunk in chunks:
-                    # Filter out purely technical/short chunks site-agnostically
-                    if len(chunk) > 100:
-                        yield Success(chunk)
+                    # Filter out noise/short fragments
+                    if len(chunk.strip()) > 100:
+                        yield Success(chunk.strip())
 
         except Exception as e:
             log.error("Crawl4AI failed", error=str(e))

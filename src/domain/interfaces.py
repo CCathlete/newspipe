@@ -6,10 +6,6 @@ from pyspark.sql.types import StructType
 from returns.result import Result
 from .models import BronzeTagResponse, BronzeRecord
 
-from crawl4ai import (
-    CrawlerRunConfig,
-)
-
 
 class SparkSessionInterface(Protocol):
     def createDataFrame(
@@ -60,6 +56,21 @@ class CrawlerResult(Protocol):
     error_message: str | None
     markdown: str
     metadata: dict[str, Any]
+
+
+@runtime_checkable
+class ChunkingStrategy(Protocol):
+    window_size: int
+    overlap: int
+
+    def chunk(self, content: str) -> list[str]: ...
+
+
+@runtime_checkable
+class CrawlerRunConfig(Protocol):
+    cache_mode: Any
+    chunking_strategy: ChunkingStrategy
+    markdown_generator: Any
 
 
 @runtime_checkable

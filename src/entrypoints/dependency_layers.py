@@ -5,7 +5,14 @@ import structlog
 from pyspark.sql import SparkSession
 from aiokafka import AIOKafkaProducer
 from dependency_injector import containers, providers
-from crawl4ai import AsyncWebCrawler, BrowserConfig
+from crawl4ai import (
+    AsyncWebCrawler,
+    BrowserConfig,
+    CrawlerRunConfig,
+    cache_context,
+    markdown_generation_strategy
+)
+from crawl4ai.chunking_strategy import OverlappingWindowChunking
 
 
 from ..domain.services.data_ingestion import IngestionPipeline
@@ -69,6 +76,22 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     )
 
     # --- Infrastructure Layers ---
+
+    # 1. Define strategy
+    strategy = providers.Singleton(
+        OverlappingWindowChunking,
+        window_size=config.streamScraper.window_size,
+        overlap=config.stream_scraper.overlap,
+    )
+
+    run_config = providers.Singleton(
+        CrawlerRunConfig,
+        cache_mode=cache_context.CacheMode.BYPASS,
+        chunking_strategy=strategy,
+        markdown_generator=markdown_generation_strategy.DefaultMarkdownGenerator(
+            options={"ignore_links": False}
+        )
+    )
 
     # Service Layers - analogous to ZLayer.live
     scraping_provider = providers.Factory(
