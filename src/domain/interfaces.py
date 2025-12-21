@@ -1,10 +1,14 @@
 # src/domain/interfaces.py
 
-from typing import Any, Iterable, Protocol, AsyncIterator
+from typing import Any, Iterable, Protocol, AsyncIterator, runtime_checkable
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 from returns.result import Result
 from .models import BronzeTagResponse, BronzeRecord
+
+from crawl4ai import (
+    CrawlerRunConfig,
+)
 
 
 class SparkSessionInterface(Protocol):
@@ -48,3 +52,22 @@ class KafkaProvider(Protocol):
         value: bytes,
         key: bytes | None = None,
     ) -> Result[bool, Exception]: ...
+
+
+@runtime_checkable
+class CrawlerResult(Protocol):
+    success: bool
+    error_message: str | None
+    markdown: str
+    metadata: dict[str, Any]
+
+
+@runtime_checkable
+class Crawler(Protocol):
+    async def arun(
+        self, url: str, config: CrawlerRunConfig) -> CrawlerResult: ...
+
+    async def __aenter__(self) -> "Crawler": ...
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any,
+                        exc_tb: Any) -> None: ...

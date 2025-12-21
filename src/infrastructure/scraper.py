@@ -5,12 +5,13 @@ from structlog.typing import FilteringBoundLogger
 from collections.abc import AsyncIterator
 from returns.result import Result, Success, Failure
 from crawl4ai import (
-    AsyncWebCrawler,
     CrawlerRunConfig,
     cache_context,
     markdown_generation_strategy
 )
 from crawl4ai.chunking_strategy import OverlappingWindowChunking
+
+from ..domain.interfaces import Crawler, CrawlerResult
 
 
 @dataclass(slots=True, frozen=True)
@@ -22,7 +23,8 @@ class StreamScraper:
 
     async def scrape_and_chunk(
         self,
-        url: str
+        url: str,
+        crawler: Crawler,
     ) -> AsyncIterator[Result[str, Exception]]:
         log = self.logger.bind(url=url)
         log.info("Starting Crawl4AI semantic scraping.")
@@ -39,8 +41,11 @@ class StreamScraper:
         )
 
         try:
-            async with (crawler := AsyncWebCrawler()):
-                result = await crawler.arun(url=url, config=run_config)
+            async with crawler:
+                result: CrawlerResult = await crawler.arun(
+                    url=url,
+                    config=run_config,
+                )
 
                 if not result.success:
                     yield Failure(RuntimeError(result.error_message))
