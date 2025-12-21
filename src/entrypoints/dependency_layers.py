@@ -79,7 +79,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
 
     strategy = providers.Singleton(
         OverlappingWindowChunking,
-        window_size=config.streamScraper.window_size,
+        window_size=config.stream_scraper.window_size,
         overlap=config.stream_scraper.overlap,
     )
 
