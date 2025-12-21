@@ -7,4 +7,4 @@ httpx
 structlog
 aiokafka
 dotenv
-selectolax
+crawl4ai

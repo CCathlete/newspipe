@@ -32,18 +32,21 @@ class OllamaClient:
     ) -> Result[BronzeTagResponse, Exception]:
         log = self.logger.bind(source_url=source_url)
 
-        system_instruction: str = (
-            "You are a geopolitical news classifier. Analyze the HTML chunk.\n"
-            "Actions:\n"
-            "'NEW_ARTICLE', 'CONTINUE', 'CLICKLINK', 'IRRELEVANT'.\n"
-        )
+        prompt: str = f"""
+        You are a geopolitical news classifier. Analyze the HTML chunk.
+        Return a valid JSON object matching this schema:
+        {{
+            "chunkId": "MUST be the value provided below",
+            "category": "string",
+            "controlAction": "NEW_ARTICLE | CONTINUE | CLICKLINK | IRRELEVANT",
+            "reasoning": "string"
+        }}
 
-        prompt: str = (
-            f"{system_instruction}\n"
-            f"Context source url: {source_url}\n"
-            f"HTML Content: {content[:2000]}\n"
-            "Output JSON only."
-        )
+        Context source url: {source_url}
+        HTML Content: {content}
+
+        Output JSON only.
+        """
         log.info("Tagging chunk", prompt=prompt)
 
         payload: dict[str, Any] = {

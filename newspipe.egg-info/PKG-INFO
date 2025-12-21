@@ -12,5 +12,5 @@ Requires-Dist: httpx
 Requires-Dist: structlog
 Requires-Dist: aiokafka
 Requires-Dist: dotenv
-Requires-Dist: selectolax
+Requires-Dist: crawl4ai
 Dynamic: license-file
