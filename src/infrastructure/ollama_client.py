@@ -62,8 +62,9 @@ class OllamaClient:
             res = await self.client.post(
                 self.generate_url,
                 json=payload,
-                # timeout=30.0
-                timeout=230.0
+                timeout=30.0
+                # timeout=60.0
+                # timeout=230.0
             )
             res.raise_for_status()
             validated = BronzeTagResponse.model_validate_json(
