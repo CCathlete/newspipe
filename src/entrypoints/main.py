@@ -27,7 +27,7 @@ async def run_discovery(
             pipeline.execute(
                 url=url,
                 strategy=Provide[DataPlatformContainer.strategy],
-                run_config=Provide[DataPlatformContainer.browser_configuration],
+                run_config=Provide[DataPlatformContainer.run_config],
                 language=lang,
             )
             for url in urls
