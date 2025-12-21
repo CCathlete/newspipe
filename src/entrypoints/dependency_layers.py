@@ -5,7 +5,7 @@ import structlog
 from pyspark.sql import SparkSession
 from aiokafka import AIOKafkaProducer
 from dependency_injector import containers, providers
-from crawl4ai import AsyncWebCrawler
+from crawl4ai import AsyncWebCrawler, BrowserConfig
 
 
 from ..domain.services.data_ingestion import IngestionPipeline
@@ -57,12 +57,23 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         structlog.get_logger
     )
 
+    browser_configuration = providers.Singleton(
+        BrowserConfig,
+        headless=True,
+        # Standard high-reputation headers to avoid 401s
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+        },
+        enable_stealth=True  # Built-in Crawl4AI/Playwright stealth
+    )
+
     # --- Infrastructure Layers ---
 
     # Service Layers - analogous to ZLayer.live
-
     scraping_provider = providers.Factory(
-        AsyncWebCrawler
+        AsyncWebCrawler,
+        browser_config=browser_configuration,
     )
 
     scraper = providers.Factory(
