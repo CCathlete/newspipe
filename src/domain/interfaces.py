@@ -15,13 +15,6 @@ class SparkSessionInterface(Protocol):
     ) -> DataFrame: ...
 
 
-class ScraperProvider(Protocol):
-    def scrape_and_chunk(
-        self,
-        url: str,
-    ) -> AsyncIterator[Result[str, Exception]]: ...
-
-
 class AIProvider(Protocol):
     async def tag_chunk(
         self,
@@ -82,3 +75,12 @@ class Crawler(Protocol):
 
     async def __aexit__(self, exc_type: Any, exc_val: Any,
                         exc_tb: Any) -> None: ...
+
+
+class ScraperProvider(Protocol):
+    def scrape_and_chunk(
+        self,
+        url: str,
+        strategy: ChunkingStrategy,
+        run_config: CrawlerRunConfig,
+    ) -> AsyncIterator[Result[str, Exception]]: ...

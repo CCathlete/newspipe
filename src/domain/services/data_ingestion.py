@@ -14,6 +14,7 @@ from ..interfaces import (
     KafkaProvider,
 )
 from .linguistic_model import LinguisticService
+from ..interfaces import ChunkingStrategy, CrawlerRunConfig
 
 
 @dataclass(slots=True, frozen=True)
@@ -28,7 +29,9 @@ class IngestionPipeline:
     async def execute(
         self,
         url: str,
-        language: str = "en",
+        strategy: ChunkingStrategy,
+        run_config: CrawlerRunConfig,
+        language: str,
     ) -> Result[int, Exception]:
         log = self.logger.bind(url=url)
         records: list[BronzeRecord] = []
@@ -36,7 +39,11 @@ class IngestionPipeline:
         # We generate a consistent timestamp for all chunks in this session
         session_timestamp = datetime.now(UTC).timestamp()
 
-        async for chunk_result in self.scraper.scrape_and_chunk(url):
+        async for chunk_result in self.scraper.scrape_and_chunk(
+            url=url,
+            strategy=strategy,
+            run_config=run_config,
+        ):
             match chunk_result:
                 case Success(chunk):
                     tag_result = await self.ollama.tag_chunk(

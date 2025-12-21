@@ -77,7 +77,6 @@ class DataPlatformContainer(containers.DeclarativeContainer):
 
     # --- Infrastructure Layers ---
 
-    # 1. Define strategy
     strategy = providers.Singleton(
         OverlappingWindowChunking,
         window_size=config.streamScraper.window_size,
@@ -88,7 +87,8 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         CrawlerRunConfig,
         cache_mode=cache_context.CacheMode.BYPASS,
         chunking_strategy=strategy,
-        markdown_generator=markdown_generation_strategy.DefaultMarkdownGenerator(
+        markdown_generator=markdown_generation_strategy
+        .DefaultMarkdownGenerator(
             options={"ignore_links": False}
         )
     )

@@ -18,13 +18,18 @@ load_dotenv(env_path)
 @inject
 async def run_discovery(
     seeds_by_lang: dict[str, list[str]],
-    pipeline: IngestionPipeline = Provide[DataPlatformContainer.pipeline]
+    pipeline: IngestionPipeline = Provide[DataPlatformContainer.pipeline],
 ) -> None:
     # Flattening the tasks while preserving language context
     for lang, urls in seeds_by_lang.items():
 
         tasks: list[Coroutine[Any, Any, Result[int, Exception]]] = [
-            pipeline.execute(url, language=lang)
+            pipeline.execute(
+                url=url,
+                strategy=Provide[DataPlatformContainer.strategy],
+                run_config=Provide[DataPlatformContainer.browser_configuration],
+                language=lang,
+            )
             for url in urls
         ]
 
