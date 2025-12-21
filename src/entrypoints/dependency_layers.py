@@ -73,12 +73,11 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     # Service Layers - analogous to ZLayer.live
     scraping_provider = providers.Factory(
         AsyncWebCrawler,
-        browser_config=browser_configuration,
+        config=browser_configuration,
     )
 
     scraper = providers.Factory(
         StreamScraper,
-        client=http_client,
         crawler_factory=scraping_provider.provider,
         logger=logger_provider
     )
