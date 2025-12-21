@@ -5,6 +5,7 @@ import structlog
 from pyspark.sql import SparkSession
 from aiokafka import AIOKafkaProducer
 from dependency_injector import containers, providers
+from crawl4ai import AsyncWebCrawler
 
 
 from ..domain.services.data_ingestion import IngestionPipeline
@@ -56,12 +57,17 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         structlog.get_logger
     )
 
+    scraping_provider = providers.Factory(
+        AsyncWebCrawler
+    )
+
     # --- Infrastructure Layers ---
 
     # Service Layers - analogous to ZLayer.live
     scraper = providers.Factory(
         StreamScraper,
         client=http_client,
+        crawler=scraping_provider,
         logger=logger_provider
     )
 

@@ -17,6 +17,7 @@ from ..domain.interfaces import Crawler, CrawlerResult
 @dataclass(slots=True, frozen=True)
 class StreamScraper:
     logger: FilteringBoundLogger
+    crawler: Crawler
     # We define the chunking logic inside the crawler config
     # 500 words is roughly 2-3 paragraphs, good for geopolitical context
     chunk_size: int = 500
@@ -24,7 +25,6 @@ class StreamScraper:
     async def scrape_and_chunk(
         self,
         url: str,
-        crawler: Crawler,
     ) -> AsyncIterator[Result[str, Exception]]:
         log = self.logger.bind(url=url)
         log.info("Starting Crawl4AI semantic scraping.")
@@ -41,7 +41,7 @@ class StreamScraper:
         )
 
         try:
-            async with crawler:
+            async with self.crawler as crawler:
                 result: CrawlerResult = await crawler.arun(
                     url=url,
                     config=run_config,
