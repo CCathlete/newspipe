@@ -57,17 +57,18 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         structlog.get_logger
     )
 
+    # --- Infrastructure Layers ---
+
+    # Service Layers - analogous to ZLayer.live
+
     scraping_provider = providers.Factory(
         AsyncWebCrawler
     )
 
-    # --- Infrastructure Layers ---
-
-    # Service Layers - analogous to ZLayer.live
     scraper = providers.Factory(
         StreamScraper,
         client=http_client,
-        crawler=scraping_provider,
+        crawler_factory=scraping_provider.provider,
         logger=logger_provider
     )
 

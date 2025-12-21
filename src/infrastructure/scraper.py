@@ -1,5 +1,6 @@
 # src/infrastructure/scraper.py
 
+from typing import Callable
 from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
 from collections.abc import AsyncIterator
@@ -17,7 +18,7 @@ from ..domain.interfaces import Crawler, CrawlerResult
 @dataclass(slots=True, frozen=True)
 class StreamScraper:
     logger: FilteringBoundLogger
-    crawler: Crawler
+    crawler_factory: Callable[[], Crawler]
     # We define the chunking logic inside the crawler config
     # 500 words is roughly 2-3 paragraphs, good for geopolitical context
     chunk_size: int = 500
@@ -41,7 +42,7 @@ class StreamScraper:
         )
 
         try:
-            async with self.crawler as crawler:
+            async with self.crawler_factory() as crawler:
                 result: CrawlerResult = await crawler.arun(
                     url=url,
                     config=run_config,
