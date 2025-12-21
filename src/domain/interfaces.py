@@ -18,6 +18,7 @@ class SparkSessionInterface(Protocol):
 class AIProvider(Protocol):
     async def tag_chunk(
         self,
+        chunk_id: str,
         source_url: str,
         content: str,
     ) -> Result[BronzeTagResponse, Exception]: ...

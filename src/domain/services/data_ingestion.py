@@ -16,6 +16,18 @@ from ..interfaces import (
 from .linguistic_model import LinguisticService
 from ..interfaces import ChunkingStrategy, CrawlerRunConfig
 
+from collections.abc import AsyncIterator
+from typing import TypeVar
+
+T = TypeVar("T")
+
+
+async def enumerate_async(iterable: AsyncIterator[T], start: int = 0) -> AsyncIterator[tuple[int, T]]:
+    i = start
+    async for item in iterable:
+        yield i, item
+        i += 1
+
 
 @dataclass(slots=True, frozen=True)
 class IngestionPipeline:
@@ -39,14 +51,18 @@ class IngestionPipeline:
         # We generate a consistent timestamp for all chunks in this session
         session_timestamp = datetime.now(UTC).timestamp()
 
-        async for chunk_result in self.scraper.scrape_and_chunk(
-            url=url,
-            strategy=self.strategy,
-            run_config=self.run_config,
+        async for index, chunk_result in enumerate_async(
+            self.scraper.scrape_and_chunk(
+                url=url,
+                strategy=self.strategy,
+                run_config=self.run_config,
+            )
         ):
             match chunk_result:
                 case Success(chunk):
+                    chunk_id: str = f"{url}_{index}"
                     tag_result = await self.ollama.tag_chunk(
+                        chunk_id=chunk_id,
                         source_url=url,
                         content=chunk
                     )
@@ -60,7 +76,7 @@ class IngestionPipeline:
                                 source_url=url,
                                 content=chunk,
                                 control_action=tag.control_action,
-                                language=language if self.linguistic_service else "sk",
+                                language=language,
                                 ingested_at=session_timestamp
                             )
                             records.append(base_record)

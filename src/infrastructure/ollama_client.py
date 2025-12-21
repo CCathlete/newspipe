@@ -27,6 +27,7 @@ class OllamaClient:
 
     async def tag_chunk(
         self,
+        chunk_id: str,
         source_url: str,  # The origin of the stream.
         content: str
     ) -> Result[BronzeTagResponse, Exception]:
@@ -36,15 +37,15 @@ class OllamaClient:
         You are a geopolitical news classifier. Analyze the HTML chunk.
         Return a valid JSON object matching this schema:
         {{
-            "chunkId": "MUST be the value provided below",
-            "category": "string",
-            "controlAction": "NEW_ARTICLE | CONTINUE | CLICKLINK | IRRELEVANT",
+            "chunk_id": {chunk_id},
+            "source_url": {source_url},
+            "content": {content},
+            "language": "string",
+            "control_action": "NEW_ARTICLE | CONTINUE | CLICKLINK | IRRELEVANT",
             "reasoning": "string"
         }}
 
-        Context source url: {source_url}
-        HTML Content: {content}
-
+        control_action MUST be one of the options provided in the schema.
         Output JSON only.
         """
         log.info("Tagging chunk", prompt=prompt)
