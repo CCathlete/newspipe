@@ -135,5 +135,9 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         ollama=ollama,
         lakehouse=lakehouse,
         kafka_producer=kafka_producer,
-        logger=logger_provider
+        logger=logger_provider,
+        strategy=strategy,
+        run_config=run_config,
+        # linguistic_service=linguistic_service
+        linguistic_service=None
     )

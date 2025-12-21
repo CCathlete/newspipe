@@ -24,13 +24,13 @@ class IngestionPipeline:
     lakehouse: StorageProvider
     kafka_producer: KafkaProvider
     logger: FilteringBoundLogger
-    linguistic_service: LinguisticService | None = None
+    strategy: ChunkingStrategy
+    run_config: CrawlerRunConfig
+    linguistic_service: LinguisticService
 
     async def execute(
         self,
         url: str,
-        strategy: ChunkingStrategy,
-        run_config: CrawlerRunConfig,
         language: str,
     ) -> Result[int, Exception]:
         log = self.logger.bind(url=url)
@@ -41,8 +41,8 @@ class IngestionPipeline:
 
         async for chunk_result in self.scraper.scrape_and_chunk(
             url=url,
-            strategy=strategy,
-            run_config=run_config,
+            strategy=self.strategy,
+            run_config=self.run_config,
         ):
             match chunk_result:
                 case Success(chunk):

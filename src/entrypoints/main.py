@@ -26,8 +26,6 @@ async def run_discovery(
         tasks: list[Coroutine[Any, Any, Result[int, Exception]]] = [
             pipeline.execute(
                 url=url,
-                strategy=Provide[DataPlatformContainer.strategy],
-                run_config=Provide[DataPlatformContainer.run_config],
                 language=lang,
             )
             for url in urls
