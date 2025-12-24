@@ -1,6 +1,6 @@
 # src/infrastructure/litellm_client.py
 
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from typing import Any
 from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
@@ -44,12 +44,13 @@ class LitellmClient:
         """
         payload: dict[str, Any] = {
             "model": self.model,
-            "prompt": prompt,
+            "messages": [{"role": "user", "content": prompt}],
             "stream": False,
             "temperature": 0,
             "max_tokens": 500,
-            "response_format": "application/json"
+            # "response_format": "application/json"
         }
+        res: Response | None = None
         try:
             res = await self.client.post(
                 url=self.chat_url,
@@ -67,7 +68,14 @@ class LitellmClient:
             log.info("Tagged chunk", validated=validated)
             return Success(validated)
         except Exception as e:
-            log.error("Error tagging chunk", error=e)
+            assert res is not None, "Didn't get a response"
+            body = await res.aread() if hasattr(res, "aread") else str(e)
+            log.error(
+                "Error tagging chunk",
+                status_code=res.status_code,
+                response_body=body,
+                error=e,
+            )
             return Failure(e)
 
     async def embed_text(self, text: str) -> Result[list[float], Exception]:
