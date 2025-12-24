@@ -52,7 +52,7 @@ async def main_async() -> None:
         "litellm": {
             "model": "nvidia-nemotron-3-nano",
             "base_url": "http://localhost:4000",
-            "api_key": os.getenv("LITTELLM_API_KEY")
+            "api_key": os.getenv("LITELLM_API_KEY")
         },
         "lakehouse": {
             "bronze_path": "s3a://lakehouse/bronze",
