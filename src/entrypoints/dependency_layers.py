@@ -18,7 +18,7 @@ from crawl4ai.chunking_strategy import OverlappingWindowChunking
 from ..domain.services.data_ingestion import IngestionPipeline
 from ..domain.services.linguistic_model import LinguisticService
 from ..infrastructure.scraper import StreamScraper
-from ..infrastructure.ollama_client import OllamaClient
+from ..infrastructure.litellm_client import LitellmClient
 from ..infrastructure.lakehouse import LakehouseConnector
 
 
@@ -105,10 +105,18 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         logger=logger_provider
     )
 
-    ollama = providers.Factory(
-        OllamaClient,
-        model=config.ollama.model,
-        ollama_server_url=config.ollama.base_url,
+    # ollama = providers.Factory(
+    #     OllamaClient,
+    #     model=config.ollama.model,
+    #     ollama_server_url=config.ollama.base_url,
+    #     client=http_client,
+    #     logger=logger_provider
+    # )
+
+    litellm = providers.Factory(
+        LitellmClient,
+        model=config.litellm.model,
+        litellm_server_url=config.litellm.base_url,
         client=http_client,
         logger=logger_provider
     )
@@ -124,7 +132,8 @@ class DataPlatformContainer(containers.DeclarativeContainer):
 
     linguistic_service = providers.Factory(
         LinguisticService,
-        ai_provider=ollama,
+        # ai_provider=ollama,
+        ai_provider=litellm,
         language=config.app.default_language,
         logger=logger_provider
     )
@@ -132,7 +141,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     pipeline = providers.Factory(
         IngestionPipeline,
         scraper=scraper,
-        ollama=ollama,
+        ollama=litellm,
         lakehouse=lakehouse,
         kafka_producer=kafka_producer,
         logger=logger_provider,

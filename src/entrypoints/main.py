@@ -48,7 +48,11 @@ async def main_async() -> None:
     container = DataPlatformContainer()
 
     container.config.from_dict({
-        "ollama": {"model": "llama3", "base_url": "http://localhost:11434"},
+        # "ollama": {"model": "llama3", "base_url": "http://localhost:11434"},
+        "litellm": {
+            "model": "nvidia-nemotron-3-nano",
+            "base_url": "http://localhost:4000"
+        },
         "lakehouse": {
             "bronze_path": "s3a://lakehouse/bronze",
             "endpoint": "http://localhost:9000",
