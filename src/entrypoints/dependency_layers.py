@@ -116,6 +116,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     litellm = providers.Factory(
         LitellmClient,
         model=config.litellm.model,
+        api_key=config.litellm.api_key,
         litellm_server_url=config.litellm.base_url,
         client=http_client,
         logger=logger_provider

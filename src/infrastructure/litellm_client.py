@@ -12,6 +12,7 @@ from ..domain.models import BronzeTagResponse
 @dataclass(slots=True, frozen=True)
 class LitellmClient:
     model: str
+    api_key: str
     client: AsyncClient
     litellm_server_url: str
     logger: FilteringBoundLogger
@@ -50,7 +51,15 @@ class LitellmClient:
             "response_format": "application/json"
         }
         try:
-            res = await self.client.post(self.chat_url, json=payload, timeout=30.0)
+            res = await self.client.post(
+                url=self.chat_url,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json=payload,
+                timeout=30.0
+            )
             res.raise_for_status()
             raw = res.json()
             json_str = raw["choices"][0]["message"]["content"]
