@@ -54,132 +54,106 @@ class LitellmClient:
     ) -> Result[BronzeTagResponse, Exception]:
         log = self.logger.bind(source_url=source_url)
 
-        prompt = (
-            "You are a geopolitical news classifier. Analyse the HTML chunk "
-            "and return a valid JSON object that contains EXACTLY this format:\n"
+        # Initial prompt - more concise and strict
+        initial_prompt = (
+            "You are a geopolitical news classifier. Return ONLY a JSON object with this EXACT format:\n"
             '{\n'
             f'  "chunk_id": "{chunk_id}",\n'
             f'  "source_url": "{source_url}",\n'
-            f'  "content": summary of this chunk in 50 words or less:\n'
-            f'  "{content}"\n'
-            '  "language": "the language the text is in",\n'
-            '  "control_action": "NEW_ARTICLE | CONTINUE | CLICKLINK | IRRELEVANT",\n'
-            '  "actions": []'
+            f'  "content": "summary in 20 words or less",\n'
+            '  "language": "language code",\n'
+            '  "control_action": "NEW_ARTICLE|CONTINUE|CLICKLINK|IRRELEVANT",\n'
+            '  "actions": []\n'
             '}\n'
-            'Instructions:'
-            "Only output the JSON object, NO REASONING.\n"
-            "Be decisive, if you think something is geopolitics then add it."
-            "The urls are absolute, add them as they are."
-            "For every hyperlink that points to a geopolitically relevant "
-            "destination, add a separate entry in the \"actions\" array:\n"
-            '{\n'
-            '  "url": "<hyperlink-url>",\n'
-            '  "control_action": "CLICKLINK",\n'
-            "}\n"
-            "If no geopolitical link is found, keep \"control_action\" as "
-            "'IRRELEVANT' and omit the \"actions\" array.\n"
+            'RULES:\n'
+            '1. NO reasoning, explanations, or extra text\n'
+            '2. Be decisive - if geopolitical, add to actions\n'
+            '3. For links: add {"url": "full_url", "control_action": "CLICKLINK"}\n'
+            '4. If no geopolitical content: "control_action": "IRRELEVANT"\n'
+            '5. Output ONLY valid JSON, nothing else'
         ).strip()
 
-        log.info("Tagging chunk", prompt=prompt)
+        # Function to process a single iteration
+        async def process_iteration(prompt: str) -> Result[dict[str, Any], Exception]:
+            payload = {
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "temperature": 0.2,  # Lower for more deterministic results
+                "max_tokens": 500,
+            }
 
-        payload: dict[str, Any] = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "temperature": 0,
-            "max_tokens": 20300,
-        }
+            response_monad = await self._post_request(payload)
 
-        def clean_response_content(raw_content: str) -> Result[str, Exception]:
-            try:
-                cleaned: str = (
-                    raw_content.strip()
+            return (
+                response_monad
+                .bind(lambda res: Success(res.raise_for_status()))
+                .bind(lambda res: Success(res.json()))
+                .bind(lambda raw: Success(raw["choices"][0]["message"]["content"]))
+                .bind(lambda content: Success(
+                    content.strip()
                     .removeprefix("```json")
                     .removeprefix("```")
                     .strip("```")
                     .strip()
-                )
-
-                if not cleaned:
-                    return Failure(ValueError("Empty response content"))
-                return Success(cleaned)
-            except Exception as e:
-                return Failure(e)
-
-        def parse_json_response(
-            content: str
-        ) -> Result[dict[str, Any], Exception]:
-            try:
-                if not content:
-                    return Failure(ValueError("Empty JSON content"))
-                return Success(json.loads(content))
-            except json.JSONDecodeError as e:
-                return Failure(ValueError(f"Invalid JSON: {str(e)}"))
-            except Exception as e:
-                return Failure(e)
-
-        def normalize_response(
-            parsed: dict[str, Any] | list[Any]
-        ) -> Result[dict[str, Any], Exception]:
-            if isinstance(parsed, list):
-                top = parsed[0]
-                actions = parsed[1:] if len(parsed) > 1 else []
-            else:
-                top = parsed
-                actions = []
-
-            if not isinstance(top, dict):
-                return Failure(ValueError("Response is not a dictionary"))
-
-            try:
-
-                normalised: dict[str, Any] = {
-                    "chunk_id": top.get("chunk_id", chunk_id),
-                    "source_url": top.get("source_url", source_url),
-                    "content": top.get("content", ""),
-                    "language": top.get("language", "en"),
-                    "control_action": top.get("control_action", "IRRELEVANT"),
-                }
-
-                return Success(normalised)
-
-            except Exception as e:
-                return Failure(e)
-
-                # Monadic composition using explicit bind calls
-        response_monad: Result[Response, Exception] = await self._post_request(payload)
-
-        result: Result[BronzeTagResponse, Exception] = (
-            response_monad.bind(
-                lambda res: Success(res.raise_for_status()))
-            .bind(lambda res: Success(res.json()))
-            .bind(lambda raw: Success(raw["choices"][0]["message"]["content"]))
-            .bind(clean_response_content)
-            .bind(parse_json_response)
-            .bind(normalize_response)
-            .bind(
-                lambda enriched: Success(
-                    json.dumps(
-                        enriched,
-                        ensure_ascii=False
-                    )))
-            .bind(
-                lambda json_str: Success(
-                    BronzeTagResponse.model_validate_json(json_str)
                 ))
-        )
-
-        if isinstance(result, Failure):
-            error = result.failure()
-            log.error(
-                "Error tagging chunk",
-                error=str(error),
-                error_type=type(error).__name__,
-                chunk_id=chunk_id,
-                source_url=source_url
+                .bind(lambda content: Success(json.loads(content)))
             )
 
-        return result
+        # First iteration
+        first_result = await process_iteration(initial_prompt)
+
+        if isinstance(first_result, Failure):
+            return first_result
+
+        first_data = first_result.unwrap()
+
+        # Second iteration - refine the first result
+        second_prompt = (
+            "Refine this analysis to be more concise and accurate:\n"
+            f"{json.dumps(first_data, indent=2)}\n"
+            "Return ONLY the refined JSON object with the same format."
+        ).strip()
+
+        second_result = await process_iteration(second_prompt)
+
+        if isinstance(second_result, Failure):
+            return second_result
+
+        second_data = second_result.unwrap()
+
+        # Third iteration - final validation
+        third_prompt = (
+            "Final validation. Ensure this meets all requirements:\n"
+            f"{json.dumps(second_data, indent=2)}\n"
+            "Return ONLY the validated JSON object."
+        ).strip()
+
+        third_result = await process_iteration(third_prompt)
+
+        if isinstance(third_result, Failure):
+            return third_result
+
+        final_data = third_result.unwrap()
+
+        # Ensure we have all required fields
+        try:
+            normalized = {
+                "chunk_id": final_data.get("chunk_id", chunk_id),
+                "source_url": final_data.get("source_url", source_url),
+                "content": final_data.get("content", ""),
+                "language": final_data.get("language", "en"),
+                "control_action": final_data.get("control_action", "IRRELEVANT"),
+                "actions": final_data.get("actions", []),
+            }
+
+            # Validate the response
+            if not normalized["content"]:
+                return Failure(ValueError("Empty content in final response"))
+
+            return Success(BronzeTagResponse.model_validate(normalized))
+        except Exception as e:
+            return Failure(e)
 
     async def embed_text(self, text: str) -> Result[list[float], Exception]:
         log = self.logger.bind()
