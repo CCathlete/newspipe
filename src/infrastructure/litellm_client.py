@@ -79,8 +79,12 @@ class LitellmClient:
                 "model": self.model,
                 "messages": [{"role": "user", "content": prompt}],
                 "stream": False,
-                "temperature": 0.2,  # Lower for more deterministic results
+                "temperature": 0,  # Lower for more deterministic results
                 "max_tokens": 500,
+                "response_format": {"type": "json_object"},  # Force JSON
+                "top_p": 0.9,  # Nucleus sampling
+                "frequency_penalty": 0.0,  # Don't penalize repetition
+                "presence_penalty": 0.0,  # Don't penalize new tokens
             }
 
             response_monad = await self._post_request(payload)
