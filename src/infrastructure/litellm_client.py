@@ -56,7 +56,7 @@ class LitellmClient:
 
         prompt = (
             "You are a geopolitical news classifier. Analyse the HTML chunk "
-            "and return a valid JSON object that contains:\n"
+            "and return a valid JSON object that contains EXACTLY this format:\n"
             '{\n'
             f'  "chunk_id": "{chunk_id}",\n'
             f'  "source_url": "{source_url}",\n'
@@ -66,11 +66,10 @@ class LitellmClient:
             '  "control_action": "NEW_ARTICLE | CONTINUE | CLICKLINK | IRRELEVANT",\n'
             '  "actions": []'
             '}\n'
-            "Only output the JSON object, no extra text.\n"
+            'Instructions:'
+            "Only output the JSON object, NO REASONING.\n"
             "Be decisive, if you think something is geopolitics then add it."
-            "Do not add your reasoning please."
             "The urls are absolute, add them as they are."
-            "The output should be a clean json."
             "For every hyperlink that points to a geopolitically relevant "
             "destination, add a separate entry in the \"actions\" array:\n"
             '{\n'
@@ -88,7 +87,7 @@ class LitellmClient:
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
             "temperature": 0,
-            "max_tokens": 300,
+            "max_tokens": 20300,
         }
 
         def clean_response_content(raw_content: str) -> Result[str, Exception]:
@@ -140,18 +139,6 @@ class LitellmClient:
                     "content": top.get("content", ""),
                     "language": top.get("language", "en"),
                     "control_action": top.get("control_action", "IRRELEVANT"),
-                    # "reasoning": (
-                    #     top.get("reasoning", "")
-                    #     + (
-                    #         "\n\nDetected click actions:\n"
-                    #         + "\n".join(
-                    #             json.dumps(
-                    #                 a, ensure_ascii=False)
-                    #             for a in actions)
-                    #         if actions
-                    #         else ""
-                    #     )
-                    # ),
                 }
 
                 return Success(normalised)
