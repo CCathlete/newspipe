@@ -60,16 +60,17 @@ class LitellmClient:
             '{\n'
             f'  "chunk_id": "{chunk_id}",\n'
             f'  "source_url": "{source_url}",\n'
-            f'  "content": summary of this chunk in 100 words or less:\n'
+            f'  "content": summary of this chunk in 50 words or less:\n'
             f'  "{content}"\n'
             '  "language": "the language the text is in",\n'
             '  "control_action": "NEW_ARTICLE | CONTINUE | CLICKLINK | IRRELEVANT",\n'
-            '  "reasoning": "string"\n'
             '  "actions": []'
             '}\n'
             "Only output the JSON object, no extra text.\n"
             "Be decisive, if you think something is geopolitics then add it."
-            "The output should be a clean json "
+            "Do not add your reasoning please."
+            "The urls are absolute, add them as they are."
+            "The output should be a clean json."
             "For every hyperlink that points to a geopolitically relevant "
             "destination, add a separate entry in the \"actions\" array:\n"
             '{\n'
@@ -78,8 +79,6 @@ class LitellmClient:
             "}\n"
             "If no geopolitical link is found, keep \"control_action\" as "
             "'IRRELEVANT' and omit the \"actions\" array.\n"
-            "The top-level object must still contain the original fields "
-            "(chunk_id, source_url, content, language, control_action, reasoning)."
         ).strip()
 
         log.info("Tagging chunk", prompt=prompt)
@@ -141,40 +140,31 @@ class LitellmClient:
                     "content": top.get("content", ""),
                     "language": top.get("language", "en"),
                     "control_action": top.get("control_action", "IRRELEVANT"),
-                    "reasoning": (
-                        top.get("reasoning", "")
-                        + (
-                            "\n\nDetected click actions:\n"
-                            + "\n".join(
-                                json.dumps(
-                                    a, ensure_ascii=False)
-                                for a in actions)
-                            if actions
-                            else ""
-                        )
-                    ),
+                    # "reasoning": (
+                    #     top.get("reasoning", "")
+                    #     + (
+                    #         "\n\nDetected click actions:\n"
+                    #         + "\n".join(
+                    #             json.dumps(
+                    #                 a, ensure_ascii=False)
+                    #             for a in actions)
+                    #         if actions
+                    #         else ""
+                    #     )
+                    # ),
                 }
-
-                if isinstance(result, Failure):
-                    error = result.failure()
-                    log.error(
-                        "Error tagging chunk",
-                        error=str(error),
-                        error_type=type(error).__name__,
-                        chunk_id=chunk_id,
-                        source_url=source_url
-                    )
 
                 return Success(normalised)
 
             except Exception as e:
                 return Failure(e)
 
-        # Monadic composition using explicit bind calls
+                # Monadic composition using explicit bind calls
         response_monad: Result[Response, Exception] = await self._post_request(payload)
 
         result: Result[BronzeTagResponse, Exception] = (
-            response_monad.bind(lambda res: Success(res.raise_for_status()))
+            response_monad.bind(
+                lambda res: Success(res.raise_for_status()))
             .bind(lambda res: Success(res.json()))
             .bind(lambda raw: Success(raw["choices"][0]["message"]["content"]))
             .bind(clean_response_content)
@@ -193,7 +183,14 @@ class LitellmClient:
         )
 
         if isinstance(result, Failure):
-            log.error("Error tagging chunk", error=result.failure())
+            error = result.failure()
+            log.error(
+                "Error tagging chunk",
+                error=str(error),
+                error_type=type(error).__name__,
+                chunk_id=chunk_id,
+                source_url=source_url
+            )
 
         return result
 
@@ -207,7 +204,8 @@ class LitellmClient:
         response_monad: Result[Response, Exception] = await self._post_request(payload)
 
         result: Result[list[float], Exception] = (
-            response_monad.bind(lambda res: Success(res.raise_for_status()))
+            response_monad.bind(
+                lambda res: Success(res.raise_for_status()))
             .bind(lambda res: Success(res.json()))
             .bind(lambda j: Success(j["data"][0]["embedding"]))
         )
