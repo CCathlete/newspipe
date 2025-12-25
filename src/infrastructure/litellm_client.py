@@ -90,20 +90,30 @@ class LitellmClient:
         }
 
         def clean_response_content(raw_content: str) -> Result[str, Exception]:
+            try:
+                cleaned: str = (
+                    raw_content.strip()
+                    .removeprefix("```json")
+                    .removeprefix("```")
+                    .strip("```")
+                    .strip()
+                )
 
-            return Success(
-                raw_content.strip()
-                .removeprefix("```json")
-                .removeprefix("```")
-                .strip("```")
-                .strip()
-            )
+                if not cleaned:
+                    return Failure(ValueError("Empty response content"))
+                return Success(cleaned)
+            except Exception as e:
+                return Failure(e)
 
         def parse_json_response(
             content: str
         ) -> Result[dict[str, Any], Exception]:
             try:
+                if not content:
+                    return Failure(ValueError("Empty JSON content"))
                 return Success(json.loads(content))
+            except json.JSONDecodeError as e:
+                return Failure(ValueError(f"Invalid JSON: {str(e)}"))
             except Exception as e:
                 return Failure(e)
 
@@ -116,6 +126,9 @@ class LitellmClient:
             else:
                 top = parsed
                 actions = []
+
+            if not isinstance(top, dict):
+                return Failure(ValueError("Response is not a dictionary"))
 
             try:
 
@@ -138,6 +151,16 @@ class LitellmClient:
                         )
                     ),
                 }
+
+                if isinstance(result, Failure):
+                    error = result.failure()
+                    log.error(
+                        "Error tagging chunk",
+                        error=str(error),
+                        error_type=type(error).__name__,
+                        chunk_id=chunk_id,
+                        source_url=source_url
+                    )
 
                 return Success(normalised)
 
