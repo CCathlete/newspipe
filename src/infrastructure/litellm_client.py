@@ -60,18 +60,21 @@ class LitellmClient:
             '{\n'
             f'  "chunk_id": "{chunk_id}",\n'
             f'  "source_url": "{source_url}",\n'
-            f'  "content": "{content}"\n'
-            '  "language": "string",\n'
+            f'  "content": summary of this chunk in 100 words or less:\n'
+            f'  "{content}"\n'
+            '  "language": "the language the text is in",\n'
             '  "control_action": "NEW_ARTICLE | CONTINUE | CLICKLINK | IRRELEVANT",\n'
             '  "reasoning": "string"\n'
+            '  "actions": []'
             '}\n'
             "Only output the JSON object, no extra text.\n"
+            "Be decisive, if you think something is geopolitics then add it."
+            "The output should be a clean json "
             "For every hyperlink that points to a geopolitically relevant "
             "destination, add a separate entry in the \"actions\" array:\n"
             '{\n'
             '  "url": "<hyperlink-url>",\n'
             '  "control_action": "CLICKLINK",\n'
-            '  "reasoning": "link points to a geopolitical story"\n'
             "}\n"
             "If no geopolitical link is found, keep \"control_action\" as "
             "'IRRELEVANT' and omit the \"actions\" array.\n"
@@ -86,7 +89,7 @@ class LitellmClient:
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
             "temperature": 0,
-            "max_tokens": 800,
+            "max_tokens": 300,
         }
 
         def clean_response_content(raw_content: str) -> Result[str, Exception]:
