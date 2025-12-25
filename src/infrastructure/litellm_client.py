@@ -49,7 +49,7 @@ class LitellmClient:
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
             "temperature": 0,
-            "max_tokens": 500,
+            "max_tokens": 800,
         }
         res: Response | None = None
         try:
@@ -63,9 +63,25 @@ class LitellmClient:
                 timeout=30.0
             )
             res.raise_for_status()
-            raw = res.json()
-            json_str = raw["choices"][0]["message"]["content"]
-            validated = BronzeTagResponse.model_validate_json(json_str)
+            raw_json = res.json()
+
+            # Defensive extraction – the field may be missing or empty
+            raw_content = raw_json.get(
+                "choices",
+                [{}])[0].get(
+                "message", {}
+            ).get("content", "")
+            if not raw_content:
+                raise ValueError("Empty content received from model")
+
+            # Remove optional markdown fences before validation
+            stripped = raw_content.strip()
+            if stripped.startswith("```json"):
+                stripped = stripped[7:-3].strip()
+            if stripped.startswith("```"):
+                stripped = stripped[3:-3].strip()
+
+            validated = BronzeTagResponse.model_validate_json(stripped)
             log.info("Tagged chunk", validated=validated)
             return Success(validated)
         except Exception as e:

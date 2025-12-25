@@ -43,7 +43,7 @@ log_file_handler = RotatingFileHandler(
     filename="newspipe.log",
     maxBytes=5 * 1024 * 1024,   # 5 MiB per file
     backupCount=1,               # keep only the latest file, discard older ones
-    mode="a",                    # append to current file; rotation creates a new one
+    mode="w",                    # append to current file; rotation creates a new one
     encoding="utf-8",
 )
 log_file_handler.setLevel(logging.INFO)
