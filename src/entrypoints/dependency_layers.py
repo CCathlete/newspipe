@@ -1,7 +1,10 @@
 # src/entrypoints/dependency_layers.py
 
+import sys
 import httpx
+import logging
 import structlog
+from logging.handlers import RotatingFileHandler
 from pyspark.sql import SparkSession
 from aiokafka import AIOKafkaProducer
 from dependency_injector import containers, providers
@@ -13,6 +16,7 @@ from crawl4ai import (
     markdown_generation_strategy
 )
 from crawl4ai.chunking_strategy import OverlappingWindowChunking
+from structlog.processors import JSONRenderer, TimeStamper, StackInfoRenderer, format_exc_info
 
 
 from ..domain.services.data_ingestion import IngestionPipeline
@@ -20,6 +24,54 @@ from ..domain.services.linguistic_model import LinguisticService
 from ..infrastructure.scraper import StreamScraper
 from ..infrastructure.litellm_client import LitellmClient
 from ..infrastructure.lakehouse import LakehouseConnector
+
+# ----------------------------------------------------------------------
+# Configure root logging – JSON output to console and rotating file
+# ----------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+
+# Ensure any previous file handler is removed
+for h in logging.root.handlers[:]:
+    if isinstance(h, (RotatingFileHandler, logging.FileHandler)):
+        logging.root.removeHandler(h)
+
+# RotatingFileHandler: truncates when it reaches maxBytes and overwrites
+log_file_handler = RotatingFileHandler(
+    filename="newspipe.log",
+    maxBytes=5 * 1024 * 1024,   # 5 MiB per file
+    backupCount=1,               # keep only the latest file, discard older ones
+    mode="a",                    # append to current file; rotation creates a new one
+    encoding="utf-8",
+)
+log_file_handler.setLevel(logging.INFO)
+log_file_handler.setFormatter(logging.Formatter("%(message)s"))
+logging.root.addHandler(log_file_handler)
+
+
+# ----------------------------------------------------------------------
+# structlog configuration – JSON output, timestamps, proper exc formatting
+# ----------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        TimeStamper(fmt="%(message)s"),
+        StackInfoRenderer(),
+        format_exc_info,
+        JSONRenderer(),
+    ],
+    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
+)
 
 
 class DataPlatformContainer(containers.DeclarativeContainer):
