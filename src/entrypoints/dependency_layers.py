@@ -41,7 +41,7 @@ for h in logging.root.handlers[:]:
 # RotatingFileHandler: truncates when it reaches maxBytes and overwrites
 log_file_handler = RotatingFileHandler(
     filename="newspipe.log",
-    maxBytes=5 * 1024 * 1024,   # 5 MiB per file
+    maxBytes=150 * 1024,   # 150 KiB per file
     backupCount=1,               # keep only the latest file, discard older ones
     mode="w",                    # append to current file; rotation creates a new one
     encoding="utf-8",
