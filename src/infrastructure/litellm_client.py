@@ -154,8 +154,16 @@ class LitellmClient:
             .bind(clean_response_content)
             .bind(parse_json_response)
             .bind(normalize_response)
-            .bind(lambda enriched: Success(json.dumps(enriched, ensure_ascii=False)))
-            .bind(lambda json_str: Success(BronzeTagResponse.model_validate_json(json_str)))
+            .bind(
+                lambda enriched: Success(
+                    json.dumps(
+                        enriched,
+                        ensure_ascii=False
+                    )))
+            .bind(
+                lambda json_str: Success(
+                    BronzeTagResponse.model_validate_json(json_str)
+                ))
         )
 
         if isinstance(result, Failure):
