@@ -1,6 +1,8 @@
+# type: ignore
 """
 Spark job for pulling BBC RSS data into the bronze layer.
 """
+
 
 import json
 from datetime import datetime
@@ -49,7 +51,8 @@ def fetch_and_parse_feed(url: str, source_name: str) -> List[Dict[str, Any]]:
                 "feed_source": source_name,
                 "title": entry.get("title"),
                 "link": entry.get("link"),
-                "description": entry.get("summary"),  # Often contains the main snippet
+                # Often contains the main snippet
+                "description": entry.get("summary"),
                 "category": [
                     tag["term"] for tag in entry.get("tags", [])
                 ],  # Handle multiple tags
@@ -66,7 +69,7 @@ def fetch_and_parse_feed(url: str, source_name: str) -> List[Dict[str, Any]]:
         return []
 
 
-def main():
+def main() -> None:
     """
     Entry point for the Spark job.
     """

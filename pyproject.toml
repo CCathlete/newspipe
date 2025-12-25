@@ -24,3 +24,11 @@ where = ["."]
 
 [project.scripts]
 newspipe-ingest = "src.entrypoints.main:main"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+mypy_path = ["stubs"]
+exclude = ["stubs/"]

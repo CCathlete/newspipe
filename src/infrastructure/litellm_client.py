@@ -89,8 +89,9 @@ class LitellmClient:
             "max_tokens": 800,
         }
 
-        def clean_response_content(raw_content: str) -> str:
-            return (
+        def clean_response_content(raw_content: str) -> Result[str, Exception]:
+
+            return Success(
                 raw_content.strip()
                 .removeprefix("```json")
                 .removeprefix("```")
@@ -98,7 +99,9 @@ class LitellmClient:
                 .strip()
             )
 
-        def parse_json_response(content: str) -> Result[dict[str, Any], Exception]:
+        def parse_json_response(
+            content: str
+        ) -> Result[dict[str, Any], Exception]:
             try:
                 return Success(json.loads(content))
             except Exception as e:
@@ -106,7 +109,7 @@ class LitellmClient:
 
         def normalize_response(
             parsed: dict[str, Any] | list[Any]
-        ) -> dict[str, Any]:
+        ) -> Result[dict[str, Any], Exception]:
             if isinstance(parsed, list):
                 top = parsed[0]
                 actions = parsed[1:] if len(parsed) > 1 else []
@@ -114,25 +117,32 @@ class LitellmClient:
                 top = parsed
                 actions = []
 
-            return {
-                "chunk_id": top.get("chunk_id", chunk_id),
-                "source_url": top.get("source_url", source_url),
-                "content": top.get("content", ""),
-                "language": top.get("language", "en"),
-                "control_action": top.get("control_action", "IRRELEVANT"),
-                "reasoning": (
-                    top.get("reasoning", "")
-                    + (
-                        "\n\nDetected click actions:\n"
-                        + "\n".join(
-                            json.dumps(
-                                a, ensure_ascii=False)
-                            for a in actions)
-                        if actions
-                        else ""
-                    )
-                ),
-            }
+            try:
+
+                normalised: dict[str, Any] = {
+                    "chunk_id": top.get("chunk_id", chunk_id),
+                    "source_url": top.get("source_url", source_url),
+                    "content": top.get("content", ""),
+                    "language": top.get("language", "en"),
+                    "control_action": top.get("control_action", "IRRELEVANT"),
+                    "reasoning": (
+                        top.get("reasoning", "")
+                        + (
+                            "\n\nDetected click actions:\n"
+                            + "\n".join(
+                                json.dumps(
+                                    a, ensure_ascii=False)
+                                for a in actions)
+                            if actions
+                            else ""
+                        )
+                    ),
+                }
+
+                return Success(normalised)
+
+            except Exception as e:
+                return Failure(e)
 
         # Monadic composition using explicit bind calls
         response_monad: Result[Response, Exception] = await self._post_request(payload)
