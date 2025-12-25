@@ -4,8 +4,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from structlog.typing import FilteringBoundLogger
-from returns.result import Success, Failure, Result
-from returns.maybe import Some
+from ...infrastructure.monads import Result, Success, Failure, Some
 from ..models import BronzeRecord
 from ..interfaces import (
     ScraperProvider,

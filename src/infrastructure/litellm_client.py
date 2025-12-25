@@ -1,11 +1,12 @@
 # src/infrastructure/litellm_client.py
+from __future__ import annotations
 
-from httpx import AsyncClient, Response
+import json
 from typing import Any
 from dataclasses import dataclass
+from httpx import AsyncClient, Response
 from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure
-
 from ..domain.models import BronzeTagResponse
 
 
@@ -26,23 +27,59 @@ class LitellmClient:
     def embed_url(self) -> str:
         return f"{self.litellm_server_url.rstrip('/')}/v1/embeddings"
 
-    async def tag_chunk(self, chunk_id: str, source_url: str, content: str) -> Result[BronzeTagResponse, Exception]:
+    async def _post_request(
+        self,
+        payload: dict[str, Any]
+    ) -> Result[Response, Exception]:
+
+        try:
+            response = await self.client.post(
+                url=self.chat_url,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=30.0,
+            )
+            return Success(response)
+        except Exception as e:
+            return Failure(e)
+
+    async def tag_chunk(
+        self,
+        chunk_id: str,
+        source_url: str,
+        content: str,
+    ) -> Result[BronzeTagResponse, Exception]:
         log = self.logger.bind(source_url=source_url)
 
         prompt = (
-            "You are a geopolitical news classifier. Analyze the HTML chunk.\n"
-            "Return a valid JSON object matching this schema:\n"
+            "You are a geopolitical news classifier. Analyse the HTML chunk "
+            "and return a valid JSON object that contains:\n"
             '{\n'
             f'  "chunk_id": "{chunk_id}",\n'
             f'  "source_url": "{source_url}",\n'
-            f'  "content": "{content}",\n'
+            f'  "content": "{content}"\n'
             '  "language": "string",\n'
             '  "control_action": "NEW_ARTICLE | CONTINUE | CLICKLINK | IRRELEVANT",\n'
             '  "reasoning": "string"\n'
             '}\n'
-            'control_action MUST be one of the options provided in the schema.\n'
-            'Output JSON only.'
+            "Only output the JSON object, no extra text.\n"
+            "For every hyperlink that points to a geopolitically relevant "
+            "destination, add a separate entry in the \"actions\" array:\n"
+            '{\n'
+            '  "url": "<hyperlink-url>",\n'
+            '  "control_action": "CLICKLINK",\n'
+            '  "reasoning": "link points to a geopolitical story"\n'
+            "}\n"
+            "If no geopolitical link is found, keep \"control_action\" as "
+            "'IRRELEVANT' and omit the \"actions\" array.\n"
+            "The top-level object must still contain the original fields "
+            "(chunk_id, source_url, content, language, control_action, reasoning)."
         ).strip()
+
+        log.info("Tagging chunk", prompt=prompt)
 
         payload: dict[str, Any] = {
             "model": self.model,
@@ -51,62 +88,87 @@ class LitellmClient:
             "temperature": 0,
             "max_tokens": 800,
         }
-        res: Response | None = None
-        try:
-            res = await self.client.post(
-                url=self.chat_url,
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
-                },
-                json=payload,
-                timeout=30.0
+
+        def clean_response_content(raw_content: str) -> str:
+            return (
+                raw_content.strip()
+                .removeprefix("```json")
+                .removeprefix("```")
+                .strip("```")
+                .strip()
             )
-            res.raise_for_status()
-            raw_json = res.json()
 
-            # Defensive extraction – the field may be missing or empty
-            raw_content = raw_json.get(
-                "choices",
-                [{}])[0].get(
-                "message", {}
-            ).get("content", "")
-            if not raw_content:
-                raise ValueError("Empty content received from model")
+        def parse_json_response(content: str) -> Result[dict[str, Any], Exception]:
+            try:
+                return Success(json.loads(content))
+            except Exception as e:
+                return Failure(e)
 
-            # Remove optional markdown fences before validation
-            stripped = raw_content.strip()
-            if stripped.startswith("```json"):
-                stripped = stripped[7:-3].strip()
-            if stripped.startswith("```"):
-                stripped = stripped[3:-3].strip()
+        def normalize_response(
+            parsed: dict[str, Any] | list[Any]
+        ) -> dict[str, Any]:
+            if isinstance(parsed, list):
+                top = parsed[0]
+                actions = parsed[1:] if len(parsed) > 1 else []
+            else:
+                top = parsed
+                actions = []
 
-            validated = BronzeTagResponse.model_validate_json(stripped)
-            log.info("Tagged chunk", validated=validated)
-            return Success(validated)
-        except Exception as e:
-            assert res is not None, "Didn't get a response"
-            body = await res.aread() if hasattr(res, "aread") else str(e)
-            log.error(
-                "Error tagging chunk",
-                status_code=res.status_code,
-                response_body=body,
-                error=e,
-            )
-            return Failure(e)
+            return {
+                "chunk_id": top.get("chunk_id", chunk_id),
+                "source_url": top.get("source_url", source_url),
+                "content": top.get("content", ""),
+                "language": top.get("language", "en"),
+                "control_action": top.get("control_action", "IRRELEVANT"),
+                "reasoning": (
+                    top.get("reasoning", "")
+                    + (
+                        "\n\nDetected click actions:\n"
+                        + "\n".join(
+                            json.dumps(
+                                a, ensure_ascii=False)
+                            for a in actions)
+                        if actions
+                        else ""
+                    )
+                ),
+            }
+
+        # Monadic composition using explicit bind calls
+        response_monad: Result[Response, Exception] = await self._post_request(payload)
+
+        result: Result[BronzeTagResponse, Exception] = (
+            response_monad.bind(lambda res: Success(res.raise_for_status()))
+            .bind(lambda res: Success(res.json()))
+            .bind(lambda raw: Success(raw["choices"][0]["message"]["content"]))
+            .bind(clean_response_content)
+            .bind(parse_json_response)
+            .bind(normalize_response)
+            .bind(lambda enriched: Success(json.dumps(enriched, ensure_ascii=False)))
+            .bind(lambda json_str: Success(BronzeTagResponse.model_validate_json(json_str)))
+        )
+
+        if isinstance(result, Failure):
+            log.error("Error tagging chunk", error=result.failure())
+
+        return result
 
     async def embed_text(self, text: str) -> Result[list[float], Exception]:
+        log = self.logger.bind()
         payload: dict[str, Any] = {
             "model": self.embedding_model,
             "input": text,
         }
-        try:
-            res = await self.client.post(
-                self.embed_url,
-                json=payload,
-                timeout=10.0
-            )
-            res.raise_for_status()
-            return Success(res.json()["data"][0]["embedding"])
-        except Exception as e:
-            return Failure(e)
+
+        response_monad: Result[Response, Exception] = await self._post_request(payload)
+
+        result: Result[list[float], Exception] = (
+            response_monad.bind(lambda res: Success(res.raise_for_status()))
+            .bind(lambda res: Success(res.json()))
+            .bind(lambda j: Success(j["data"][0]["embedding"]))
+        )
+
+        if isinstance(result, Failure):
+            log.error("Error tagging chunk", error=result.failure())
+
+        return result

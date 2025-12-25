@@ -3,7 +3,7 @@
 from typing import Any, Iterable, Protocol, AsyncIterator, runtime_checkable
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
-from returns.result import Result
+from ..infrastructure.monads import Result
 from .models import BronzeTagResponse, BronzeRecord
 
 
