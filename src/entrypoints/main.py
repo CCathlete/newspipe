@@ -50,7 +50,8 @@ async def main_async() -> None:
     container.config.from_dict({
         # "ollama": {"model": "llama3", "base_url": "http://localhost:11434"},
         "litellm": {
-            "model": "openrouter/nvidia/nemotron-3-nano-30b-a3b:free",
+            # "model": "openrouter/nvidia/nemotron-3-nano-30b-a3b:free",
+            "model": "openrouter/mistralai/devstral-2512:free",
             "base_url": "http://localhost:4000",
             "api_key": os.getenv("LITELLM_API_KEY")
         },

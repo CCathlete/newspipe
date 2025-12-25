@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from httpx import AsyncClient, Response
 from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure
+from returns.maybe import Maybe
 from ..domain.models import BronzeTagResponse
 
 
@@ -54,110 +55,126 @@ class LitellmClient:
     ) -> Result[BronzeTagResponse, Exception]:
         log = self.logger.bind(source_url=source_url)
 
-        # Initial prompt - more concise and strict
-        initial_prompt = (
-            "You are a geopolitical news classifier. Return ONLY a JSON object with this EXACT format:\n"
-            '{\n'
-            f'  "chunk_id": "{chunk_id}",\n'
-            f'  "source_url": "{source_url}",\n'
-            f'  "content": "summary in 20 words or less",\n'
-            '  "language": "language code",\n'
-            '  "control_action": "NEW_ARTICLE|CONTINUE|CLICKLINK|IRRELEVANT",\n'
-            '  "actions": []\n'
-            '}\n'
-            'RULES:\n'
-            '1. NO reasoning, explanations, or extra text\n'
-            '2. Be decisive - if geopolitical, add to actions\n'
-            '3. For links: add {"url": "full_url", "control_action": "CLICKLINK"}\n'
-            '4. If no geopolitical content: "control_action": "IRRELEVANT"\n'
-            '5. Output ONLY valid JSON, nothing else'
+        # Ultra-strict prompt with clear formatting requirements
+        prompt = (
+            "RETURN ONLY VALID JSON. NO OTHER TEXT. FORMAT:\n"
+            '{"chunk_id":"' + chunk_id + '","source_url":"' + source_url + '",'
+            '"content":"summary under 20 words",'
+            '"language":"en","control_action":"IRRELEVANT",'
+            '"actions":[]}\n'
+            "RULES:\n"
+            "- NO reasoning, explanations, or extra text\n"
+            "- Be decisive about geopolitical content\n"
+            "- If geopolitical links exist, add to actions array:\n"
+            '  {"url":"full_url","control_action":"CLICKLINK"}\n'
+            "- If no geopolitical content: control_action=IRRELEVANT, actions=[]\n"
+            "- OUTPUT ONLY JSON, NOTHING ELSE"
         ).strip()
 
-        # Function to process a single iteration
-        async def process_iteration(prompt: str) -> Result[dict[str, Any], Exception]:
-            payload = {
-                "model": self.model,
-                "messages": [{"role": "user", "content": prompt}],
-                "stream": False,
-                "temperature": 0,  # Lower for more deterministic results
-                "max_tokens": 500,
-                "response_format": {"type": "json_object"},  # Force JSON
-                "top_p": 0.9,  # Nucleus sampling
-                "frequency_penalty": 0.0,  # Don't penalize repetition
-                "presence_penalty": 0.0,  # Don't penalize new tokens
-            }
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+            "temperature": 0.1,  # Very low for deterministic output
+            "max_tokens": 500,
+            "response_format": {"type": "json_object"}  # Force JSON response
+        }
 
-            response_monad = await self._post_request(payload)
+        def extract_json_only(raw_content: str) -> Result[str, Exception]:
+            """Extract only the JSON part, ignoring any surrounding text"""
+            try:
+                # Try to find JSON in the response
+                start = raw_content.find('{')
+                end = raw_content.rfind('}') + 1
+                if start == -1 or end == 0:
+                    return Failure(ValueError("No JSON found in response"))
 
-            return (
-                response_monad
-                .bind(lambda res: Success(res.raise_for_status()))
-                .bind(lambda res: Success(res.json()))
-                .bind(lambda raw: Success(raw["choices"][0]["message"]["content"]))
-                .bind(lambda content: Success(
-                    content.strip()
-                    .removeprefix("```json")
-                    .removeprefix("```")
-                    .strip("```")
-                    .strip()
-                ))
-                .bind(lambda content: Success(json.loads(content)))
+                json_str = raw_content[start:end]
+
+                # Remove any markdown code blocks
+                json_str = json_str.replace(
+                    '```json', '').replace('```', '').strip()
+
+                return Success(json_str)
+            except Exception as e:
+                return Failure(e)
+
+        def strict_parse_json(content: str) -> Result[dict[str, Any], Exception]:
+            """Parse JSON with strict validation"""
+            try:
+                data = json.loads(content)
+
+                # Remove any reasoning fields that might have snuck in
+                if 'reasoning' in data:
+                    del data['reasoning']
+                if 'reasoning_content' in data:
+                    del data['reasoning_content']
+                if 'reasoning_details' in data:
+                    del data['reasoning_details']
+
+                return Success(data)
+            except json.JSONDecodeError as e:
+                return Failure(ValueError(f"Invalid JSON: {str(e)}"))
+            except Exception as e:
+                return Failure(e)
+
+        def validate_and_normalize(data: dict[str, Any]) -> Result[dict[str, Any], Exception]:
+            """Validate and normalize the response"""
+            try:
+                # Ensure required fields exist
+                required_fields = {
+                    "chunk_id": chunk_id,
+                    "source_url": source_url,
+                    "content": data.get("content", "No content"),
+                    "language": data.get("language", "en"),
+                    "control_action": data.get("control_action", "IRRELEVANT"),
+                    "actions": data.get("actions", [])
+                }
+
+                # Validate content length
+                if len(required_fields["content"]) > 20:
+                    required_fields["content"] = required_fields["content"][:20] + "..."
+
+                return Success(required_fields)
+            except Exception as e:
+                return Failure(e)
+
+        # Execute the request
+        response_monad = await self._post_request(payload)
+
+        result = (
+            response_monad
+            .bind(lambda res: Success(res.raise_for_status()))
+            .bind(lambda res: Success(res.json()))
+            .bind(lambda raw: Success(raw["choices"][0]["message"]["content"]))
+            .bind(extract_json_only)
+            .bind(strict_parse_json)
+            .bind(validate_and_normalize)
+            .bind(lambda data: Success(BronzeTagResponse.model_validate(data)))
+        )
+
+        if isinstance(result, Failure):
+            error = result.failure()
+            log.error(
+                "Error tagging chunk",
+                error=str(error),
+                chunk_id=chunk_id,
+                source_url=source_url
             )
+            # Fallback to a default response if parsing fails
+            return Success(BronzeTagResponse(
+                chunkId=chunk_id,
+                source_url=source_url,
+                controlAction="IRRELEVANT",
+                metadata=Maybe(
+                    {
+                        'content': "Analysis failed",
+                        'language': "en"
+                    }
+                ),
+            ))
 
-        # First iteration
-        first_result = await process_iteration(initial_prompt)
-
-        if isinstance(first_result, Failure):
-            return first_result
-
-        first_data = first_result.unwrap()
-
-        # Second iteration - refine the first result
-        second_prompt = (
-            "Refine this analysis to be more concise and accurate:\n"
-            f"{json.dumps(first_data, indent=2)}\n"
-            "Return ONLY the refined JSON object with the same format."
-        ).strip()
-
-        second_result = await process_iteration(second_prompt)
-
-        if isinstance(second_result, Failure):
-            return second_result
-
-        second_data = second_result.unwrap()
-
-        # Third iteration - final validation
-        third_prompt = (
-            "Final validation. Ensure this meets all requirements:\n"
-            f"{json.dumps(second_data, indent=2)}\n"
-            "Return ONLY the validated JSON object."
-        ).strip()
-
-        third_result = await process_iteration(third_prompt)
-
-        if isinstance(third_result, Failure):
-            return third_result
-
-        final_data = third_result.unwrap()
-
-        # Ensure we have all required fields
-        try:
-            normalized = {
-                "chunk_id": final_data.get("chunk_id", chunk_id),
-                "source_url": final_data.get("source_url", source_url),
-                "content": final_data.get("content", ""),
-                "language": final_data.get("language", "en"),
-                "control_action": final_data.get("control_action", "IRRELEVANT"),
-                "actions": final_data.get("actions", []),
-            }
-
-            # Validate the response
-            if not normalized["content"]:
-                return Failure(ValueError("Empty content in final response"))
-
-            return Success(BronzeTagResponse.model_validate(normalized))
-        except Exception as e:
-            return Failure(e)
+        return result
 
     async def embed_text(self, text: str) -> Result[list[float], Exception]:
         log = self.logger.bind()
