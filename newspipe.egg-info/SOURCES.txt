@@ -20,6 +20,7 @@ src/entrypoints/main.py
 src/infrastructure/__init__.py
 src/infrastructure/kafka.py
 src/infrastructure/lakehouse.py
+src/infrastructure/litellm_client.py
 src/infrastructure/ollama_client.py
 src/infrastructure/scraper.py
 stubs/feedparser.pyi

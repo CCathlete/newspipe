@@ -52,7 +52,7 @@ logging.root.addHandler(log_file_handler)
 
 
 # ----------------------------------------------------------------------
-# structlog configuration – JSON output, timestamps, proper exc formatting
+# Structlog configuration – JSON output, timestamps, proper exc formatting
 # ----------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,

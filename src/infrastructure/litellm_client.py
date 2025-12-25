@@ -33,9 +33,9 @@ class LitellmClient:
             "You are a geopolitical news classifier. Analyze the HTML chunk.\n"
             "Return a valid JSON object matching this schema:\n"
             '{\n'
-            '  "chunk_id": "<chunk_id>",\n'
-            '  "source_url": "<source_url>",\n'
-            '  "content": "<content>",\n'
+            f'  "chunk_id": "{chunk_id}",\n'
+            f'  "source_url": "{source_url}",\n'
+            f'  "content": "{content}",\n'
             '  "language": "string",\n'
             '  "control_action": "NEW_ARTICLE | CONTINUE | CLICKLINK | IRRELEVANT",\n'
             '  "reasoning": "string"\n'
