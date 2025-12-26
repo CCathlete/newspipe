@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from datetime import datetime, UTC
 from structlog.typing import FilteringBoundLogger
 from returns.result import Success, Failure, Result
-from returns.maybe import Some
 from ..models import BronzeRecord
 from ..interfaces import (
     ScraperProvider,
@@ -100,42 +99,33 @@ class IngestionPipeline:
 
                             # 3. Kafka side-effects for CLICKLINK.
                             if tag.control_action == "CLICKLINK":
-                                # Monadic extraction from the 'metadata' Field.
-                                match tag.bind_optional(
-                                    lambda m: m.get("source_url")
-                                ):
+                                if (url_val := tag.source_url):
+                                    await self.kafka_producer.produce(
+                                        topic="discovery_queue",
+                                        value=json.dumps(
+                                            {"url": url_val}
+                                        ).encode()
+                                    )
 
-                                    case Some(url_val):
+                                else:
+                                    log.debug(
+                                        "clicklink_missing_url", chunk_id=tag.chunk_id)
+
+                            # 4. Kafka side-effects for actions with CLICKLINK.
+                            if (actions_list := tag.actions):
+                                for action_dict in actions_list:
+                                    if action_dict.get("control_action") == "CLICKLINK":
                                         await self.kafka_producer.produce(
                                             topic="discovery_queue",
                                             value=json.dumps(
-                                                {"url": url_val}
+                                                {"url": action_dict.get(
+                                                    "url")}
                                             ).encode()
                                         )
 
-                                    case _:
-                                        log.debug(
-                                            "clicklink_missing_url", chunk_id=tag.chunk_id)
-
-                            # 4. Kafka side-effects for actions with CLICKLINK.
-                            match tag.bind_optional(
-                                lambda m: m.get("actions")
-                            ):
-
-                                case Some(actions_list):
-                                    for action_dict in actions_list:
-                                        if action_dict.get("control_action") == "CLICKLINK":
-                                            await self.kafka_producer.produce(
-                                                topic="discovery_queue",
-                                                value=json.dumps(
-                                                    {"url": action_dict.get(
-                                                        "url")}
-                                                ).encode()
-                                            )
-
-                                case _:
-                                    log.debug(
-                                        "No_actions_found", chunk_id=tag.chunk_id)
+                            else:
+                                log.debug(
+                                    "No_actions_found", chunk_id=tag.chunk_id)
 
                         case Failure(e):
                             log.warning("tagging_failed", error=str(e))
