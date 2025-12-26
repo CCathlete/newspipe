@@ -122,19 +122,8 @@ class LitellmClient:
         def validate_and_normalize(data: dict[str, Any]) -> Result[dict[str, Any], Exception]:
             """Validate and normalize the response to match BronzeTagResponse exactly"""
             try:
-                metadata_content = {
-                    "content": data.get("content", "No content"),
-                    "language": data.get("language", "en"),
-                    "actions": data.get("actions", [])
-                }
 
                 # Validate metadata structure
-                if not isinstance(metadata_content["content"], str):
-                    metadata_content["content"] = "No content"
-                if not isinstance(metadata_content["language"], str):
-                    metadata_content["language"] = "en"
-                if not isinstance(metadata_content["actions"], list):
-                    metadata_content["actions"] = []
 
                 # Map to the correct field names with aliases
                 normalized = {
@@ -142,7 +131,9 @@ class LitellmClient:
                     "source_url": data.get("source_url", source_url),
                     # Using alias
                     "controlAction": data.get("control_action", "IRRELEVANT"),
-                    "metadata": Maybe(metadata_content)
+                    "content": data.get("content", ""),
+                    "language": data.get("language", "en"),
+                    "actions": data.get("actions", []),
                 }
 
                 return Success(normalized)
@@ -179,33 +170,31 @@ class LitellmClient:
                 chunkId=chunk_id,
                 source_url=source_url,
                 controlAction="IRRELEVANT",
-                metadata=Maybe(
-                    {
-                        'content': "Analysis failed",
-                        'language': "en"
-                    }
-                ),
-            ))
+                content="Analysis failed",
+                language="en",
+                actions=[],
+            ),
+            )
 
         return result
 
-    async def embed_text(self, text: str) -> Result[list[float], Exception]:
-        log = self.logger.bind()
-        payload: dict[str, Any] = {
-            "model": self.embedding_model,
-            "input": text,
-        }
+        async def embed_text(self, text: str) -> Result[list[float], Exception]:
+            log = self.logger.bind()
+            payload: dict[str, Any] = {
+                "model": self.embedding_model,
+                "input": text,
+            }
 
-        response_monad: Result[Response, Exception] = await self._post_request(payload)
+            response_monad: Result[Response, Exception] = await self._post_request(payload)
 
-        result: Result[list[float], Exception] = (
-            response_monad.bind(
-                lambda res: Success(res.raise_for_status()))
-            .bind(lambda res: Success(res.json()))
-            .bind(lambda j: Success(j["data"][0]["embedding"]))
-        )
+            result: Result[list[float], Exception] = (
+                response_monad.bind(
+                    lambda res: Success(res.raise_for_status()))
+                .bind(lambda res: Success(res.json()))
+                .bind(lambda j: Success(j["data"][0]["embedding"]))
+            )
 
-        if isinstance(result, Failure):
-            log.error("Error tagging chunk", error=result.failure())
+            if isinstance(result, Failure):
+                log.error("Error tagging chunk", error=result.failure())
 
-        return result
+            return result
