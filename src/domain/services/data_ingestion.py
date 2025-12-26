@@ -98,21 +98,44 @@ class IngestionPipeline:
 
                                     case _: pass
 
-                            # 3. Kafka side-effects for CLICKLINK
+                            # 3. Kafka side-effects for CLICKLINK.
                             if tag.control_action == "CLICKLINK":
-                                # Monadic extraction from the 'metadata' Field
-                                match tag.metadata.bind_optional(lambda m: m.get("url")):
+                                # Monadic extraction from the 'metadata' Field.
+                                match tag.metadata.bind_optional(
+                                    lambda m: m.get("source_url")
+                                ):
 
                                     case Some(url_val):
                                         await self.kafka_producer.produce(
                                             topic="discovery_queue",
                                             value=json.dumps(
-                                                {"url": url_val}).encode()
+                                                {"url": url_val}
+                                            ).encode()
                                         )
 
                                     case _:
                                         log.debug(
                                             "clicklink_missing_url", chunk_id=tag.chunk_id)
+
+                            # 4. Kafka side-effects for actions with CLICKLINK.
+                            match tag.metadata.bind_optional(
+                                lambda m: m.get("actions")
+                            ):
+
+                                case Some(actions_list):
+                                    for action_dict in actions_list:
+                                        if action_dict.get("control_action") == "CLICKLINK":
+                                            await self.kafka_producer.produce(
+                                                topic="discovery_queue",
+                                                value=json.dumps(
+                                                    {"url": action_dict.get(
+                                                        "url")}
+                                                ).encode()
+                                            )
+
+                                case _:
+                                    log.debug(
+                                        "No_actions_found", chunk_id=tag.chunk_id)
 
                         case Failure(e):
                             log.warning("tagging_failed", error=str(e))
