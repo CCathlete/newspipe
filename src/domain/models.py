@@ -3,7 +3,7 @@
 from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from sparkdantic import SparkModel
 from returns.maybe import Maybe, Nothing
-from typing import Literal
+from typing import Literal, Any
 import time
 
 
@@ -26,7 +26,7 @@ class BronzeTagResponse(BaseModel):
     def serialize_maybe_metadata(
         self,
         metadata: Maybe[dict[str, str]]
-    ) -> dict[str, str] | None:
+    ) -> dict[str, Any] | None:
         return metadata.unwrap() if metadata != Nothing else None
 
 
