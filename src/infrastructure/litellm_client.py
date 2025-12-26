@@ -41,7 +41,7 @@ class LitellmClient:
                     "Content-Type": "application/json",
                 },
                 json=payload,
-                timeout=30.0,
+                timeout=120.0,
             )
             return Success(response)
         except Exception as e:
@@ -59,7 +59,7 @@ class LitellmClient:
         prompt = (
             "RETURN ONLY VALID JSON. NO OTHER TEXT. FORMAT:\n"
             '{"chunk_id":"' + chunk_id + '","source_url":"' + source_url + '",'
-            '"content":"summary under 20 words",'
+            f'"content":"summary under 20 words of this chunk: {content}",'
             '"language":"en","control_action":"IRRELEVANT",'
             '"actions":[]}\n'
             "RULES:\n"
@@ -133,16 +133,15 @@ class LitellmClient:
                     })
                 }
 
-                # Validate content length
-                if "content" in normalized["metadata"].unwrap():
-                    content = normalized["metadata"].unwrap()["content"]
-                    if len(content) > 20:
-                        normalized["metadata"] = Maybe({
-                            "content": content[:20] + "...",
-                            "language": normalized["metadata"].unwrap()["language"]
-                        })
+                # Validate metadata content
+                if not normalized["metadata"].unwrap().get("content"):
+                    normalized["metadata"] = Maybe({
+                        "content": "No content",
+                        "language": "en"
+                    })
 
                 return Success(normalized)
+
             except Exception as e:
                 return Failure(e)
 
