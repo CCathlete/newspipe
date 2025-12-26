@@ -101,7 +101,7 @@ class IngestionPipeline:
                             # 3. Kafka side-effects for CLICKLINK.
                             if tag.control_action == "CLICKLINK":
                                 # Monadic extraction from the 'metadata' Field.
-                                match tag.metadata.bind_optional(
+                                match tag.bind_optional(
                                     lambda m: m.get("source_url")
                                 ):
 
@@ -118,7 +118,7 @@ class IngestionPipeline:
                                             "clicklink_missing_url", chunk_id=tag.chunk_id)
 
                             # 4. Kafka side-effects for actions with CLICKLINK.
-                            match tag.metadata.bind_optional(
+                            match tag.bind_optional(
                                 lambda m: m.get("actions")
                             ):
 

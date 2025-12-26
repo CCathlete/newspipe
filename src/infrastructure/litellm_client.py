@@ -127,7 +127,6 @@ class LitellmClient:
 
                 # Validate metadata structure
 
-                # Map to the correct field names with aliases
                 normalized = {
                     "chunkId": data.get("chunk_id", chunk_id),  # Using alias
                     "source_url": data.get("source_url", source_url),
@@ -159,7 +158,7 @@ class LitellmClient:
         result: Result[BronzeTagResponse, Exception] = (
             intermediate_result
             .bind(lambda data: Success(
-                BronzeTagResponse.model_validate(**data)
+                BronzeTagResponse.model_validate(data)
             ))
         )
 
