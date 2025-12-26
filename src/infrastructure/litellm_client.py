@@ -142,16 +142,8 @@ class LitellmClient:
                     "source_url": data.get("source_url", source_url),
                     # Using alias
                     "controlAction": data.get("control_action", "IRRELEVANT"),
-                    "metadata": Maybe({metadata_content})
+                    "metadata": Maybe(metadata_content)
                 }
-
-                maybe_metadata: Maybe[dict[str, Any]] = normalized["metadata"]
-                match maybe_metadata:
-                    case Nothing:
-                        normalized["metadata"] = Maybe({
-                            "content": "No content",
-                            "language": "en"
-                        })
 
                 return Success(normalized)
 
