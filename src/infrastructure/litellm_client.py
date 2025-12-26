@@ -60,7 +60,7 @@ class LitellmClient:
             "RETURN ONLY VALID JSON. NO OTHER TEXT. FORMAT:\n"
             '{"chunk_id":"' + chunk_id + '","source_url":"' + source_url + '",'
             '"content":"summary under 20 words.",'
-            '"language":"en","control_action":"IRRELEVANT",'
+            '"language":"en","control_action":"IRRELEVANT | NEW_ARTICLE | CLICKLINK | CONTINUE",'
             '"actions":[]}\n'
             "RULES:\n"
             f"- Data to summarise: {content}\n"
@@ -119,7 +119,9 @@ class LitellmClient:
             except Exception as e:
                 return Failure(e)
 
-        def validate_and_normalize(data: dict[str, Any]) -> Result[dict[str, Any], Exception]:
+        def validate_and_normalize(
+            data: dict[str, Any]
+        ) -> Result[dict[str, Any], Exception]:
             """Validate and normalize the response to match BronzeTagResponse exactly"""
             try:
 
@@ -144,7 +146,7 @@ class LitellmClient:
         # Execute the request
         response_monad: Result[Response, Exception] = await self._post_request(payload)
 
-        result = (
+        intermediate_result: Result[dict[str, Any], Exception] = (
             response_monad
             .bind(lambda res: Success(res.raise_for_status()))
             .bind(lambda res: Success(res.json()))
@@ -152,6 +154,10 @@ class LitellmClient:
             .bind(extract_json_only)
             .bind(strict_parse_json)
             .bind(validate_and_normalize)
+        )
+
+        result: Result[BronzeTagResponse, Exception] = (
+            intermediate_result
             .bind(lambda data: Success(
                 BronzeTagResponse.model_validate(**data)
             ))
