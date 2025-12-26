@@ -119,28 +119,35 @@ class LitellmClient:
                 return Failure(e)
 
         def validate_and_normalize(data: dict[str, Any]) -> Result[dict[str, Any], Exception]:
-            """Validate and normalize the response"""
+            """Validate and normalize the response to match BronzeTagResponse exactly"""
             try:
-                # Ensure required fields exist
-                required_fields = {
-                    "chunk_id": chunk_id,
-                    "source_url": source_url,
-                    "content": data.get("content", "No content"),
-                    "language": data.get("language", "en"),
-                    "control_action": data.get("control_action", "IRRELEVANT"),
-                    "actions": data.get("actions", [])
+                # Map to the correct field names with aliases
+                normalized = {
+                    "chunkId": data.get("chunk_id", chunk_id),  # Using alias
+                    "source_url": data.get("source_url", source_url),
+                    # Using alias
+                    "controlAction": data.get("control_action", "IRRELEVANT"),
+                    "metadata": Maybe({
+                        "content": data.get("content", "No content"),
+                        "language": data.get("language", "en")
+                    })
                 }
 
                 # Validate content length
-                if len(required_fields["content"]) > 20:
-                    required_fields["content"] = required_fields["content"][:20] + "..."
+                if "content" in normalized["metadata"].unwrap():
+                    content = normalized["metadata"].unwrap()["content"]
+                    if len(content) > 20:
+                        normalized["metadata"] = Maybe({
+                            "content": content[:20] + "...",
+                            "language": normalized["metadata"].unwrap()["language"]
+                        })
 
-                return Success(required_fields)
+                return Success(normalized)
             except Exception as e:
                 return Failure(e)
 
         # Execute the request
-        response_monad = await self._post_request(payload)
+        response_monad: Result[Response, Exception] = await self._post_request(payload)
 
         result = (
             response_monad
@@ -150,7 +157,9 @@ class LitellmClient:
             .bind(extract_json_only)
             .bind(strict_parse_json)
             .bind(validate_and_normalize)
-            .bind(lambda data: Success(BronzeTagResponse.model_validate(data)))
+            .bind(lambda data: Success(
+                BronzeTagResponse.model_validate(**data)
+            ))
         )
 
         if isinstance(result, Failure):
