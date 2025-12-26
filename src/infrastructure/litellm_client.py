@@ -122,17 +122,27 @@ class LitellmClient:
         def validate_and_normalize(data: dict[str, Any]) -> Result[dict[str, Any], Exception]:
             """Validate and normalize the response to match BronzeTagResponse exactly"""
             try:
+                metadata_content = {
+                    "content": data.get("content", "No content"),
+                    "language": data.get("language", "en"),
+                    "actions": data.get("actions", [])
+                }
+
+                # Validate metadata structure
+                if not isinstance(metadata_content["content"], str):
+                    metadata_content["content"] = "No content"
+                if not isinstance(metadata_content["language"], str):
+                    metadata_content["language"] = "en"
+                if not isinstance(metadata_content["actions"], list):
+                    metadata_content["actions"] = []
+
                 # Map to the correct field names with aliases
                 normalized = {
                     "chunkId": data.get("chunk_id", chunk_id),  # Using alias
                     "source_url": data.get("source_url", source_url),
                     # Using alias
                     "controlAction": data.get("control_action", "IRRELEVANT"),
-                    "metadata": Maybe({
-                        "content": data.get("content", "No content"),
-                        "language": data.get("language", "en"),
-                        "actions": data.get("actions", []),
-                    })
+                    "metadata": Maybe({metadata_content})
                 }
 
                 maybe_metadata: Maybe[dict[str, Any]] = normalized["metadata"]

@@ -6,7 +6,7 @@ from returns.maybe import Maybe, Nothing
 from typing import Literal, TypeAlias
 import time
 
-actionsType: TypeAlias = list[dict[str, str | list[dict[str, str]]]]
+actionsType: TypeAlias = list[dict[str, str | list[dict[str, str]] | str]]
 
 
 class BronzeTagResponse(BaseModel):
