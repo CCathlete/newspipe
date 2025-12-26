@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from httpx import AsyncClient, Response
 from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure
-from returns.maybe import Maybe
 from ..domain.models import BronzeTagResponse
 
 
@@ -72,7 +71,7 @@ class LitellmClient:
             "- OUTPUT ONLY JSON, NOTHING ELSE"
         ).strip()
 
-        payload = {
+        payload: dict[str, Any] = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
