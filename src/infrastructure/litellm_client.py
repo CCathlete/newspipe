@@ -135,12 +135,13 @@ class LitellmClient:
                     })
                 }
 
-                # Validate metadata content
-                if not normalized["metadata"].unwrap().get("content"):
-                    normalized["metadata"] = Maybe({
-                        "content": "No content",
-                        "language": "en"
-                    })
+                maybe_metadata: Maybe[dict[str, Any]] = normalized["metadata"]
+                match maybe_metadata:
+                    case Nothing:
+                        normalized["metadata"] = Maybe({
+                            "content": "No content",
+                            "language": "en"
+                        })
 
                 return Success(normalized)
 
