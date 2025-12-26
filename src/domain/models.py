@@ -3,8 +3,10 @@
 from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from sparkdantic import SparkModel
 from returns.maybe import Maybe, Nothing
-from typing import Literal, Any
+from typing import Literal, TypeAlias
 import time
+
+actionsType: TypeAlias = list[dict[str, str | list[dict[str, str]]]]
 
 
 class BronzeTagResponse(BaseModel):
@@ -18,15 +20,15 @@ class BronzeTagResponse(BaseModel):
         "CLICKLINK",
         "CONTINUE"
     ] = Field(alias="controlAction")
-    metadata: Maybe[dict[str, str]] = Field(default=Nothing)
+    metadata: Maybe[dict[str, actionsType]] = Field(default=Nothing)
 
     # For libraries that might not work with Nothing we can set an automatic
     # callback that would convert it to None.
     @field_serializer("metadata")
     def serialize_maybe_metadata(
         self,
-        metadata: Maybe[dict[str, str]]
-    ) -> dict[str, Any] | None:
+        metadata: Maybe[dict[str, actionsType]]
+    ) -> dict[str, actionsType] | None:
         return metadata.unwrap() if metadata != Nothing else None
 
 
@@ -40,7 +42,7 @@ class BronzeRecord(SparkModel):
     ingested_at: float = Field(default_factory=time.time)
     language: str = "sk"  # e.g., "sk", "he", "en", "ar"
     embedding: Maybe[list[float]] = Field(default=Nothing)
-    metadata: Maybe[dict[str, str]] = Field(default=Nothing)
+    metadata: Maybe[dict[str, actionsType]] = Field(default=Nothing)
 
     gram_type: str = "GM3"
 
@@ -49,8 +51,8 @@ class BronzeRecord(SparkModel):
     @field_serializer("metadata")
     def serialize_maybe_metadata(
         self,
-        metadata: Maybe[dict[str, str]]
-    ) -> dict[str, str] | None:
+        metadata: Maybe[dict[str, actionsType]]
+    ) -> dict[str, actionsType] | None:
         return metadata.unwrap() if metadata != Nothing else None
 
     @field_serializer("embedding")
