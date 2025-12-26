@@ -59,10 +59,11 @@ class LitellmClient:
         prompt = (
             "RETURN ONLY VALID JSON. NO OTHER TEXT. FORMAT:\n"
             '{"chunk_id":"' + chunk_id + '","source_url":"' + source_url + '",'
-            f'"content":"summary under 20 words of this chunk: {content}",'
+            '"content":"summary under 20 words.",'
             '"language":"en","control_action":"IRRELEVANT",'
             '"actions":[]}\n'
             "RULES:\n"
+            f"- Data to summarise: {content}\n"
             "- NO reasoning, explanations, or extra text\n"
             "- Be decisive about geopolitical content\n"
             "- If geopolitical links exist, add to actions array:\n"
