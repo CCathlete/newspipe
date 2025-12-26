@@ -100,7 +100,7 @@ class IngestionPipeline:
                             # 3. Kafka side-effects for CLICKLINK.
                             if tag.control_action == "CLICKLINK":
                                 if (url_val := tag.source_url):
-                                    await self.kafka_producer.produce(
+                                    await self.kafka_producer.send(
                                         topic="discovery_queue",
                                         value=json.dumps(
                                             {"url": url_val}
@@ -115,7 +115,7 @@ class IngestionPipeline:
                             if (actions_list := tag.actions):
                                 for action_dict in actions_list:
                                     if action_dict.get("control_action") == "CLICKLINK":
-                                        await self.kafka_producer.produce(
+                                        await self.kafka_producer.send(
                                             topic="discovery_queue",
                                             value=json.dumps(
                                                 {"url": action_dict.get(

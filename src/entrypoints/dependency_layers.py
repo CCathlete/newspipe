@@ -6,7 +6,7 @@ import logging
 import structlog
 from logging.handlers import RotatingFileHandler
 from pyspark.sql import SparkSession
-from aiokafka import AIOKafkaProducer
+from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from dependency_injector import containers, providers
 from crawl4ai import (
     AsyncWebCrawler,
@@ -96,6 +96,11 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         bootstrap_servers=config.kafka.bootstrap_servers
     )
 
+    kafka_consumer = providers.Resource(
+        AIOKafkaConsumer,
+        bootstrap_servers=config.kafka.bootstrap_servers
+    )
+
     # Spark is usually provided as a singleton
     spark = providers.Singleton(
         SparkSession
@@ -154,6 +159,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     scraper = providers.Factory(
         StreamScraper,
         crawler_factory=scraping_provider.provider,
+        kafka_consumer=kafka_consumer,
         logger=logger_provider
     )
 

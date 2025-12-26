@@ -1,17 +1,25 @@
 # src/infrastructure/scraper.py
 
+import json
 from typing import Callable
 from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
 from collections.abc import AsyncIterator
 from returns.result import Result, Success, Failure
 
-from ..domain.interfaces import Crawler, CrawlerResult, ChunkingStrategy, CrawlerRunConfig
+from ..domain.interfaces import (
+    Crawler,
+    CrawlerResult,
+    ChunkingStrategy,
+    CrawlerRunConfig,
+    KafkaProvider
+)
 
 
 @dataclass(slots=True, frozen=True)
 class StreamScraper:
     logger: FilteringBoundLogger
+    kafka_consumer: KafkaProvider
     crawler_factory: Callable[[], Crawler]
 
     async def scrape_and_chunk(
@@ -57,3 +65,34 @@ class StreamScraper:
         except Exception as e:
             log.error("Crawl4AI failed", error=str(e))
             yield Failure(e)
+
+    async def process_discovery_queue(
+        self,
+        strategy: ChunkingStrategy,
+        run_config: CrawlerRunConfig,
+        topic: str = "discovery_queue",
+    ) -> AsyncIterator[Result[str, Exception]]:
+        log = self.logger.bind(topic=topic)
+        log.info("Starting discovery queue processing")
+
+        async for message in self.kafka_consumer.getmany():
+            try:
+                data = json.loads(message.value.decode())
+                url = data.get("url")
+                if not url:
+                    log.warning("Invalid message format", message=data)
+                    continue
+
+                log.info("Processing discovered URL", url=url)
+                async for result in self.scrape_and_chunk(
+                    url=url,
+                    strategy=strategy,
+                    run_config=run_config,
+                ):
+                    yield result
+            except json.JSONDecodeError as e:
+                log.error("Failed to decode message", error=str(e))
+                yield Failure(e)
+            except Exception as e:
+                log.error("Unexpected error processing message", error=str(e))
+                yield Failure(e)
