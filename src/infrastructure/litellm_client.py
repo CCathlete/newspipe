@@ -130,7 +130,8 @@ class LitellmClient:
                     "controlAction": data.get("control_action", "IRRELEVANT"),
                     "metadata": Maybe({
                         "content": data.get("content", "No content"),
-                        "language": data.get("language", "en")
+                        "language": data.get("language", "en"),
+                        "actions": data.get("actions", []),
                     })
                 }
 

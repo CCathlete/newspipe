@@ -23,7 +23,7 @@ class BronzeTagResponse(BaseModel):
     # For libraries that might not work with Nothing we can set an automatic
     # callback that would convert it to None.
     @field_serializer("metadata")
-    def serialize_maybe_embedding(
+    def serialize_maybe_metadata(
         self,
         metadata: Maybe[dict[str, str]]
     ) -> dict[str, str] | None:
@@ -40,9 +40,22 @@ class BronzeRecord(SparkModel):
     ingested_at: float = Field(default_factory=time.time)
     language: str = "sk"  # e.g., "sk", "he", "en", "ar"
     embedding: Maybe[list[float]] = Field(default=Nothing)
+    metadata: Maybe[dict[str, str]] = Field(default=Nothing)
 
     gram_type: str = "GM3"
 
+    # For libraries that might not work with Nothing we can set an automatic
+    # callback that would convert it to None.
+    @field_serializer("metadata")
+    def serialize_maybe_metadata(
+        self,
+        metadata: Maybe[dict[str, str]]
+    ) -> dict[str, str] | None:
+        return metadata.unwrap() if metadata != Nothing else None
+
     @field_serializer("embedding")
-    def serialize_maybe_embedding(self, embedding: Maybe[list[float]]) -> list[float] | None:
+    def serialize_maybe_embedding(
+        self,
+        embedding: Maybe[list[float]]
+    ) -> list[float] | None:
         return embedding.unwrap() if embedding != Nothing else None
