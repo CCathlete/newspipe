@@ -5,6 +5,8 @@ from structlog.typing import FilteringBoundLogger
 from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.types import StructType, Row
 from returns.result import safe
+from returns.maybe import Maybe, Nothing
+from typing import Never
 
 from ..domain.models import BronzeRecord
 from ..domain.interfaces import SparkSessionInterface
@@ -22,6 +24,20 @@ class LakehouseConnector:
     def path(self) -> str:
         return self.bucket_path.rstrip("/") + "/"
 
+    def _convert_embedding(self, embedding: Maybe[list[float]]) -> list[float] | None:
+        """Convert Maybe embedding to a PySpark-serializable format using pattern matching"""
+        match embedding:
+            case Maybe(value) if value in [None, Never]:
+                return None
+            case Maybe(value):
+                try:
+                    assert isinstance(value, list)
+                    return [float(x) for x in value]
+                except (TypeError, ValueError):
+                    return None
+            case _:
+                return None
+
     @safe
     def write_records(self, records: list[BronzeRecord],) -> int:
 
@@ -34,8 +50,18 @@ class LakehouseConnector:
         log.info("Writing records to lakehouse", records_count=len(records))
 
         try:
+
+            # Converting records to dict and handle embeddings.
+            data: list[Row] = []
+            for record in records:
+                record_dict = record.model_dump()
+                if 'embedding' in record_dict:
+                    record_dict['embedding'] = self._convert_embedding(
+                        record_dict['embedding'])
+                data.append(Row(**record_dict))
+
             schema: StructType = BronzeRecord.model_spark_schema()
-            data: list[Row] = [Row(**r.model_dump()) for r in records]
+            data = [Row(**r.model_dump()) for r in records]
 
             df: DataFrame = self.spark.createDataFrame(
                 data=data, schema=schema)
