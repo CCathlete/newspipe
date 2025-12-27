@@ -107,33 +107,26 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         .Builder()
         .master("spark://localhost:7077")
         .appName("NewsAnalysis")
-        # Use the paths where we mounted the JARs in the containers
-        .config("spark.driver.extraClassPath",
-                "/opt/spark/jars/hadoop-common-3.3.4.jar:" +
-                "/opt/spark/jars/hadoop-client-3.3.4.jar:" +
-                "/opt/spark/jars/hadoop-aws-3.3.4.jar:" +
-                "/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar")
-        .config("spark.executor.extraClassPath",
-                "/opt/spark/jars/hadoop-common-3.3.4.jar:" +
-                "/opt/spark/jars/hadoop-client-3.3.4.jar:" +
-                "/opt/spark/jars/hadoop-aws-3.3.4.jar:" +
-                "/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar")
-        # Critical: Force user classpath first
-        .config("spark.executor.userClassPathFirst", "true")
-        .config("spark.driver.userClassPathFirst", "true")
-        # Explicit S3A implementation
-        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-        .config("spark.hadoop.fs.AbstractFileSystem.s3a.impl", "org.apache.hadoop.fs.s3a.S3A")
-        # Required S3A configurations
-        .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
+        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4")
+        .config(
+            "spark.hadoop.fs.s3a.impl",
+            "org.apache.hadoop.fs.s3a.S3AFileSystem"
+        )
+        .config(
+            "spark.hadoop.fs.AbstractFileSystem.s3a.impl",
+            "org.apache.hadoop.fs.s3a.S3A"
+        )
+        .config(
+            "spark.hadoop.fs.s3a.aws.credentials.provider",
+            "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
+        )
         .config("spark.hadoop.fs.s3a.fast.upload", "true")
         .config("spark.hadoop.fs.s3a.multipart.size", "104857600")
         .config("spark.hadoop.fs.s3a.connection.maximum", "100")
         .config("spark.hadoop.fs.s3a.impl.disable.cache", "true")
-        # Your S3 endpoint and credentials
-        .config("spark.hadoop.fs.s3a.endpoint", config.lakehouse.endpoint)
-        .config("spark.hadoop.fs.s3a.access.key", config.lakehouse.username)
-        .config("spark.hadoop.fs.s3a.secret.key", config.lakehouse.password)
+        .config("spark.hadoop.fs.s3a.endpoint", config.lakehouse.endpoint())
+        .config("spark.hadoop.fs.s3a.access.key", config.lakehouse.username())
+        .config("spark.hadoop.fs.s3a.secret.key", config.lakehouse.password())
         .config("spark.hadoop.fs.s3a.path.style.access", "true")
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
         .getOrCreate
