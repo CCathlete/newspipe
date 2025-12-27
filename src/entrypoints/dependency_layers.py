@@ -108,20 +108,33 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         .master("spark://localhost:7077")
         .appName("NewsAnalysis")
         # Use the paths where we mounted the JARs in the containers
-        .config(
-            "spark.driver.extraClassPath", "/opt/spark/jars/hadoop-aws-3.3.3.jar:/opt/spark/jars/aws-java-sdk-bundle-1.11.1026.jar"
-        )
-        .config(
-            "spark.executor.extraClassPath", "/opt/spark/jars/hadoop-aws-3.3.3.jar:/opt/spark/jars/aws-java-sdk-bundle-1.11.1026.jar"
-        )
+        .config("spark.driver.extraClassPath",
+                "/opt/spark/jars/hadoop-common-3.3.3.jar:" +
+                "/opt/spark/jars/hadoop-client-3.3.3.jar:" +
+                "/opt/spark/jars/hadoop-aws-3.3.3.jar:" +
+                "/opt/spark/jars/aws-java-sdk-bundle-1.11.1026.jar")
+        .config("spark.executor.extraClassPath",
+                "/opt/spark/jars/hadoop-common-3.3.3.jar:" +
+                "/opt/spark/jars/hadoop-client-3.3.3.jar:" +
+                "/opt/spark/jars/hadoop-aws-3.3.3.jar:" +
+                "/opt/spark/jars/aws-java-sdk-bundle-1.11.1026.jar")
+        # Critical: Force user classpath first
+        .config("spark.executor.userClassPathFirst", "true")
+        .config("spark.driver.userClassPathFirst", "true")
+        # Explicit S3A implementation
+        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+        .config("spark.hadoop.fs.AbstractFileSystem.s3a.impl", "org.apache.hadoop.fs.s3a.S3A")
+        # Required S3A configurations
+        .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
+        .config("spark.hadoop.fs.s3a.fast.upload", "true")
+        .config("spark.hadoop.fs.s3a.multipart.size", "104857600")
+        .config("spark.hadoop.fs.s3a.connection.maximum", "100")
+        .config("spark.hadoop.fs.s3a.impl.disable.cache", "true")
+        # Your S3 endpoint and credentials
         .config("spark.hadoop.fs.s3a.endpoint", config.lakehouse.endpoint)
-        # MinIO specific requirements
         .config("spark.hadoop.fs.s3a.access.key", config.lakehouse.username)
         .config("spark.hadoop.fs.s3a.secret.key", config.lakehouse.password)
         .config("spark.hadoop.fs.s3a.path.style.access", "true")
-        .config(
-            "spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem"
-        )
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
         .getOrCreate
     )
