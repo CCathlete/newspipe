@@ -99,7 +99,53 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     kafka_consumer = providers.Resource(
         AIOKafkaConsumer,
         bootstrap_servers=config.kafka.bootstrap_servers
+
+
     )
+
+    logger_provider = providers.Singleton(
+        structlog.get_logger
+    )
+
+    # Provider to resolve and validate lakehouse config
+    @providers.Singleton
+    def resolved_lakehouse_config(self) -> dict[str, str]:
+        log = self.logger_provider()
+        endpoint = self.config.lakehouse.endpoint()
+        access_key = self.config.lakehouse.username()
+        secret_key = self.config.lakehouse.password()
+        bronze_path = self.config.lakehouse.bronze_path()
+
+        # Perform explicit validation
+        missing = []
+        if not endpoint:
+            missing.append("lakehouse.endpoint")
+        if not access_key:
+            missing.append("lakehouse.username (access_key)")
+        if not secret_key:
+            missing.append("lakehouse.password (secret_key)")
+        if not bronze_path:
+            missing.append("lakehouse.bronze_path")
+
+        if missing:
+            log.error("Missing required Lakehouse configuration values",
+                      missing_keys=missing)
+            raise ValueError(
+                f"Missing required Lakehouse configuration values: {', '.join(missing)}")
+
+        log.info(
+            "Resolved Lakehouse Configuration",
+            endpoint=endpoint,
+            access_key=access_key,
+            secret_key="********" if secret_key else "NONE/EMPTY",  # Mask for logs
+            bronze_path=bronze_path
+        )
+        return {
+            "endpoint": endpoint,
+            "access_key": access_key,
+            "secret_key": secret_key,
+            "bronze_path": bronze_path
+        }
 
     # Spark is usually provided as a singleton
     spark = providers.Singleton(
@@ -123,19 +169,22 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         .config("spark.hadoop.fs.s3a.fast.upload", "true")
         .config("spark.hadoop.fs.s3a.multipart.size", "104857600")
         .config("spark.hadoop.fs.s3a.connection.maximum", "100")
-        .config("spark.hadoop.fs.s3a.impl.disable.cache", "true")
-        .config("spark.hadoop.fs.s3a.endpoint", config.lakehouse.endpoint())
-        .config("spark.hadoop.fs.s3a.access.key", config.lakehouse.username())
-        .config("spark.hadoop.fs.s3a.secret.key", config.lakehouse.password())
+        .config(
+            "spark.hadoop.fs.s3a.endpoint",
+            resolved_lakehouse_config().get("endpoint")
+        )
+        .config(
+            "spark.hadoop.fs.s3a.access.key",
+            resolved_lakehouse_config().get("access_key")
+        )
+        .config(
+            "spark.hadoop.fs.s3a.secret.key",
+            resolved_lakehouse_config().get("secret_key")
+        )
         .config("spark.hadoop.fs.s3a.path.style.access", "true")
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
         .getOrCreate
     )
-
-    logger_provider = providers.Singleton(
-        structlog.get_logger
-    )
-
     browser_configuration = providers.Singleton(
         BrowserConfig,
         headless=True,
