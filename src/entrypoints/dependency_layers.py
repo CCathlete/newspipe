@@ -109,15 +109,15 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         .appName("NewsAnalysis")
         # Use the paths where we mounted the JARs in the containers
         .config("spark.driver.extraClassPath",
-                "/opt/spark/jars/hadoop-common-3.3.3.jar:" +
-                "/opt/spark/jars/hadoop-client-3.3.3.jar:" +
-                "/opt/spark/jars/hadoop-aws-3.3.3.jar:" +
-                "/opt/spark/jars/aws-java-sdk-bundle-1.11.1026.jar")
+                "/opt/spark/jars/hadoop-common-3.3.4.jar:" +
+                "/opt/spark/jars/hadoop-client-3.3.4.jar:" +
+                "/opt/spark/jars/hadoop-aws-3.3.4.jar:" +
+                "/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar")
         .config("spark.executor.extraClassPath",
-                "/opt/spark/jars/hadoop-common-3.3.3.jar:" +
-                "/opt/spark/jars/hadoop-client-3.3.3.jar:" +
-                "/opt/spark/jars/hadoop-aws-3.3.3.jar:" +
-                "/opt/spark/jars/aws-java-sdk-bundle-1.11.1026.jar")
+                "/opt/spark/jars/hadoop-common-3.3.4.jar:" +
+                "/opt/spark/jars/hadoop-client-3.3.4.jar:" +
+                "/opt/spark/jars/hadoop-aws-3.3.4.jar:" +
+                "/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar")
         # Critical: Force user classpath first
         .config("spark.executor.userClassPathFirst", "true")
         .config("spark.driver.userClassPathFirst", "true")
