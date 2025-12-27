@@ -107,13 +107,21 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         .Builder()
         .master("spark://localhost:7077")
         .appName("NewsAnalysis")
-        .config("spark.jars", config.lakehouse.spark_jars)
+        # Use the paths where we mounted the JARs in the containers
+        .config(
+            "spark.driver.extraClassPath", "/opt/spark/jars/hadoop-aws-3.3.3.jar:/opt/spark/jars/aws-java-sdk-bundle-1.11.1026.jar"
+        )
+        .config(
+            "spark.executor.extraClassPath", "/opt/spark/jars/hadoop-aws-3.3.3.jar:/opt/spark/jars/aws-java-sdk-bundle-1.11.1026.jar"
+        )
         .config("spark.hadoop.fs.s3a.endpoint", config.lakehouse.endpoint)
         # MinIO specific requirements
         .config("spark.hadoop.fs.s3a.access.key", config.lakehouse.username)
         .config("spark.hadoop.fs.s3a.secret.key", config.lakehouse.password)
         .config("spark.hadoop.fs.s3a.path.style.access", "true")
-        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+        .config(
+            "spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem"
+        )
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
         .getOrCreate
     )
