@@ -33,21 +33,29 @@ class LakehouseConnector:
 
         log.info("Writing records to lakehouse", records_count=len(records))
 
-        schema: StructType = BronzeRecord.model_spark_schema()
-        data: list[Row] = [Row(**r.model_dump()) for r in records]
+        try:
+            schema: StructType = BronzeRecord.model_spark_schema()
+            data: list[Row] = [Row(**r.model_dump()) for r in records]
 
-        df: DataFrame = self.spark.createDataFrame(data=data, schema=schema)
+            df: DataFrame = self.spark.createDataFrame(
+                data=data, schema=schema)
 
-        df_partitioned: DataFrame = df.withColumn(
-            colName="ingested_date",
-            col=F.from_unixtime(F.col("ingested_at"), "yyyy-MM-dd")
-        )
+            df_partitioned: DataFrame = df.withColumn(
+                colName="ingested_date",
+                col=F.from_unixtime(F.col("ingested_at"), "yyyy-MM-dd")
+            )
+        except Exception as e:
+            log.error("Error creating DataFrame", error=str(e))
+            return 0
 
         log.info("Writing JSON to partitioned lakehouse", path=self.path)
-
-        df_partitioned.write.mode("append").partitionBy(
-            "ingested_date"
-        ).json(self.path)
+        try:
+            df_partitioned.write.mode("append").partitionBy(
+                "ingested_date"
+            ).json(self.path)
+        except Exception as e:
+            log.error("Error writing to lakehouse", error=str(e))
+            return 0
 
         log.info("Records written to lakehouse")
 
