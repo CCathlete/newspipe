@@ -179,15 +179,18 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         .config("spark.hadoop.fs.s3a.connection.maximum", "100")
         .config(
             "spark.hadoop.fs.s3a.endpoint",
-            resolved_lakehouse_config().get("endpoint")
+            resolved_lakehouse_config(config, logger_provider)
+            .get("endpoint")
         )
         .config(
             "spark.hadoop.fs.s3a.access.key",
-            resolved_lakehouse_config().get("access_key")
+            resolved_lakehouse_config(config, logger_provider)
+            .get("access_key")
         )
         .config(
             "spark.hadoop.fs.s3a.secret.key",
-            resolved_lakehouse_config().get("secret_key")
+            resolved_lakehouse_config(config, logger_provider)
+            .get("secret_key")
         )
         .config("spark.hadoop.fs.s3a.path.style.access", "true")
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
