@@ -2,8 +2,17 @@
 
 from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from sparkdantic import SparkModel
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    StringType,
+    DoubleType,
+    FloatType,
+    ArrayType
+)
+
 from returns.maybe import Maybe, Nothing
-from typing import Literal, TypeAlias
+from typing import Literal, TypeAlias, override
 import time
 
 actionsType: TypeAlias = list[dict[str, str | list[dict[str, str]] | str]]
@@ -41,6 +50,38 @@ class BronzeRecord(SparkModel):
     @field_serializer("embedding")
     def serialize_maybe_embedding(
         self,
-        embedding: Maybe[list[float]]
+        embedding: Maybe[list[float]],
     ) -> list[float] | None:
-        return embedding.unwrap() if embedding != Nothing else None
+        """Serialize Maybe embedding to a PySpark-compatible format"""
+        if embedding == Nothing:
+            return None
+
+        try:
+            value = embedding.unwrap()
+            if value is None:
+                return None
+            # Ensure all elements are floats
+            return [float(x) for x in value]
+        except (TypeError, ValueError, AttributeError):
+            return None
+
+    @override
+    @classmethod
+    def model_spark_schema(
+        cls,
+        safe_casting: bool = True,
+        by_alias: bool = False,
+        mode: Literal['validation', 'serialization'] = 'validation',
+        exclude_fields: bool = False
+    ) -> StructType:
+        """Generate Spark schema that properly handles nullable embeddings"""
+        return StructType([
+            StructField("chunk_id", StringType(), False),
+            StructField("source_url", StringType(), False),
+            StructField("content", StringType(), False),
+            StructField("control_action", StringType(), False),
+            StructField("ingested_at", DoubleType(), False),
+            StructField("language", StringType(), False),
+            StructField("embedding", ArrayType(FloatType()), True),  # Nullable
+            StructField("gram_type", StringType(), False),
+        ])
