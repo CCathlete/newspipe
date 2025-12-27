@@ -1,6 +1,7 @@
 # src/infrastructure/scraper.py
 
 import json
+import asyncio
 from typing import Callable
 from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
@@ -75,24 +76,56 @@ class StreamScraper:
         log = self.logger.bind(topic=topic)
         log.info("Starting discovery queue processing")
 
-        async for message in self.kafka_consumer.getmany():
+        # Subscribe to the topic if not already subscribed
+        self.kafka_consumer.subscribe(topic)
+
+        while True:
             try:
-                data = json.loads(message.value.decode())
-                url = data.get("url")
-                if not url:
-                    log.warning("Invalid message format", message=data)
+                # Get messages from Kafka with a timeout
+                messages = await self.kafka_consumer.getmany(timeout_ms=1000)
+
+                if not messages:
                     continue
 
-                log.info("Processing discovered URL", url=url)
-                async for result in self.scrape_and_chunk(
-                    url=url,
-                    strategy=strategy,
-                    run_config=run_config,
-                ):
-                    yield result
-            except json.JSONDecodeError as e:
-                log.error("Failed to decode message", error=str(e))
-                yield Failure(e)
+                for tp, message_list in messages.items():
+                    for message in message_list:
+                        try:
+                            # Handling both raw bytes and deserialized values.
+                            if isinstance(message.value, bytes):
+                                data = json.loads(
+                                    message.value.decode('utf-8'))
+                            else:
+                                data = message.value
+
+                            if not isinstance(data, dict):
+                                log.warning(
+                                    "Message value is not a dictionary", value=data)
+                                continue
+
+                            url = data.get("url")
+                            if not url:
+                                log.warning(
+                                    "Invalid message format - missing URL", message=data)
+                                continue
+
+                            log.info("Processing discovered URL", url=url)
+                            async for result in self.scrape_and_chunk(
+                                url=url,
+                                strategy=strategy,
+                                run_config=run_config,
+                            ):
+                                yield result
+
+                        except json.JSONDecodeError as e:
+                            log.error("Failed to decode message", error=str(e))
+                            yield Failure(e)
+
+                        except Exception as e:
+                            log.error(
+                                "Unexpected error processing message", error=str(e))
+                            yield Failure(e)
+
             except Exception as e:
-                log.error("Unexpected error processing message", error=str(e))
+                log.error("Error in discovery queue processing", error=str(e))
                 yield Failure(e)
+                await asyncio.sleep(1)  # Small delay before retrying

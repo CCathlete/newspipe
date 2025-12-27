@@ -45,6 +45,8 @@ class KafkaProvider(Protocol):
         key: bytes | None = None,
     ) -> Result[bool, Exception]: ...
 
+    def subscribe(self, *topics: str) -> None: ...
+
     async def getmany(
         self,
         *partitions: Any,

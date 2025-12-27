@@ -182,23 +182,23 @@ class LitellmClient:
 
         return result
 
-        async def embed_text(self, text: str) -> Result[list[float], Exception]:
-            log = self.logger.bind()
-            payload: dict[str, Any] = {
-                "model": self.embedding_model,
-                "input": text,
-            }
+    async def embed_text(self, text: str) -> Result[list[float], Exception]:
+        log = self.logger.bind()
+        payload: dict[str, Any] = {
+            "model": self.embedding_model,
+            "input": text,
+        }
 
-            response_monad: Result[Response, Exception] = await self._post_request(payload)
+        response_monad: Result[Response, Exception] = await self._post_request(payload)
 
-            result: Result[list[float], Exception] = (
-                response_monad.bind(
-                    lambda res: Success(res.raise_for_status()))
-                .bind(lambda res: Success(res.json()))
-                .bind(lambda j: Success(j["data"][0]["embedding"]))
-            )
+        result: Result[list[float], Exception] = (
+            response_monad.bind(
+                lambda res: Success(res.raise_for_status()))
+            .bind(lambda res: Success(res.json()))
+            .bind(lambda j: Success(j["data"][0]["embedding"]))
+        )
 
-            if isinstance(result, Failure):
-                log.error("Error tagging chunk", error=result.failure())
+        if isinstance(result, Failure):
+            log.error("Error tagging chunk", error=result.failure())
 
-            return result
+        return result
