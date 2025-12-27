@@ -75,13 +75,14 @@ structlog.configure(
 
 
 def _resolve_and_validate_lakehouse_config(
-    config: providers.Configuration,
+    config: dict[str, str | dict[str, str]],
     logger: structlog.stdlib.BoundLogger,
 ) -> dict[str, str]:
-    endpoint = config.lakehouse.endpoint()
-    access_key = config.lakehouse.username()
-    secret_key = config.lakehouse.password()
-    bronze_path = config.lakehouse.bronze_path()
+    assert isinstance(config['lakehouse'], dict)
+    endpoint = config['lakehouse']['endpoint']
+    access_key = config['lakehouse']['username']
+    secret_key = config['lakehouse']['password']
+    bronze_path = config['lakehouse']['bronze_path']
 
     missing = []
     if not endpoint:
