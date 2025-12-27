@@ -149,10 +149,9 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     )
 
     resolved_lakehouse_config = providers.Singleton(
-        lambda config, logger: _resolve_and_validate_lakehouse_config(
-            config=config,
-            logger=logger
-        )
+        _resolve_and_validate_lakehouse_config,
+        config=config,
+        logger=logger_provider
     )
 
     # Spark is usually provided as a singleton
@@ -179,17 +178,17 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         .config("spark.hadoop.fs.s3a.connection.maximum", "100")
         .config(
             "spark.hadoop.fs.s3a.endpoint",
-            resolved_lakehouse_config(config, logger_provider)
+            resolved_lakehouse_config()
             .get("endpoint")
         )
         .config(
             "spark.hadoop.fs.s3a.access.key",
-            resolved_lakehouse_config(config, logger_provider)
+            resolved_lakehouse_config()
             .get("access_key")
         )
         .config(
             "spark.hadoop.fs.s3a.secret.key",
-            resolved_lakehouse_config(config, logger_provider)
+            resolved_lakehouse_config()
             .get("secret_key")
         )
         .config("spark.hadoop.fs.s3a.path.style.access", "true")
