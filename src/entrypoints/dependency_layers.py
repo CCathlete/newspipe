@@ -26,7 +26,7 @@ from ..infrastructure.litellm_client import LitellmClient
 from ..infrastructure.lakehouse import LakehouseConnector
 
 # ----------------------------------------------------------------------
-# Configure root logging – JSON output to console and rotating file
+# Configure root logging - JSON output to console and rotating file.
 # ----------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
@@ -41,7 +41,7 @@ for h in logging.root.handlers[:]:
 # RotatingFileHandler: truncates when it reaches maxBytes and overwrites
 log_file_handler = RotatingFileHandler(
     filename="newspipe.log",
-    maxBytes=150 * 1024,   # 150 KiB per file
+    maxBytes=150 * 1024,   # 150 KiB per file
     backupCount=1,               # keep only the latest file, discard older ones
     mode="w",                    # append to current file; rotation creates a new one
     encoding="utf-8",
@@ -52,7 +52,7 @@ logging.root.addHandler(log_file_handler)
 
 
 # ----------------------------------------------------------------------
-# Structlog configuration – JSON output, timestamps, proper exc formatting
+# Structlog configuration - JSON output, timestamps, proper exc formatting.
 # ----------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
@@ -62,7 +62,7 @@ structlog.configure(
     processors=[
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
-        TimeStamper(fmt="%(message)s"),
+        TimeStamper(fmt='iso'),
         StackInfoRenderer(),
         format_exc_info,
         JSONRenderer(),
