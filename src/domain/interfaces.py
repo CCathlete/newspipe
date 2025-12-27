@@ -96,3 +96,10 @@ class ScraperProvider(Protocol):
         strategy: ChunkingStrategy,
         run_config: CrawlerRunConfig,
     ) -> AsyncIterator[Result[str, Exception]]: ...
+
+    def process_from_topic(
+        self,
+        strategy: ChunkingStrategy,
+        run_config: CrawlerRunConfig,
+        topic: str = "discovery_queue",
+    ) -> AsyncIterator[Result[str, Exception]]: ...

@@ -67,7 +67,7 @@ class StreamScraper:
             log.error("Crawl4AI failed", error=str(e))
             yield Failure(e)
 
-    async def process_discovery_queue(
+    async def process_from_topic(
         self,
         strategy: ChunkingStrategy,
         run_config: CrawlerRunConfig,

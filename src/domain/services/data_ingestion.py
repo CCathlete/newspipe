@@ -107,6 +107,13 @@ class IngestionPipeline:
                                         ).encode()
                                     )
 
+                                    # TODO: fix the CLICKLINK logic.
+                                    self.scraper.process_from_topic(
+                                        strategy=self.strategy,
+                                        run_config=self.run_config,
+                                        topic="discovery_queue"
+                                    )
+
                                 else:
                                     log.debug(
                                         "clicklink_missing_url", chunk_id=tag.chunk_id)
