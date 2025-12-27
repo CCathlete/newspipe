@@ -74,6 +74,47 @@ structlog.configure(
 )
 
 
+def _resolve_and_validate_lakehouse_config(
+    config: providers.Configuration,
+    logger: structlog.stdlib.BoundLogger,
+) -> dict[str, str]:
+    endpoint = config.lakehouse.endpoint()
+    access_key = config.lakehouse.username()
+    secret_key = config.lakehouse.password()
+    bronze_path = config.lakehouse.bronze_path()
+
+    missing = []
+    if not endpoint:
+        missing.append("lakehouse.endpoint")
+    if not access_key:
+        missing.append("lakehouse.username (access_key)")
+    if not secret_key:
+        missing.append("lakehouse.password (secret_key)")
+    if not bronze_path:
+        missing.append("lakehouse.bronze_path")
+
+    if missing:
+        logger.error(
+            "Missing required Lakehouse configuration values", missing_keys=missing)
+        raise ValueError(
+            f"Missing required Lakehouse configuration values: {', '.join(missing)}")
+
+    logger.info(
+        "Resolved Lakehouse Configuration",
+        endpoint=endpoint,
+        access_key=access_key,
+        secret_key="********" if secret_key else "NONE/EMPTY",
+        bronze_path=bronze_path
+    )
+
+    return {
+        "endpoint": endpoint,
+        "access_key": access_key,
+        "secret_key": secret_key,
+        "bronze_path": bronze_path
+    }
+
+
 class DataPlatformContainer(containers.DeclarativeContainer):
     # Configuration - analogous to ZConfig
     config = providers.Configuration()
@@ -107,45 +148,12 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         structlog.get_logger
     )
 
-    # Provider to resolve and validate lakehouse config
-    @providers.Singleton
-    def resolved_lakehouse_config(self) -> dict[str, str]:
-        log = self.logger_provider()
-        endpoint = self.config.lakehouse.endpoint()
-        access_key = self.config.lakehouse.username()
-        secret_key = self.config.lakehouse.password()
-        bronze_path = self.config.lakehouse.bronze_path()
-
-        # Perform explicit validation
-        missing = []
-        if not endpoint:
-            missing.append("lakehouse.endpoint")
-        if not access_key:
-            missing.append("lakehouse.username (access_key)")
-        if not secret_key:
-            missing.append("lakehouse.password (secret_key)")
-        if not bronze_path:
-            missing.append("lakehouse.bronze_path")
-
-        if missing:
-            log.error("Missing required Lakehouse configuration values",
-                      missing_keys=missing)
-            raise ValueError(
-                f"Missing required Lakehouse configuration values: {', '.join(missing)}")
-
-        log.info(
-            "Resolved Lakehouse Configuration",
-            endpoint=endpoint,
-            access_key=access_key,
-            secret_key="********" if secret_key else "NONE/EMPTY",  # Mask for logs
-            bronze_path=bronze_path
+    resolved_lakehouse_config = providers.Singleton(
+        lambda config, logger: _resolve_and_validate_lakehouse_config(
+            config=config,
+            logger=logger
         )
-        return {
-            "endpoint": endpoint,
-            "access_key": access_key,
-            "secret_key": secret_key,
-            "bronze_path": bronze_path
-        }
+    )
 
     # Spark is usually provided as a singleton
     spark = providers.Singleton(
@@ -185,6 +193,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
         .getOrCreate
     )
+
     browser_configuration = providers.Singleton(
         BrowserConfig,
         headless=True,
