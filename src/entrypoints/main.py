@@ -60,6 +60,7 @@ async def main_async() -> None:
             "endpoint": "http://localhost:9000",
             "username": os.getenv("MINIO_ACCESS_KEY"),
             "password": os.getenv("MINIO_SECRET_KEY"),
+            "spark_jars": os.getenv("SPARK_JARS"),
         },
         "app": {"default_language": "en"},
         "kafka": {"bootstrap_servers": "localhost:29092"},

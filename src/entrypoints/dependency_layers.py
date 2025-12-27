@@ -107,6 +107,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         .Builder()
         .master("spark://localhost:7077")
         .appName("NewsAnalysis")
+        .config("spark.jars", config.lakehouse.spark_jars)
         .config("spark.hadoop.fs.s3a.endpoint", config.lakehouse.endpoint)
         # MinIO specific requirements
         .config("spark.hadoop.fs.s3a.access.key", config.lakehouse.username)
