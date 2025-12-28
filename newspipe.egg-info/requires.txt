@@ -1,4 +1,4 @@
-pyspark<4.0.0,>=3.5.0
+pyspark==3.5.1
 sparkdantic
 returns
 pydantic

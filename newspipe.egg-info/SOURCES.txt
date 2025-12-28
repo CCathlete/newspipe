@@ -23,7 +23,6 @@ src/infrastructure/lakehouse.py
 src/infrastructure/litellm_client.py
 src/infrastructure/ollama_client.py
 src/infrastructure/scraper.py
-stubs/feedparser.pyi
 stubs/aiokafka/__init__.pyi
 stubs/aiokafka/abc.pyi
 stubs/aiokafka/client.pyi

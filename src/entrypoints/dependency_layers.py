@@ -163,52 +163,26 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             .master("spark://localhost:7077")
             .appName("NewsAnalysis")
 
-            # --- Dependency Management ---
-            # 1. For the Driver (downloads to container if needed, good practice)
             .config(
                 "spark.jars.packages",
                 "org.apache.hadoop:hadoop-aws:3.3.4,"
-                + "org.apache.hadoop:hadoop-common:3.3.4,"
-                + "com.amazonaws:aws-java-sdk-bundle:1.12.262,"
-                + "org.apache.spark:spark-hadoop-cloud_2.12:3.3.4",
+                "org.apache.hadoop:hadoop-common:3.3.4,"
+                "com.amazonaws:aws-java-sdk-bundle:1.12.262,"
+                "org.apache.spark:spark-hadoop-cloud_2.12:3.5.1"
             )
 
-            # Alternative for driver - jars on local filesystem.
-            # .config("spark.jars", "/home/kcat/Repos/pipeline_infra/hive/hadoop-common-3.3.4.jar,/home/kcat/Repos/pipeline_infra/hive/hadoop-aws-3.3.4.jar,/home/kcat/Repos/pipeline_infra/hive/aws-java-sdk-bundle-1.12.262.jar")
-
-            # 2. For the Executors: Explicitly add the JARs from the worker's
-            # filesystem.
-            # I'm using jars.packages so it's done automatically.
-
-            # .config("spark.executor.extraClassPath",
-            #         "/opt/spark/jars/hadoop-common-3.3.4.jar:" +
-            #         "/opt/spark/jars/hadoop-aws-3.3.4.jar:" +
-            #         "/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar")
-
-
-
-            # --- S3A Filesystem Configurations ---
-            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-            .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
-            .config("spark.hadoop.fs.s3a.fast.upload", "true")
-            .config("spark.hadoop.fs.s3a.multipart.size", "104857600")
-            .config("spark.hadoop.fs.s3a.connection.maximum", "100")
-            .config("spark.hadoop.fs.s3a.impl.disable.cache", "true")
-
-            .config("spark.hadoop.fs.s3a.endpoint", resolved_lakehouse_cfg_dict["endpoint"])
-            .config("spark.hadoop.fs.s3a.access.key", resolved_lakehouse_cfg_dict["access_key"])
-            .config("spark.hadoop.fs.s3a.secret.key", resolved_lakehouse_cfg_dict["secret_key"])
-            .config("spark.hadoop.fs.s3a.path.style.access", "true")
-            .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
-
-            # --- Optimized S3A Committer Configuration (IMPORTANT) ---
-            .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2")
-            .config("spark.hadoop.mapreduce.output.fileoutputformat.option.enabled", "true")
+            # This tells Spark not to look for the "Magic" or "S3A" specific
+            # committers that are failing to find their class.
             .config("spark.hadoop.fs.s3a.committer.name", "directory")
-            .config("spark.hadoop.fs.s3a.committer.staging.abort.pending.uploads.on.failure", "true")
-            # These two tell Spark *which classes to use* for committing
-            .config("spark.sql.sources.commitProtocolClass", "org.apache.hadoop.fs.s3a.S3ACommitters")
-            .config("spark.sql.parquet.fs.optimized.committer.class", "org.apache.hadoop.fs.s3a.commit.S3ACommitter")
+            .config("spark.sql.sources.commitProtocolClass", "org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol")
+
+            # --- MinIO Specifics ---
+            .config("spark.hadoop.fs.s3a.endpoint", resolved_lakehouse_cfg_dict['endpoint'])
+            .config("spark.hadoop.fs.s3a.access.key", resolved_lakehouse_cfg_dict['access_key'])
+            .config("spark.hadoop.fs.s3a.secret.key", resolved_lakehouse_cfg_dict['secret_key'])
+            .config("spark.hadoop.fs.s3a.path.style.access", "true")
+            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+            .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
 
             # --- S3A Retry/Timeout Configurations ---
             .config("spark.hadoop.fs.s3a.attempts.maximum", "5")
