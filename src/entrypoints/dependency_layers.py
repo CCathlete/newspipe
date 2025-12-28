@@ -167,7 +167,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             # 1. For the Driver (downloads to container if needed, good practice)
             .config(
                 "spark.jars.packages",
-                "org.apache.hadoop:hadoop-aws:3.3.4, org.apache.hadoop:hadoop-common:3.3.4, com.amazonaws:aws-java-sdk-bundle:1.12.262",
+                "org.apache.hadoop:hadoop-aws:3.3.4,org.apache.hadoop:hadoop-common:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262",
             )
 
             # Alternative for driver - jars on local filesystem.
