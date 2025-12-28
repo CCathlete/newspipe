@@ -160,7 +160,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         lambda resolved_lakehouse_cfg_dict: (
             SparkSession
             .builder
-            .master("spark://spark-master:7077")
+            .master("spark://localhost:7077")
             .appName("NewsAnalysis")
 
             .config(
