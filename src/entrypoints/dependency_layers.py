@@ -198,10 +198,10 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             .config("spark.blockManager.port", "4043")
 
             # Memory config.
-            .config("spark.executor.memory", "1g")
-            .config("spark.cores.max", "2")
+            .config("spark.executor.memory", "2g")
+            .config("spark.cores.max", "3")
 
-            .getOrCreate()  # Make sure to call getOrCreate()
+            .getOrCreate()
         ),
         resolved_lakehouse_cfg_dict=resolved_lakehouse_config
     )
