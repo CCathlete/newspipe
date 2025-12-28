@@ -160,7 +160,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         lambda resolved_lakehouse_cfg_dict: (
             SparkSession
             .builder
-            .master("spark://localhost:7077")
+            .master("spark://spark-master:7077")
             .appName("NewsAnalysis")
 
             .config(
@@ -192,14 +192,12 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
 
             # Network config between docker network and localhost.
-            .config("spark.driver.host", "172.17.0.1")
+            .config("spark.driver.host", "192.168.100.1")
             .config("spark.driver.bindAddress", "0.0.0.0")
-            .config("spark.driver.port", "4042")
-            .config("spark.blockManager.port", "4043")
 
-            # # Memory config.
-            # .config("spark.executor.memory", "2g")
-            # .config("spark.cores.max", "3")
+            # Memory config.
+            .config("spark.driver.cores", "1")
+            .config("spark.driver.memory", "1g")
 
             .getOrCreate()
         ),
