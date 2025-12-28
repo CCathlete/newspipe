@@ -149,52 +149,35 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         structlog.get_logger
     )
 
-    resolved_lakehouse_config = providers.Singleton(
+    resolved_lakehouse_config = providers.Factory(
         _resolve_and_validate_lakehouse_config,
         config=config,
         logger=logger_provider
     )
 
     # Spark is usually provided as a singleton
-    spark = providers.Singleton(
-        SparkSession
-        .Builder()
-        .master("spark://localhost:7077")
-        .appName("NewsAnalysis")
-        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4")
-        .config(
-            "spark.hadoop.fs.s3a.impl",
-            "org.apache.hadoop.fs.s3a.S3AFileSystem"
-        )
-        .config(
-            "spark.hadoop.fs.AbstractFileSystem.s3a.impl",
-            "org.apache.hadoop.fs.s3a.S3A"
-        )
-        .config(
-            "spark.hadoop.fs.s3a.aws.credentials.provider",
-            "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
-        )
-        .config("spark.hadoop.fs.s3a.fast.upload", "true")
-        .config("spark.hadoop.fs.s3a.multipart.size", "104857600")
-        .config("spark.hadoop.fs.s3a.connection.maximum", "100")
-        .config(
-            "spark.hadoop.fs.s3a.endpoint",
-            resolved_lakehouse_config()
-            .get("endpoint")
-        )
-        .config(
-            "spark.hadoop.fs.s3a.access.key",
-            resolved_lakehouse_config()
-            .get("access_key")
-        )
-        .config(
-            "spark.hadoop.fs.s3a.secret.key",
-            resolved_lakehouse_config()
-            .get("secret_key")
-        )
-        .config("spark.hadoop.fs.s3a.path.style.access", "true")
-        .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
-        .getOrCreate
+    spark = providers.Factory(
+        lambda resolved_lakehouse_cfg_dict: (
+            SparkSession
+            .builder
+            .master("spark://localhost:7077")
+            .appName("NewsAnalysis")
+            .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4")
+            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+            .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
+            .config("spark.hadoop.fs.s3a.fast.upload", "true")
+            .config("spark.hadoop.fs.s3a.multipart.size", "104857600")
+            .config("spark.hadoop.fs.s3a.connection.maximum", "100")
+            .config("spark.hadoop.fs.s3a.impl.disable.cache", "true")
+            .config("spark.hadoop.fs.s3a.endpoint", resolved_lakehouse_cfg_dict["endpoint"])
+            .config("spark.hadoop.fs.s3a.access.key", resolved_lakehouse_cfg_dict["access_key"])
+            .config("spark.hadoop.fs.s3a.secret.key", resolved_lakehouse_cfg_dict["secret_key"])
+            .config("spark.hadoop.fs.s3a.path.style.access", "true")
+            .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+            .getOrCreate()
+        ),
+        # Passes the *resolved* dictionary from the above Factory
+        resolved_lakehouse_cfg_dict=resolved_lakehouse_config
     )
 
     browser_configuration = providers.Singleton(
