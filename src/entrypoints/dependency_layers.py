@@ -191,6 +191,16 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             .config("spark.hadoop.fs.s3a.establish.timeout", "5000")
             .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
 
+            # Network config between docker network and localhost.
+            .config("spark.driver.host", "172.17.0.1")
+            .config("spark.driver.bindAddress", "0.0.0.0")
+            .config("spark.driver.port", "4042")
+            .config("spark.blockManager.port", "4043")
+
+            # Memory config.
+            .config("spark.executor.memory", "1g")
+            .config("spark.cores.max", "2")
+
             .getOrCreate()  # Make sure to call getOrCreate()
         ),
         resolved_lakehouse_cfg_dict=resolved_lakehouse_config
