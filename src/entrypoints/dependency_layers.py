@@ -175,14 +175,14 @@ class DataPlatformContainer(containers.DeclarativeContainer):
 
             # 2. For the Executors: Explicitly add the JARs from the worker's filesystem
 
-            # .config("spark.driver.extraClassPath",
-            #         "/opt/spark/jars/hadoop-common-3.3.4.jar:" +
-            #         "/opt/spark/jars/hadoop-aws-3.3.4.jar:" +
-            #         "/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar")
-            # .config("spark.executor.extraClassPath",
-            #         "/opt/spark/jars/hadoop-common-3.3.4.jar:" +
-            #         "/opt/spark/jars/hadoop-aws-3.3.4.jar:" +
-            #         "/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar")
+            .config("spark.driver.extraClassPath",
+                    "/opt/spark/jars/hadoop-common-3.3.4.jar:" +
+                    "/opt/spark/jars/hadoop-aws-3.3.4.jar:" +
+                    "/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar")
+            .config("spark.executor.extraClassPath",
+                    "/opt/spark/jars/hadoop-common-3.3.4.jar:" +
+                    "/opt/spark/jars/hadoop-aws-3.3.4.jar:" +
+                    "/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar")
 
 
 
