@@ -174,6 +174,32 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             .config("spark.hadoop.fs.s3a.secret.key", resolved_lakehouse_cfg_dict["secret_key"])
             .config("spark.hadoop.fs.s3a.path.style.access", "true")
             .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+            .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2")
+            .config("spark.hadoop.mapreduce.output.fileoutputformat.option.enabled", "true")
+            .config("spark.hadoop.fs.s3a.committer.name", "directory")
+            .config("spark.hadoop.fs.s3a.committer.staging.abort.pending.uploads.on.failure", "true")
+            .config("spark.sql.sources.commitProtocolClass", "org.apache.hadoop.fs.s3a.S3ACommitters")
+            .config("spark.sql.parquet.fs.optimized.committer.class", "org.apache.hadoop.fs.s3a.commit.S3ACommitter")
+            # Max number of retries
+            .config("spark.hadoop.fs.s3a.attempts.maximum", "5")
+            # Max number of retries for certain operations
+            .config("spark.hadoop.fs.s3a.retry.limit", "10")
+            # Wait 5 seconds between retries
+            .config("spark.hadoop.fs.s3a.retry.interval", "5000")
+            # Timeout for establishing connections
+            .config("spark.hadoop.fs.s3a.establish.timeout", "5000")
+            # Socket read timeout (60 seconds)
+            .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
+            # Max number of retries
+            .config("spark.hadoop.fs.s3a.attempts.maximum", "5")
+            # Max number of retries for certain operations
+            .config("spark.hadoop.fs.s3a.retry.limit", "10")
+            # Wait 5 seconds between retries
+            .config("spark.hadoop.fs.s3a.retry.interval", "5000")
+            # Timeout for establishing connections
+            .config("spark.hadoop.fs.s3a.establish.timeout", "5000")
+            # Socket read timeout (60 seconds)
+            .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
             .getOrCreate()
         ),
         # Passes the *resolved* dictionary from the above Factory
