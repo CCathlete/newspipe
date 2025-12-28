@@ -197,9 +197,9 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             .config("spark.driver.port", "4042")
             .config("spark.blockManager.port", "4043")
 
-            # Memory config.
-            .config("spark.executor.memory", "2g")
-            .config("spark.cores.max", "3")
+            # # Memory config.
+            # .config("spark.executor.memory", "2g")
+            # .config("spark.cores.max", "3")
 
             .getOrCreate()
         ),
