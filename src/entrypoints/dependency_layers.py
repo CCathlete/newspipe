@@ -162,47 +162,62 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             .builder
             .master("spark://localhost:7077")
             .appName("NewsAnalysis")
-            .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4")
+
+            # --- Dependency Management ---
+            # 1. For the Driver (downloads to container if needed, good practice)
+            .config(
+                "spark.jars.packages",
+                "org.apache.hadoop:hadoop-aws:3.3.4, org.apache.hadoop:hadoop-common:3.3.4, com.amazonaws:aws-java-sdk-bundle:1.12.262",
+            )
+
+            # Alternative for driver - jars on local filesystem.
+            # .config("spark.jars", "/home/kcat/Repos/pipeline_infra/hive/hadoop-common-3.3.4.jar,/home/kcat/Repos/pipeline_infra/hive/hadoop-aws-3.3.4.jar,/home/kcat/Repos/pipeline_infra/hive/aws-java-sdk-bundle-1.12.262.jar")
+
+            # 2. For the Executors: Explicitly add the JARs from the worker's filesystem
+
+            # .config("spark.driver.extraClassPath",
+            #         "/opt/spark/jars/hadoop-common-3.3.4.jar:" +
+            #         "/opt/spark/jars/hadoop-aws-3.3.4.jar:" +
+            #         "/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar")
+            # .config("spark.executor.extraClassPath",
+            #         "/opt/spark/jars/hadoop-common-3.3.4.jar:" +
+            #         "/opt/spark/jars/hadoop-aws-3.3.4.jar:" +
+            #         "/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar")
+
+
+
+            # --- S3A Filesystem Configurations ---
             .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
             .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
             .config("spark.hadoop.fs.s3a.fast.upload", "true")
             .config("spark.hadoop.fs.s3a.multipart.size", "104857600")
             .config("spark.hadoop.fs.s3a.connection.maximum", "100")
             .config("spark.hadoop.fs.s3a.impl.disable.cache", "true")
+
             .config("spark.hadoop.fs.s3a.endpoint", resolved_lakehouse_cfg_dict["endpoint"])
             .config("spark.hadoop.fs.s3a.access.key", resolved_lakehouse_cfg_dict["access_key"])
             .config("spark.hadoop.fs.s3a.secret.key", resolved_lakehouse_cfg_dict["secret_key"])
             .config("spark.hadoop.fs.s3a.path.style.access", "true")
             .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+
+            # --- Optimized S3A Committer Configuration (IMPORTANT) ---
             .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2")
             .config("spark.hadoop.mapreduce.output.fileoutputformat.option.enabled", "true")
             .config("spark.hadoop.fs.s3a.committer.name", "directory")
             .config("spark.hadoop.fs.s3a.committer.staging.abort.pending.uploads.on.failure", "true")
+            # These two tell Spark *which classes to use* for committing
             .config("spark.sql.sources.commitProtocolClass", "org.apache.hadoop.fs.s3a.S3ACommitters")
             .config("spark.sql.parquet.fs.optimized.committer.class", "org.apache.hadoop.fs.s3a.commit.S3ACommitter")
-            # Max number of retries
+
+            # --- S3A Retry/Timeout Configurations ---
             .config("spark.hadoop.fs.s3a.attempts.maximum", "5")
-            # Max number of retries for certain operations
             .config("spark.hadoop.fs.s3a.retry.limit", "10")
-            # Wait 5 seconds between retries
             .config("spark.hadoop.fs.s3a.retry.interval", "5000")
-            # Timeout for establishing connections
             .config("spark.hadoop.fs.s3a.establish.timeout", "5000")
-            # Socket read timeout (60 seconds)
             .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
-            # Max number of retries
-            .config("spark.hadoop.fs.s3a.attempts.maximum", "5")
-            # Max number of retries for certain operations
-            .config("spark.hadoop.fs.s3a.retry.limit", "10")
-            # Wait 5 seconds between retries
-            .config("spark.hadoop.fs.s3a.retry.interval", "5000")
-            # Timeout for establishing connections
-            .config("spark.hadoop.fs.s3a.establish.timeout", "5000")
-            # Socket read timeout (60 seconds)
-            .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
-            .getOrCreate()
+
+            .getOrCreate()  # Make sure to call getOrCreate()
         ),
-        # Passes the *resolved* dictionary from the above Factory
         resolved_lakehouse_cfg_dict=resolved_lakehouse_config
     )
 
