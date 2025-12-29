@@ -103,3 +103,12 @@ class ScraperProvider(Protocol):
         run_config: CrawlerRunConfig,
         topic: str = "discovery_queue",
     ) -> AsyncIterator[Result[str, Exception]]: ...
+
+
+class KafkaMessage(Protocol):
+    topic: str
+    partition: int
+    offset: int
+    key: bytes | None
+    value: bytes
+    timestamp: int

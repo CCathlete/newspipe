@@ -3,8 +3,11 @@
 import json
 from dataclasses import dataclass
 from datetime import datetime, UTC
+from typing import AsyncIterable, List, Set, TypeVar, AsyncIterator
+
 from structlog.typing import FilteringBoundLogger
-from returns.result import Success, Failure, Result
+from returns.result import Result, Success, Failure
+
 from ..models import BronzeRecord
 from ..interfaces import (
     ScraperProvider,
@@ -15,15 +18,14 @@ from ..interfaces import (
 from .linguistic_model import LinguisticService
 from ..interfaces import ChunkingStrategy, CrawlerRunConfig
 
-from collections.abc import AsyncIterator
-from typing import TypeVar
-
 T = TypeVar("T")
 
 
-async def enumerate_async(iterable: AsyncIterator[T], start: int = 0) -> AsyncIterator[tuple[int, T]]:
+async def _enumerate_async(
+    source: AsyncIterable[T], start: int = 0
+) -> AsyncIterator[tuple[int, T]]:
     i = start
-    async for item in iterable:
+    async for item in source:
         yield i, item
         i += 1
 
@@ -41,108 +43,103 @@ class IngestionPipeline:
 
     async def execute(
         self,
-        url: str,
+        start_url: str,
         language: str,
     ) -> Result[int, Exception]:
-        log = self.logger.bind(url=url)
-        records: list[BronzeRecord] = []
+        """
+        Crawl ``start_url`` and everything discovered via CLICKLINK,
+        persisting all ``BronzeRecord`` objects to the lakehouse.
+        Returns the total number of records written.
+        """
+        log = self.logger.bind(url=start_url)
 
-        # We generate a consistent timestamp for all chunks in this session
-        session_timestamp = datetime.now(UTC).timestamp()
+        processed: Set[str] = set()
+        queue: List[str] = [start_url]
+        all_records: List[BronzeRecord] = []
+        session_ts = datetime.now(UTC).timestamp()
 
-        async for index, chunk_result in enumerate_async(
-            self.scraper.scrape_and_chunk(
-                url=url,
-                strategy=self.strategy,
-                run_config=self.run_config,
-            )
-        ):
-            match chunk_result:
-                case Success(chunk):
-                    chunk_id: str = f"{url}_{index}"
-                    tag_result = await self.ollama.tag_chunk(
-                        chunk_id=chunk_id,
-                        source_url=url,
-                        content=chunk
-                    )
+        while queue:
+            url = queue.pop(0)
+            if url in processed:
+                continue
+            processed.add(url)
 
-                    match tag_result:
-                        case Success(tag):
-                            # 1. Create and add the Raw Record
-                            # Using the session_timestamp since tag doesn't hold one
-                            base_record = BronzeRecord(
-                                chunk_id=tag.chunk_id,
-                                source_url=url,
-                                content=chunk,
-                                control_action=tag.control_action,
-                                language=language,
-                                ingested_at=session_timestamp
-                            )
-                            records.append(base_record)
+            async for index, outcome in _enumerate_async(
+                self.scraper.scrape_and_chunk(
+                    url=url,
+                    strategy=self.strategy,
+                    run_config=self.run_config,
+                )
+            ):
+                match outcome:
+                    case Success(chunk):
+                        chunk_id = f"{url}_{index}"
+                        tag_res = await self.ollama.tag_chunk(
+                            chunk_id=chunk_id,
+                            source_url=url,
+                            content=chunk,
+                        )
+                        match tag_res:
+                            case Success(tag):
+                                # ── base record ───────────────────────────────────────
+                                base = BronzeRecord(
+                                    chunk_id=tag.chunk_id,
+                                    source_url=url,
+                                    content=chunk,
+                                    control_action=tag.control_action,
+                                    language=language,
+                                    ingested_at=session_ts,
+                                )
+                                all_records.append(base)
 
-                            # 2. Toggleable Gram Building
-                            if self.linguistic_service:
-                                match await self.linguistic_service.generate_semantic_records(
+                                # ── optional semantic grams ───────────────────────
+                                if self.linguistic_service:
+                                    match await self.linguistic_service.generate_semantic_records(
                                         text=chunk,
                                         language=language,
-                                        base_record=base_record,
-                                ):
+                                        base_record=base,
+                                    ):
+                                        case Success(grams):
+                                            all_records.extend(grams)
+                                        case Failure(e):
+                                            log.warning(
+                                                "gram_generation_failed",
+                                                error=str(e),
+                                            )
+                                        case _:
+                                            pass
 
-                                    case Success(grams):
-                                        records.extend(grams)
+                                # ── discover new CLICKLINK URLs ─────────────────
+                                discovered: Set[str] = set()
+                                if tag.control_action == "CLICKLINK" and tag.source_url:
+                                    discovered.add(tag.source_url)
+                                if tag.actions:
+                                    for a in tag.actions:
+                                        if a.get("control_action") == "CLICKLINK":
+                                            child = a.get("url")
+                                            if child:
+                                                discovered.add(child)
 
-                                    case Failure(e):
-                                        log.warning(
-                                            "gram_generation_failed", error=str(e))
-
-                                    case _: pass
-
-                            # 3. Kafka side-effects for CLICKLINK.
-                            if tag.control_action == "CLICKLINK":
-                                if (url_val := tag.source_url):
+                                for child_url in discovered:
                                     await self.kafka_producer.send(
                                         topic="discovery_queue",
                                         value=json.dumps(
-                                            {"url": url_val}
-                                        ).encode()
+                                            {"url": child_url}).encode(),
                                     )
+                                    if child_url not in processed:
+                                        queue.append(child_url)
 
-                                    # TODO: fix the CLICKLINK logic.
-                                    self.scraper.process_from_topic(
-                                        strategy=self.strategy,
-                                        run_config=self.run_config,
-                                        topic="discovery_queue"
-                                    )
+                            case Failure(e):
+                                log.warning("tagging_failed", error=str(e))
+                            case _:
+                                pass
+                    case Failure(e):
+                        log.error("stream_failed", error=str(e))
+                        continue
+                    case _:
+                        pass
 
-                                else:
-                                    log.debug(
-                                        "clicklink_missing_url", chunk_id=tag.chunk_id)
-
-                            # 4. Kafka side-effects for actions with CLICKLINK.
-                            if (actions_list := tag.actions):
-                                for action_dict in actions_list:
-                                    if action_dict.get("control_action") == "CLICKLINK":
-                                        await self.kafka_producer.send(
-                                            topic="discovery_queue",
-                                            value=json.dumps(
-                                                {"url": action_dict.get(
-                                                    "url")}
-                                            ).encode()
-                                        )
-
-                            else:
-                                log.debug(
-                                    "No_actions_found", chunk_id=tag.chunk_id)
-
-                        case Failure(e):
-                            log.warning("tagging_failed", error=str(e))
-
-                        case _: pass
-
-                case Failure(e):
-                    log.error("stream_failed", error=str(e))
-                    continue
-
-                case _: pass
-
-        return self.lakehouse.write_records(records)
+        # Persist everything that was discovered in this *crawl tree*
+        write_res = self.lakehouse.write_records(all_records)
+        log.info("pipeline_stage_complete", records_written=len(all_records))
+        return Success(len(all_records))
