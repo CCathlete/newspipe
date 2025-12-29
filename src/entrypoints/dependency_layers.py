@@ -83,6 +83,8 @@ def _resolve_and_validate_lakehouse_config(
     access_key = config['lakehouse']['username']
     secret_key = config['lakehouse']['password']
     bronze_path = config['lakehouse']['bronze_path']
+    spark_mode = config['spark_mode']
+    assert isinstance(spark_mode, str)
 
     missing = []
     if not endpoint:
@@ -112,7 +114,8 @@ def _resolve_and_validate_lakehouse_config(
         "endpoint": endpoint,
         "access_key": access_key,
         "secret_key": secret_key,
-        "bronze_path": bronze_path
+        "bronze_path": bronze_path,
+        "spark_mode": spark_mode
     }
 
 
@@ -160,7 +163,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         lambda resolved_lakehouse_cfg_dict: (
             SparkSession
             .builder
-            .master("spark://localhost:7077")
+            .master(resolved_lakehouse_cfg_dict['spark_mode'])
             .appName("NewsAnalysis")
 
             .config(
@@ -190,10 +193,6 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             .config("spark.hadoop.fs.s3a.retry.interval", "5000")
             .config("spark.hadoop.fs.s3a.establish.timeout", "5000")
             .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
-
-            # Network config between docker network and localhost.
-            .config("spark.driver.host", "192.168.100.1")
-            .config("spark.driver.bindAddress", "0.0.0.0")
 
             # Memory config.
             .config("spark.driver.cores", "1")

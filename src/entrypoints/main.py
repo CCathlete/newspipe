@@ -67,6 +67,9 @@ async def main_async() -> None:
             "window_size": 500,
             "overlap": 50,
         },
+        "spark_mode": "local[*]" if os.getenv(
+            "LOCAL_SPARK_MODE"
+        ) else "spark://localhost:7077",
     })
 
     container.wire(modules=[__name__])
