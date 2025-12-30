@@ -17,9 +17,8 @@ from crawl4ai import (
 )
 from crawl4ai.chunking_strategy import OverlappingWindowChunking
 from structlog.processors import JSONRenderer, TimeStamper, StackInfoRenderer, format_exc_info
-
-
 from ..domain.services.data_ingestion import IngestionPipeline
+from ..domain.services.discovery_consumer import DiscoveryConsumer
 from ..domain.services.linguistic_model import LinguisticService
 from ..infrastructure.scraper import StreamScraper
 from ..infrastructure.litellm_client import LitellmClient
@@ -32,12 +31,10 @@ logging.basicConfig(
     level=logging.INFO,
     handlers=[logging.StreamHandler(sys.stdout)],
 )
-
 # Ensure any previous file handler is removed
 for h in logging.root.handlers[:]:
     if isinstance(h, (RotatingFileHandler, logging.FileHandler)):
         logging.root.removeHandler(h)
-
 # RotatingFileHandler: truncates when it reaches maxBytes and overwrites
 log_file_handler = RotatingFileHandler(
     filename="newspipe.log",
@@ -49,8 +46,6 @@ log_file_handler = RotatingFileHandler(
 log_file_handler.setLevel(logging.INFO)
 log_file_handler.setFormatter(logging.Formatter("%(message)s"))
 logging.root.addHandler(log_file_handler)
-
-
 # ----------------------------------------------------------------------
 # Structlog configuration - JSON output, timestamps, proper exc formatting.
 # ----------------------------------------------------------------------
@@ -85,7 +80,6 @@ def _resolve_and_validate_lakehouse_config(
     bronze_path = config['lakehouse']['bronze_path']
     spark_mode = config['spark_mode']
     assert isinstance(spark_mode, str)
-
     missing = []
     if not endpoint:
         missing.append("lakehouse.endpoint")
@@ -95,13 +89,11 @@ def _resolve_and_validate_lakehouse_config(
         missing.append("lakehouse.password (secret_key)")
     if not bronze_path:
         missing.append("lakehouse.bronze_path")
-
     if missing:
         logger.error(
             "Missing required Lakehouse configuration values", missing_keys=missing)
         raise ValueError(
             f"Missing required Lakehouse configuration values: {', '.join(missing)}")
-
     logger.info(
         "Resolved Lakehouse Configuration",
         endpoint=endpoint,
@@ -109,7 +101,6 @@ def _resolve_and_validate_lakehouse_config(
         secret_key="********" if secret_key else "NONE/EMPTY",
         bronze_path=bronze_path
     )
-
     return {
         "endpoint": endpoint,
         "access_key": access_key,
@@ -122,7 +113,6 @@ def _resolve_and_validate_lakehouse_config(
 class DataPlatformContainer(containers.DeclarativeContainer):
     # Configuration - analogous to ZConfig
     config = providers.Configuration()
-
     # Resource Providers (Managed Lifecycles)
     # Like ZIO.acquireRelease for the HTTP Client
     http_client = providers.Resource(
@@ -134,30 +124,23 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             "Accept-Language": "en-US,en;q=0.5",
         }
     )
-
     # Kafka Producer Resource
     kafka_producer = providers.Resource(
         AIOKafkaProducer,
         bootstrap_servers=config.kafka.bootstrap_servers
     )
-
     kafka_consumer = providers.Resource(
         AIOKafkaConsumer,
         bootstrap_servers=config.kafka.bootstrap_servers
-
-
     )
-
     logger_provider = providers.Singleton(
         structlog.get_logger
     )
-
     resolved_lakehouse_config = providers.Factory(
         _resolve_and_validate_lakehouse_config,
         config=config,
         logger=logger_provider
     )
-
     # Spark is usually provided as a singleton
     spark = providers.Factory(
         lambda resolved_lakehouse_cfg_dict: (
@@ -165,7 +148,6 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             .builder
             .master(resolved_lakehouse_cfg_dict['spark_mode'])
             .appName("NewsAnalysis")
-
             .config(
                 "spark.jars.packages",
                 "org.apache.hadoop:hadoop-aws:3.3.4,"
@@ -173,12 +155,10 @@ class DataPlatformContainer(containers.DeclarativeContainer):
                 "com.amazonaws:aws-java-sdk-bundle:1.12.262,"
                 "org.apache.spark:spark-hadoop-cloud_2.12:3.5.1"
             )
-
             # This tells Spark not to look for the "Magic" or "S3A" specific
             # committers that are failing to find their class.
             .config("spark.hadoop.fs.s3a.committer.name", "directory")
             .config("spark.sql.sources.commitProtocolClass", "org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol")
-
             # --- MinIO Specifics ---
             .config("spark.hadoop.fs.s3a.endpoint", resolved_lakehouse_cfg_dict['endpoint'])
             .config("spark.hadoop.fs.s3a.access.key", resolved_lakehouse_cfg_dict['access_key'])
@@ -186,23 +166,19 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             .config("spark.hadoop.fs.s3a.path.style.access", "true")
             .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
             .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
-
             # --- S3A Retry/Timeout Configurations ---
             .config("spark.hadoop.fs.s3a.attempts.maximum", "5")
             .config("spark.hadoop.fs.s3a.retry.limit", "10")
             .config("spark.hadoop.fs.s3a.retry.interval", "5000")
             .config("spark.hadoop.fs.s3a.establish.timeout", "5000")
             .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
-
             # Memory config.
             .config("spark.driver.cores", "1")
             .config("spark.driver.memory", "1g")
-
             .getOrCreate()
         ),
         resolved_lakehouse_cfg_dict=resolved_lakehouse_config
     )
-
     browser_configuration = providers.Singleton(
         BrowserConfig,
         headless=True,
@@ -213,15 +189,12 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         },
         enable_stealth=True  # Built-in Crawl4AI/Playwright stealth
     )
-
     # --- Infrastructure Layers ---
-
     strategy = providers.Singleton(
         OverlappingWindowChunking,
         window_size=config.stream_scraper.window_size,
         overlap=config.stream_scraper.overlap,
     )
-
     run_config = providers.Singleton(
         CrawlerRunConfig,
         cache_mode=cache_context.CacheMode.BYPASS,
@@ -231,28 +204,17 @@ class DataPlatformContainer(containers.DeclarativeContainer):
             options={"ignore_links": False}
         )
     )
-
     # Service Layers - analogous to ZLayer.live
     scraping_provider = providers.Factory(
         AsyncWebCrawler,
         config=browser_configuration,
     )
-
     scraper = providers.Factory(
         StreamScraper,
         crawler_factory=scraping_provider.provider,
         kafka_consumer=kafka_consumer,
         logger=logger_provider
     )
-
-    # ollama = providers.Factory(
-    #     OllamaClient,
-    #     model=config.ollama.model,
-    #     ollama_server_url=config.ollama.base_url,
-    #     client=http_client,
-    #     logger=logger_provider
-    # )
-
     litellm = providers.Factory(
         LitellmClient,
         model=config.litellm.model,
@@ -261,24 +223,19 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         client=http_client,
         logger=logger_provider
     )
-
     lakehouse = providers.Factory(
         LakehouseConnector,
         spark=spark,
         bucket_path=config.lakehouse.bronze_path,
         logger=logger_provider
     )
-
     # --- Domain Service Layers ---
-
     linguistic_service = providers.Factory(
         LinguisticService,
-        # ai_provider=ollama,
         ai_provider=litellm,
         language=config.app.default_language,
         logger=logger_provider
     )
-
     pipeline = providers.Factory(
         IngestionPipeline,
         scraper=scraper,
@@ -288,6 +245,14 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         logger=logger_provider,
         strategy=strategy,
         run_config=run_config,
-        # linguistic_service=linguistic_service
-        linguistic_service=None
+        linguistic_service=linguistic_service
+    )
+    # --- Discovery Consumer Layer ---
+    discovery_consumer = providers.Factory(
+        DiscoveryConsumer,
+        kafka_provider=kafka_consumer,
+        ingestion_pipeline=pipeline,
+        logger=logger_provider,
+        run_config=run_config,
+        language_lookup=config.kafka.language_lookup
     )
