@@ -1,11 +1,12 @@
 # src/infrastructure/lakehouse.py
 
+import asyncio
 from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
 from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.types import StructType, Row
-from returns.result import safe
-from returns.maybe import Maybe, Nothing
+from returns.future import future_safe
+from returns.maybe import Maybe
 from typing import Never
 from urllib.parse import urlparse
 
@@ -47,19 +48,19 @@ class LakehouseConnector:
             case _:
                 return None
 
-    @safe
-    def write_records(self, records: list[BronzeRecord]) -> int:
+    @future_safe
+    async def write_records(self, records: list[BronzeRecord]) -> int:
         log = self.logger.bind()
         if not records:
             log.warning("No records to write")
             return 0
         log.info("Writing records to lakehouse", records_count=len(records))
 
-        data = [Row(**r.model_dump()) for r in records]
-        schema = BronzeRecord.model_spark_schema()
-        df = self.spark.createDataFrame(data=data, schema=schema)
+        data: list[Row] = [Row(**r.model_dump()) for r in records]
+        schema: StructType = BronzeRecord.model_spark_schema()
+        df: DataFrame = self.spark.createDataFrame(data=data, schema=schema)
 
-        df_partitioned = df.withColumn(
+        df_partitioned: DataFrame = df.withColumn(
             "ingested_date",
             F.from_unixtime(F.col("ingested_at"), "yyyy-MM-dd")
         )
@@ -67,9 +68,12 @@ class LakehouseConnector:
         base_part = _url_base_part(records[0].source_url)
         target_dir = f"{self.path}{base_part}/"
 
-        df_partitioned.write.mode("append").partitionBy(
-            "ingested_date"
-        ).json(target_dir)
+        await asyncio.to_thread(
+            df_partitioned.write.mode("append").partitionBy(
+                "ingested_date"
+            ).json,
+            target_dir,
+        )
 
         log.info("Records written to lakehouse", path=target_dir)
         return len(records)

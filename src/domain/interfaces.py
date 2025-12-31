@@ -31,7 +31,7 @@ class AIProvider(Protocol):
 
 
 class StorageProvider(Protocol):
-    def write_records(
+    async def write_records(
         self,
         records: list[BronzeRecord],
     ) -> Result[int, Exception]: ...
