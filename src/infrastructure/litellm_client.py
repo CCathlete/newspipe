@@ -1,4 +1,5 @@
 # src/infrastructure/litellm_client.py
+
 from __future__ import annotations
 
 import json
@@ -80,6 +81,56 @@ class LitellmClient:
             "response_format": {"type": "json_object"}  # Force JSON response
         }
 
+        def extract_content_from_response(
+            response_json: dict[str, Any]
+        ) -> Result[str, Exception]:
+            """
+            Attempts to extract the content from various LLM response formats.
+            Tries multiple common patterns before giving up.
+            """
+            # Pattern 1: OpenAI-style with choices
+            if "choices" in response_json:
+                try:
+                    return Success(response_json["choices"][0]["message"]["content"])
+                except (KeyError, IndexError, TypeError) as e:
+                    pass  # Try next pattern
+
+            # Pattern 2: Anthropic-style with content blocks
+            if "content" in response_json:
+                try:
+                    # Anthropic returns content as a list of blocks
+                    content_blocks = response_json["content"]
+                    if isinstance(content_blocks, list) and content_blocks:
+                        return Success(content_blocks[0]["text"])
+                except (KeyError, IndexError, TypeError) as e:
+                    pass  # Try next pattern
+
+            # Pattern 3: Cohere-style with text
+            if "text" in response_json:
+                try:
+                    return Success(response_json["text"])
+                except (KeyError, TypeError) as e:
+                    pass  # Try next pattern
+
+            # Pattern 4: Raw string response (some APIs return just a string)
+            if isinstance(response_json, str):
+                return Success(response_json)
+
+            # Pattern 5: Direct content field
+            if "content" in response_json:
+                try:
+                    content = response_json["content"]
+                    if isinstance(content, str):
+                        return Success(content)
+                except (KeyError, TypeError) as e:
+                    pass  # Try next pattern
+
+            # If all patterns fail, convert the entire response to a string
+            try:
+                return Success(json.dumps(response_json))
+            except Exception as e:
+                return Failure(Exception(f"Could not extract content from response: {response_json}"))
+
         def extract_json_only(raw_content: str) -> Result[str, Exception]:
             """Extract only the JSON part, ignoring any surrounding text"""
             try:
@@ -148,7 +199,7 @@ class LitellmClient:
             response_monad
             .bind(lambda res: Success(res.raise_for_status()))
             .bind(lambda res: Success(res.json()))
-            .bind(lambda raw: Success(raw["choices"][0]["message"]["content"]))
+            .bind(extract_content_from_response)
             .bind(extract_json_only)
             .bind(strict_parse_json)
             .bind(validate_and_normalize)
