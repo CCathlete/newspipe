@@ -77,7 +77,7 @@ class StreamScraper:
         log.info("Starting discovery queue processing")
 
         # Subscribe to the topic if not already subscribed
-        self.kafka_consumer.subscribe(topic)
+        self.kafka_consumer.subscribe([topic])
 
         while True:
             try:

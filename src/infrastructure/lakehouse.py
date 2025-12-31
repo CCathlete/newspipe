@@ -7,6 +7,7 @@ from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.types import StructType, Row
 from returns.future import future_safe
 from returns.maybe import Maybe
+from returns.result import Result, Success, Failure
 from typing import Never
 from urllib.parse import urlparse
 
@@ -49,31 +50,42 @@ class LakehouseConnector:
                 return None
 
     @future_safe
-    async def write_records(self, records: list[BronzeRecord]) -> int:
-        log = self.logger.bind()
-        if not records:
-            log.warning("No records to write")
-            return 0
-        log.info("Writing records to lakehouse", records_count=len(records))
+    async def write_records(
+        self,
+        records: list[BronzeRecord]
+    ) -> Result[int, Exception]:
 
-        data: list[Row] = [Row(**r.model_dump()) for r in records]
-        schema: StructType = BronzeRecord.model_spark_schema()
-        df: DataFrame = self.spark.createDataFrame(data=data, schema=schema)
+        try:
+            log = self.logger.bind()
+            if not records:
+                log.warning("No records to write")
+                return Success(0)
+            log.info("Writing records to lakehouse",
+                     records_count=len(records))
 
-        df_partitioned: DataFrame = df.withColumn(
-            "ingested_date",
-            F.from_unixtime(F.col("ingested_at"), "yyyy-MM-dd")
-        )
+            data: list[Row] = [Row(**r.model_dump()) for r in records]
+            schema: StructType = BronzeRecord.model_spark_schema()
+            df: DataFrame = self.spark.createDataFrame(
+                data=data, schema=schema)
 
-        base_part = _url_base_part(records[0].source_url)
-        target_dir = f"{self.path}{base_part}/"
+            df_partitioned: DataFrame = df.withColumn(
+                "ingested_date",
+                F.from_unixtime(F.col("ingested_at"), "yyyy-MM-dd")
+            )
 
-        await asyncio.to_thread(
-            df_partitioned.write.mode("append").partitionBy(
-                "ingested_date"
-            ).json,
-            target_dir,
-        )
+            base_part = _url_base_part(records[0].source_url)
+            target_dir = f"{self.path}{base_part}/"
 
-        log.info("Records written to lakehouse", path=target_dir)
-        return len(records)
+            await asyncio.to_thread(
+                df_partitioned.write.mode("append").partitionBy(
+                    "ingested_date"
+                ).json,
+                target_dir,
+            )
+
+            log.info("Records written to lakehouse", path=target_dir)
+            return Success(len(records))
+
+        except Exception as e:
+            log.error("write_records_failed", error=str(e))
+            return Failure(e)

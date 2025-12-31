@@ -32,7 +32,7 @@ class KafkaConsumerAdapter(KafkaProvider):
             enable_auto_commit=False,
         )
 
-    def subscribe(self, *topics: str) -> None:
+    def subscribe(self, *topics: list[str]) -> None:
         """
         Subscribe to new topics dynamically. 
         This method updates the internal consumer subscription.
@@ -84,7 +84,7 @@ class KafkaProducerAdapter(KafkaProvider):
         except Exception as exc:
             return Failure(exc)
 
-    def subscribe(self, *topics: str) -> None:
+    def subscribe(self, *topics: list[str]) -> None:
         """Producer does not support subscription."""
         pass
 

@@ -33,7 +33,7 @@ class DiscoveryConsumer:
 
     async def run(self) -> None:
         self.logger.info("discovery_consumer_started")
-        self.kafka_provider.subscribe("discovery_queue")
+        self.kafka_provider.subscribe(["discovery_queue"])
 
         while True:
             # 1. Consume messages
