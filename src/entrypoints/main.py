@@ -120,6 +120,10 @@ async def main_async() -> None:
         print("Starting Discovery Consumer (Blocking)...")
         await run_consumer_worker()
 
+    except Exception as e:
+        print(f"Main crashed: {e}", file=sys.stderr)
+        raise
+
     finally:
         # Clean shutdown
         if (shutdown_task := container.shutdown_resources()) is not None:

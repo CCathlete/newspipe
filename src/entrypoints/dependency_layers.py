@@ -233,7 +233,6 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     linguistic_service = providers.Factory(
         LinguisticService,
         ai_provider=litellm,
-        language=config.app.default_language,
         logger=logger_provider
     )
     pipeline = providers.Factory(
