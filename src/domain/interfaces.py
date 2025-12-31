@@ -4,6 +4,7 @@ from typing import Any, Iterable, Protocol, AsyncIterator, runtime_checkable
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 from returns.result import Result
+from returns.future import FutureResult
 from aiokafka.structs import TopicPartition, ConsumerRecord
 from .models import BronzeTagResponse, BronzeRecord
 
@@ -34,7 +35,7 @@ class StorageProvider(Protocol):
     async def write_records(
         self,
         records: list[BronzeRecord],
-    ) -> Result[int, Exception]: ...
+    ) -> FutureResult[int, Exception]: ...
 
 
 class KafkaProvider(Protocol):

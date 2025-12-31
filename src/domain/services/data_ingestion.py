@@ -6,6 +6,8 @@ from datetime import datetime, UTC
 from typing import AsyncIterable, TypeVar, AsyncIterator
 from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure
+from returns.future import FutureResult
+from returns.io import IOResult, IOSuccess, IOFailure
 
 from ..models import BronzeRecord
 from ..interfaces import (
@@ -55,9 +57,12 @@ class IngestionPipeline:
         if not buffer:
             return Success(0)
 
-        write_result: Result[int, Exception] = await self.lakehouse.write_records(buffer)
+        write_future: FutureResult[int, Exception] = await self.lakehouse.write_records(buffer)
+
+        write_result: IOResult[int, Exception] = await write_future
+
         match write_result:
-            case Success(Any):
+            case IOSuccess(Success(_)):
                 count: int = len(buffer)
                 current_log.info(
                     "buffer_flushed",
@@ -67,7 +72,7 @@ class IngestionPipeline:
                 buffer.clear()
                 return Success(count)
 
-            case Failure(e):
+            case IOFailure(Failure(e)):
                 current_log.error("buffer_flush_failed", error=str(e))
                 return Failure(e)
 

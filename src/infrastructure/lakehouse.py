@@ -5,7 +5,13 @@ from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
 from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.types import StructType, Row
-from returns.result import Result, Success, Failure, safe
+from returns.result import Result, Success, Failure
+from returns.future import (
+    future_safe,
+    FutureResult,
+    FutureSuccess,
+    FutureFailure
+)
 from returns.maybe import Maybe
 from typing import Never
 from urllib.parse import urlparse
@@ -48,17 +54,17 @@ class LakehouseConnector:
             case _:
                 return None
 
-    @safe
+    @future_safe
     async def write_records(
         self,
         records: list[BronzeRecord]
-    ) -> Result[int, Exception]:
+    ) -> FutureResult[int, Exception]:
 
         try:
             log = self.logger.bind()
             if not records:
                 log.warning("No records to write")
-                return Success(0)
+                return FutureSuccess(0)
             log.info("Writing records to lakehouse",
                      records_count=len(records))
 
@@ -83,8 +89,8 @@ class LakehouseConnector:
             )
 
             log.info("Records written to lakehouse", path=target_dir)
-            return Success(len(records))
+            return FutureSuccess(len(records))
 
         except Exception as e:
             log.error("write_records_failed", error=str(e))
-            return Failure(e)
+            return FutureFailure(e)
