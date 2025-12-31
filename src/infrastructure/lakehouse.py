@@ -5,9 +5,8 @@ from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
 from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.types import StructType, Row
-from returns.future import future_safe
+from returns.result import Result, Success, Failure, safe
 from returns.maybe import Maybe
-from returns.result import Result, Success, Failure
 from typing import Never
 from urllib.parse import urlparse
 
@@ -49,7 +48,7 @@ class LakehouseConnector:
             case _:
                 return None
 
-    @future_safe
+    @safe
     async def write_records(
         self,
         records: list[BronzeRecord]

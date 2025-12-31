@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
-from typing import AsyncIterable, List, Set, TypeVar, AsyncIterator
+from typing import AsyncIterable, TypeVar, AsyncIterator
 from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure
 
@@ -42,7 +42,11 @@ class IngestionPipeline:
     linguistic_service: LinguisticService | None = field(default=None)
     buffer_size: int = field(default=10)
 
-    async def _flush_records_buffer(self, buffer: List[BronzeRecord], current_log: FilteringBoundLogger) -> Result[int, Exception]:
+    async def _flush_records_buffer(
+        self,
+        buffer: list[BronzeRecord],
+        current_log: FilteringBoundLogger
+    ) -> Result[int, Exception]:
         """
         Flushes the provided buffer of BronzeRecord objects to the lakehouse.
         Clears the buffer upon successful write.
@@ -51,20 +55,22 @@ class IngestionPipeline:
         if not buffer:
             return Success(0)
 
-        # We assume lakehouse.write_records is an awaitable that returns Result[int, Exception]
-        # where int is the count of records successfully written.
-        write_result = await self.lakehouse.write_records(buffer)
+        write_result: Result[int, Exception] = await self.lakehouse.write_records(buffer)
         match write_result:
-            case Success(_):
-                # Assuming all records in the buffer were written on Success
-                count = len(buffer)
+            case Success(Any):
+                count: int = len(buffer)
                 current_log.info(
-                    "buffer_flushed", records_written=count, buffer_size_at_flush=count)
-                buffer.clear()  # Crucially clear the buffer after a successful write
+                    "buffer_flushed",
+                    records_written=count,
+                    buffer_size_at_flush=count
+                )
+                buffer.clear()
                 return Success(count)
+
             case Failure(e):
                 current_log.error("buffer_flush_failed", error=str(e))
                 return Failure(e)
+
             case _:
                 return Failure(Exception("Unexpected result type from lakehouse.write_records"))
 
@@ -79,11 +85,11 @@ class IngestionPipeline:
         Returns the total number of records written.
         """
         log = self.logger.bind(url=start_url)
-        processed_urls: Set[str] = set()
-        url_queue: List[str] = [start_url]
+        processed_urls: set[str] = set()
+        url_queue: list[str] = [start_url]
         # Changed: Buffer to hold records
-        buffered_records: List[BronzeRecord] = []
-        total_records_ingested: int = 0  # New: Counter for total records written
+        buffered_records: list[BronzeRecord] = []
+        total_records_ingested: int = 0
         session_ts = datetime.now(UTC).timestamp()
 
         # Helper function to check buffer size and flush if capacity is met
@@ -160,7 +166,7 @@ class IngestionPipeline:
                                             pass
 
                                 # ── discover new CLICKLINK URLs ─────────────────
-                                discovered_urls: Set[str] = set()
+                                discovered_urls: set[str] = set()
                                 if tag.control_action == "CLICKLINK" and tag.source_url:
                                     discovered_urls.add(tag.source_url)
                                 if tag.actions:
