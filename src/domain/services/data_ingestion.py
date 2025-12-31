@@ -1,7 +1,7 @@
 # src/domain/services/data_ingestion.py
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from typing import AsyncIterable, List, Set, TypeVar, AsyncIterator
 
@@ -39,7 +39,7 @@ class IngestionPipeline:
     logger: FilteringBoundLogger
     strategy: ChunkingStrategy
     run_config: CrawlerRunConfig
-    linguistic_service: LinguisticService
+    linguistic_service: LinguisticService | None = field(default=None)
 
     async def execute(
         self,
