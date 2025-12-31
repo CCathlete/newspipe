@@ -244,7 +244,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         logger=logger_provider,
         strategy=strategy,
         run_config=run_config,
-        linguistic_service=linguistic_service
+        # linguistic_service=linguistic_service
     )
     # --- Discovery Consumer Layer ---
     discovery_consumer = providers.Factory(
