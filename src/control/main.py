@@ -1,4 +1,4 @@
-# src/entrypoints/main.py
+# src/control/main.py
 
 import asyncio
 import json
