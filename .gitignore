@@ -33,3 +33,5 @@ target
 **/*__pyc*/**
 **/input_files/**
 **/logs/**
+
+**/*.egg*

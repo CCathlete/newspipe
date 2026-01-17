@@ -28,6 +28,7 @@ newspipe-ingest = "src.entrypoints.main:main"
 
 [tool.mypy]
 python_version = "3.12"
+python_executable = ".venv/bin/python"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
