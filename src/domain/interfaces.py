@@ -18,17 +18,16 @@ class SparkSessionInterface(Protocol):
 
 
 class AIProvider(Protocol):
-    async def tag_chunk(
-        self,
-        chunk_id: str,
-        source_url: str,
-        content: str,
-    ) -> Result[BronzeTagResponse, Exception]: ...
-
-    async def embed_text(
+    async def is_relevant(
         self,
         text: str,
-    ) -> Result[list[float], Exception]: ...
+        policy_description: str,
+        language: str = "en",
+    ) -> Result[bool, Exception]:
+        ...
+
+    async def embed_text(self, text: str) -> Result[list[float], Exception]:
+        ...
 
 
 class StorageProvider(Protocol):

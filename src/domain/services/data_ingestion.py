@@ -127,7 +127,7 @@ class IngestionPipeline:
                         gate_res: Result[bool, Exception] = await self.llm.is_relevant(
                             text=chunk,
                             language=language,
-                            policy=policy.dict(),  # pass pydantic as dict
+                            policy_description=policy.model_dump_json(),
                         )
                         match gate_res:
                             case Success(True):
@@ -135,7 +135,7 @@ class IngestionPipeline:
                                     chunk_id=f"{current_url}_{index}",
                                     source_url=current_url,
                                     content=chunk,
-                                    control_action="NEW_ARTICLE",  # LLM no longer drives crawling
+                                    control_action="RELEVANT",
                                     language=language,
                                     ingested_at=session_ts,
                                 )
@@ -154,7 +154,6 @@ class IngestionPipeline:
             # -------------------------
             # Kafka push for new URLs handled separately by crawler
             # -------------------------
-            # No LLM needed here
 
         # Final flush
         if buffered_records:

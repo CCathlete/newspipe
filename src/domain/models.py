@@ -25,9 +25,7 @@ class BronzeTagResponse(BaseModel):
     source_url: str  # The origin of the stream.
     control_action: Literal[
         "IRRELEVANT",
-        "NEW_ARTICLE",
-        "CLICKLINK",
-        "CONTINUE"
+        "RELEVANT",
     ] = Field(alias="controlAction")
     language: str
     content: str
