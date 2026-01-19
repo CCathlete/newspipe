@@ -1,15 +1,14 @@
 # src/domain/services/data_ingestion.py
 
-import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, UTC
-from typing import AsyncIterable, TypeVar, AsyncIterator
+from typing import TypeVar, AsyncIterable, AsyncIterator
+from returns.future import FutureResult
+from returns.io import IOFailure, IOResult, IOSuccess
 from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure
-from returns.future import FutureResult
-from returns.io import IOResult, IOSuccess, IOFailure
 
-from ..models import BronzeRecord
+from ..models import BronzeRecord, RelevancePolicy
 from ..interfaces import (
     ScraperProvider,
     StorageProvider,
@@ -21,7 +20,6 @@ from ..interfaces import ChunkingStrategy, CrawlerRunConfig
 
 T = TypeVar("T")
 
-
 async def _enumerate_async(
     source: AsyncIterable[T], start: int = 0
 ) -> AsyncIterator[tuple[int, T]]:
@@ -32,44 +30,44 @@ async def _enumerate_async(
         i += 1
 
 
+def cheap_pre_filter(chunk: str) -> bool:
+    """Drop very small or boilerplate chunks before calling LLM."""
+    if len(chunk) < 200:
+        return False
+    lower = chunk.lower()
+    if any(term in lower for term in ["cookie", "privacy policy", "terms of service"]):
+        return False
+    return True
+
+
 @dataclass(slots=True, frozen=True)
 class IngestionPipeline:
     scraper: ScraperProvider
-    ollama: AIProvider
+    llm: AIProvider
     lakehouse: StorageProvider
     kafka_producer: KafkaProvider
     logger: FilteringBoundLogger
     strategy: ChunkingStrategy
     run_config: CrawlerRunConfig
-    linguistic_service: LinguisticService | None = field(default=None)
-    buffer_size: int = field(default=10)
+    linguistic_service: LinguisticService | None = None
+    buffer_size: int = 10
 
     async def _flush_records_buffer(
         self,
         buffer: list[BronzeRecord],
         current_log: FilteringBoundLogger
     ) -> Result[int, Exception]:
-        """
-        Flushes the provided buffer of BronzeRecord objects to the lakehouse.
-        Clears the buffer upon successful write.
-        Returns the number of records written or a Failure if an error occurs.
-        """
+
         if not buffer:
             return Success(0)
 
-        write_future: FutureResult[int, Exception] = await self.lakehouse.write_records(buffer)
-
-        write_result: IOResult[int, Exception] = await write_future
-
-        match write_result:
+        future_write_res: FutureResult[int, Exception] = await self.lakehouse.write_records(buffer)
+        write_res: IOResult[int, Exception] = await future_write_res.awaitable()
+        match write_res:
             case IOSuccess(Success(_)):
-                count: int = len(buffer)
-                current_log.info(
-                    "buffer_flushed",
-                    records_written=count,
-                    buffer_size_at_flush=count
-                )
+                count = len(buffer)
                 buffer.clear()
+                current_log.info("buffer_flushed", records_written=count)
                 return Success(count)
 
             case IOFailure(Failure(e)):
@@ -77,27 +75,22 @@ class IngestionPipeline:
                 return Failure(e)
 
             case _:
-                return Failure(Exception("Unexpected result type from lakehouse.write_records"))
+                return Failure(Exception("Unknown issue in ingestion."))
 
     async def execute(
         self,
         start_url: str,
         language: str,
+        policy: RelevancePolicy,
     ) -> Result[int, Exception]:
-        """
-        Crawl ``start_url`` and everything discovered via CLICKLINK,
-        persisting ``BronzeRecord`` objects to the lakehouse in buffered batches.
-        Returns the total number of records written.
-        """
+        """Crawl start_url, filter by policy, and embed relevant chunks."""
         log = self.logger.bind(url=start_url)
         processed_urls: set[str] = set()
         url_queue: list[str] = [start_url]
-        # Changed: Buffer to hold records
         buffered_records: list[BronzeRecord] = []
-        total_records_ingested: int = 0
+        total_records_ingested = 0
         session_ts = datetime.now(UTC).timestamp()
 
-        # Helper function to check buffer size and flush if capacity is met
         async def _check_and_flush_buffer() -> Result[None, Exception]:
             nonlocal total_records_ingested
             if len(buffered_records) >= self.buffer_size:
@@ -107,9 +100,8 @@ class IngestionPipeline:
                         total_records_ingested += count
                         return Success(None)
                     case Failure(e):
-                        # Error has already been logged by _flush_records_buffer
                         return Failure(e)
-            return Success(None)  # No flush needed, or buffer not yet full
+            return Success(None)
 
         while url_queue:
             current_url = url_queue.pop(0)
@@ -117,103 +109,61 @@ class IngestionPipeline:
                 continue
             processed_urls.add(current_url)
 
-            async for index, outcome in _enumerate_async(
+            async for index, chunk_res in _enumerate_async(
                 self.scraper.scrape_and_chunk(
                     url=current_url,
                     strategy=self.strategy,
                     run_config=self.run_config,
                 )
             ):
-                match outcome:
+                match chunk_res:
                     case Success(chunk):
-                        chunk_id = f"{current_url}_{index}"
-                        tag_res = await self.ollama.tag_chunk(
-                            chunk_id=chunk_id,
-                            source_url=current_url,
-                            content=chunk,
+                        if not cheap_pre_filter(chunk):
+                            continue  # skip irrelevant chunk early
+
+                        # -------------------------
+                        # Policy-driven LLM gate
+                        # -------------------------
+                        gate_res: Result[bool, Exception] = await self.llm.is_relevant(
+                            text=chunk,
+                            language=language,
+                            policy=policy.dict(),  # pass pydantic as dict
                         )
-                        match tag_res:
-                            case Success(tag):
-                                # ── base record ───────────────────────────────────────
-                                base_record = BronzeRecord(
-                                    chunk_id=tag.chunk_id,
+                        match gate_res:
+                            case Success(True):
+                                record = BronzeRecord(
+                                    chunk_id=f"{current_url}_{index}",
                                     source_url=current_url,
                                     content=chunk,
-                                    control_action=tag.control_action,
+                                    control_action="NEW_ARTICLE",  # LLM no longer drives crawling
                                     language=language,
                                     ingested_at=session_ts,
                                 )
-                                buffered_records.append(base_record)
-
-                                # Attempt to flush after adding base record
-                                flush_attempt_res = await _check_and_flush_buffer()
-                                if isinstance(flush_attempt_res, Failure):
-                                    return flush_attempt_res  # Propagate failure immediately
-
-                                # ── optional semantic grams ───────────────────────
-                                if self.linguistic_service:
-                                    generate_grams_res = await self.linguistic_service.generate_semantic_records(
-                                        text=chunk,
-                                        language=language,
-                                        base_record=base_record,
-                                    )
-                                    match generate_grams_res:
-                                        case Success(grams):
-                                            buffered_records.extend(grams)
-                                            # Attempt to flush after adding semantic grams
-                                            flush_attempt_res = await _check_and_flush_buffer()
-                                            if isinstance(flush_attempt_res, Failure):
-                                                return flush_attempt_res  # Propagate failure immediately
-                                        case Failure(e):
-                                            log.warning("gram_generation_failed", error=str(
-                                                e), chunk_id=chunk_id)
-                                        case _:
-                                            pass
-
-                                # ── discover new CLICKLINK URLs ─────────────────
-                                discovered_urls: set[str] = set()
-                                if tag.control_action == "CLICKLINK" and tag.source_url:
-                                    discovered_urls.add(tag.source_url)
-                                if tag.actions:
-                                    for action in tag.actions:
-                                        if action.get("control_action") == "CLICKLINK":
-                                            child_url = action.get("url")
-                                            # Ensure child_url is a string
-                                            if isinstance(child_url, str):
-                                                discovered_urls.add(child_url)
-
-                                for child_url in discovered_urls:
-                                    await self.kafka_producer.send(
-                                        topic="discovery_queue",
-                                        value=json.dumps(
-                                            {"url": child_url}).encode(),
-                                    )
-                                    if child_url not in processed_urls:
-                                        url_queue.append(child_url)
+                                buffered_records.append(record)
+                                flush_res = await _check_and_flush_buffer()
+                                if isinstance(flush_res, Failure):
+                                    return flush_res
+                            case Success(False):
+                                continue
                             case Failure(e):
-                                log.warning("tagging_failed", error=str(
-                                    e), url=current_url, chunk_id=chunk_id)
-                            case _:
-                                pass
+                                log.warning(
+                                    "gate_failed", url=current_url, error=str(e))
                     case Failure(e):
-                        log.error("stream_failed", error=str(
-                            e), url=current_url)
-                        continue
-                    case _:
-                        pass
+                        log.warning("chunk_failed", url=current_url, error=str(e))
 
-        # Final flush: Ensure any remaining records in the buffer are written
+            # -------------------------
+            # Kafka push for new URLs handled separately by crawler
+            # -------------------------
+            # No LLM needed here
+
+        # Final flush
         if buffered_records:
-            final_flush_res = await self._flush_records_buffer(buffered_records, log)
-            match final_flush_res:
+            final_res = await self._flush_records_buffer(buffered_records, log)
+            match final_res:
                 case Success(count):
                     total_records_ingested += count
                 case Failure(e):
-                    # Error has already been logged by _flush_records_buffer
                     return Failure(e)
-                case _:
-                    return Failure(Exception("Unexpected final flush result"))
 
-        log.info("pipeline_stage_complete",
-                 total_records_written=total_records_ingested)
+        log.info("pipeline_complete", total_records_ingested=total_records_ingested)
         return Success(total_records_ingested)

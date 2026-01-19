@@ -85,3 +85,11 @@ class BronzeRecord(SparkModel):
             StructField("embedding", ArrayType(FloatType()), True),  # Nullable
             StructField("gram_type", StringType(), False),
         ])
+
+
+class RelevancePolicy(BaseModel):
+    """Defines relevance criteria for filtering chunks before embedding."""
+    name: str
+    description: str
+    include_terms: list[str] = Field(default_factory=list)
+    exclude_terms: list[str] = Field(default_factory=list)

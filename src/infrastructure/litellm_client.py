@@ -18,7 +18,7 @@ class LitellmClient:
     client: AsyncClient
     litellm_server_url: str
     logger: FilteringBoundLogger
-    embedding_model: str = "nomic-embed-text"
+    embedding_model: str = "nomic-embed-text" # UNUSED: Currently using openwebui built in embedding. 
 
     @property
     def chat_url(self) -> str:
@@ -253,3 +253,33 @@ class LitellmClient:
             log.error("Error tagging chunk", error=result.failure())
 
         return result
+
+
+    async def is_relevant(
+        self,
+        text: str,
+        language: str,
+        policy: dict[str, Any],
+    ) -> Result[bool, Exception]:
+        """
+        Determine if the chunk is relevant given the policy.
+        Returns Success(True) if relevant, Success(False) if not.
+        """
+        try:
+            prompt = f"""
+You are a relevance classifier.
+Language: {language}
+Policy: {json.dumps(policy)}
+Text chunk: {text}
+
+Answer only with YES if relevant, NO if not relevant.
+"""
+            # Call LiteLLM with a small completion / streaming
+            llm_response: str = await self.complete(prompt)  # adjust to your existing async method
+            llm_response = llm_response.strip().lower()
+            if "yes" in llm_response:
+                return Success(True)
+            else:
+                return Success(False)
+        except Exception as e:
+            return Failure(e)
