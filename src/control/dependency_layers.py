@@ -150,7 +150,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         bootstrap_servers=config.kafka.bootstrap_servers
     )
 
-    traversal_rules = providers.Factory(
+    traversal_rules = providers.Singleton(
         TraversalRules,
         allowed_domains=config.policy.allowed_domains,
         required_path_segments=config.policy.required_segments,
@@ -158,7 +158,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         max_depth=config.policy.max_depth
     )
 
-    relevance_policy = providers.Factory(
+    relevance_policy = providers.Singleton(
         RelevancePolicy,
         name=config.policy.name,
         description=config.policy.description,
