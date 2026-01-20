@@ -32,8 +32,11 @@ async def run_discovery(
 ) -> None:
     for lang, urls in seeds_by_lang.items():
         tasks = [
-            pipeline.execute(start_url=url, language=lang, policy=relevance_policy) 
-            for url in urls
+            pipeline.execute(
+                start_url=url, 
+                language=lang, 
+                policy=relevance_policy
+            ) for url in urls
         ]
         results: list[Result[int, Exception]] = await asyncio.gather(*tasks)
         
