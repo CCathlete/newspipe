@@ -6,12 +6,13 @@ import os
 import sys
 from pathlib import Path
 from typing import Coroutine, Any
+from domain.models import RelevancePolicy
 from returns.result import Success, Failure, Result
 from dependency_injector.wiring import inject, Provide
 from dotenv import load_dotenv
 
-from ..domain.services.data_ingestion import IngestionPipeline
-from ..domain.services.discovery_consumer import DiscoveryConsumer
+from application.services.data_ingestion import IngestionPipeline
+from domain.services.discovery_consumer import DiscoveryConsumer
 from .dependency_layers import DataPlatformContainer
 
 # Load environment variables
@@ -24,6 +25,7 @@ load_dotenv(env_path)
 async def run_discovery(
     seeds_by_lang: dict[str, list[str]],
     pipeline: IngestionPipeline = Provide[DataPlatformContainer.pipeline],
+    relevance_policy: RelevancePolicy = Provide[DataPlatformContainer.relevance_policy],
 ) -> None:
     """
     Orchestrator: Loads seed URLs and triggers the ingestion pipeline.
@@ -32,7 +34,7 @@ async def run_discovery(
     for lang, urls in seeds_by_lang.items():
         # Create a coroutine for every seed URL
         tasks: list[Coroutine[Any, Any, Result[int, Exception]]] = [
-            pipeline.execute(start_url=url, language=lang) for url in urls
+            pipeline.execute(start_url=url, language=lang, policy=relevance_policy) for url in urls
         ]
         # Run concurrently
         results: list[Result[int, Exception]] = await asyncio.gather(*tasks)
