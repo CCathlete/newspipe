@@ -21,10 +21,10 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 
 [project.scripts]
-newspipe-ingest = "src.entrypoints.main:main"
+newspipe-ingest = "control.main:main"
 
 [tool.mypy]
 python_version = "3.12"
