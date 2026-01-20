@@ -107,5 +107,8 @@ async def main_async() -> None:
         if (shutdown_task := container.shutdown_resources()) is not None:
             await shutdown_task
 
-if __name__ == "__main__":
+def main() -> None:
     asyncio.run(main_async())
+
+if __name__ == "__main__":
+    main()
