@@ -6,7 +6,7 @@ from pyspark.sql.types import StructType
 from returns.result import Result
 from returns.future import FutureResult
 from aiokafka.structs import TopicPartition, ConsumerRecord
-from .models import BronzeTagResponse, BronzeRecord
+from .models import BronzeRecord
 
 
 class SparkSessionInterface(Protocol):
@@ -52,7 +52,7 @@ class KafkaProvider(Protocol):
         *partitions: Any,
         timeout_ms: int | float = 0,
         max_records: int | None = None
-    ) -> dict[TopicPartition, list[ConsumerRecord]]: ...
+    ) -> dict[TopicPartition, list[ConsumerRecord[Any, Any]]]: ...
 
 
 @runtime_checkable

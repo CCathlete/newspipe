@@ -1,71 +1,31 @@
-# src/infrastructure/scraper.py
+# src/domain/services/scraper.py
 
 import json
-import asyncio
-from typing import Callable
 from dataclasses import dataclass
-from structlog.typing import FilteringBoundLogger
+from typing import Any, Callable, Final
+from urllib.parse import urlparse
 from collections.abc import AsyncIterator
-from returns.result import Result, Success, Failure
 
-from ..domain.interfaces import (
+from structlog.typing import FilteringBoundLogger
+from returns.result import Result, Success, Failure
+from aiokafka.structs import TopicPartition, ConsumerRecord
+
+from domain.interfaces import (
     Crawler,
     CrawlerResult,
     ChunkingStrategy,
     CrawlerRunConfig,
     KafkaProvider
 )
+from domain.models import RelevancePolicy
 
 
 @dataclass(slots=True, frozen=True)
 class StreamScraper:
     logger: FilteringBoundLogger
-    kafka_consumer: KafkaProvider
+    kafka_provider: KafkaProvider
     crawler_factory: Callable[[], Crawler]
-
-    async def scrape_and_chunk(
-        self,
-        url: str,
-        strategy: ChunkingStrategy,
-        run_config: CrawlerRunConfig,
-    ) -> AsyncIterator[Result[str, Exception]]:
-        log = self.logger.bind(url=url)
-        log.info("Starting Crawl4AI semantic scraping.")
-
-        try:
-            async with self.crawler_factory() as crawler:
-                result: CrawlerResult = await crawler.arun(
-                    url=url,
-                    config=run_config,
-                )
-
-                if not result.success:
-                    yield Failure(RuntimeError(result.error_message or "Unknown crawl error"))
-                    return
-
-                # 2. Extract chunks explicitly using the strategy
-                # If Crawl4AI didn't put them in metadata, we generate them from the markdown
-                content_to_chunk = result.markdown
-
-                if not content_to_chunk:
-                    yield Failure(RuntimeError("No content retrieved from URL"))
-                    return
-
-                # The strategy object has a chunk method
-                chunks: list[str] = strategy.chunk(content_to_chunk)
-
-                if not chunks:
-                    yield Success(content_to_chunk)
-                    return
-
-                for chunk in chunks:
-                    # Filter out noise/short fragments
-                    if len(chunk.strip()) > 100:
-                        yield Success(chunk.strip())
-
-        except Exception as e:
-            log.error("Crawl4AI failed", error=str(e))
-            yield Failure(e)
+    policy: RelevancePolicy
 
     async def process_from_topic(
         self,
@@ -73,59 +33,111 @@ class StreamScraper:
         run_config: CrawlerRunConfig,
         topic: str = "discovery_queue",
     ) -> AsyncIterator[Result[str, Exception]]:
-        log = self.logger.bind(topic=topic)
-        log.info("Starting discovery queue processing")
-
-        # Subscribe to the topic if not already subscribed
-        self.kafka_consumer.subscribe([topic])
+        log: Final = self.logger.bind(topic=topic, policy_name=self.policy.name)
+        log.info("discovery_process_started")
+        
+        self.kafka_provider.subscribe([topic])
 
         while True:
-            try:
-                # Get messages from Kafka with a timeout
-                messages = await self.kafka_consumer.getmany(timeout_ms=1000)
+            messages: dict[TopicPartition, list[ConsumerRecord[Any, Any]]]  = await self.kafka_provider.getmany(timeout_ms=1000)
+            if not messages:
+                continue
 
-                if not messages:
-                    continue
-
-                for tp, message_list in messages.items():
-                    for message in message_list:
-                        try:
-                            # Handling both raw bytes and deserialized values.
-                            if isinstance(message.value, bytes):
-                                data = json.loads(
-                                    message.value.decode('utf-8'))
-                            else:
-                                data = message.value
-
-                            if not isinstance(data, dict):
-                                log.warning(
-                                    "Message value is not a dictionary", value=data)
+            for _, message_list in messages.items():
+                for message in message_list:
+                    match self._decode_payload(message.value):
+                        case Success({"url": str(url), "language": str(lang)}):
+                            if not self._is_valid_navigation(url):
+                                log.debug("url_rejected_by_policy", url=url)
                                 continue
-
-                            url = data.get("url")
-                            if not url:
-                                log.warning(
-                                    "Invalid message format - missing URL", message=data)
-                                continue
-
-                            log.info("Processing discovered URL", url=url)
-                            async for result in self.scrape_and_chunk(
-                                url=url,
-                                strategy=strategy,
-                                run_config=run_config,
-                            ):
+                            
+                            log.info("processing_discovered_url", url=url)
+                            async for result in self.scrape_and_chunk(url, strategy, run_config, lang):
                                 yield result
+                                
+                        case Success(malformed):
+                            log.warning("malformed_payload_structure", payload=malformed)
+                            
+                        case Failure(e):
+                            log.error("message_deserialization_failed", error=str(e))
 
-                        except json.JSONDecodeError as e:
-                            log.error("Failed to decode message", error=str(e))
-                            yield Failure(e)
+    async def scrape_and_chunk(
+        self,
+        url: str,
+        strategy: ChunkingStrategy,
+        run_config: CrawlerRunConfig,
+        language: str,
+    ) -> AsyncIterator[Result[str, Exception]]:
+        log: Final = self.logger.bind(url=url, language=language)
+        
+        try:
+            async with self.crawler_factory() as crawler:
+                result: CrawlerResult = await crawler.arun(url=url, config=run_config)
 
-                        except Exception as e:
-                            log.error(
-                                "Unexpected error processing message", error=str(e))
-                            yield Failure(e)
+                if not result.success:
+                    yield Failure(RuntimeError(result.error_message or "Crawl failed"))
+                    return
 
-            except Exception as e:
-                log.error("Error in discovery queue processing", error=str(e))
-                yield Failure(e)
-                await asyncio.sleep(1)  # Small delay before retrying
+                # Handle navigation/discovery: Feed valid links back to Kafka
+                await self._discover_links(result, log)
+
+                # Handle content: Chunk and yield
+                match result.markdown:
+                    case str(content) if len(content) > 0:
+                        for chunk in strategy.chunk(content):
+                            if len(chunk.strip()) > 100:
+                                yield Success(chunk.strip())
+                    case _:
+                        yield Failure(ValueError(f"No content retrieved from {url}"))
+
+        except Exception as e:
+            log.error("scrape_and_chunk_failed", error=str(e))
+            yield Failure(e)
+
+    def _is_valid_navigation(self, url: str) -> bool:
+        rules = self.policy.traversal
+        parsed = urlparse(url)
+        path = parsed.path.lower()
+
+        if rules.allowed_domains and parsed.netloc not in rules.allowed_domains:
+            return False
+
+        if any(seg in path for seg in rules.blocked_path_segments):
+            return False
+
+        if rules.required_path_segments:
+            return any(seg in path for seg in rules.required_path_segments)
+
+        return True
+
+    async def _discover_links(self, result: CrawlerResult, log: FilteringBoundLogger) -> None:
+        """Extracts and filters links from crawl result, pushing them back to the discovery queue."""
+        # Note: Crawl4AI typically returns links in extracted_content or metadata
+        links: list[str] = getattr(result, "links", [])
+        
+        valid_links = [l for l in links if self._is_valid_navigation(l)]
+        
+        for link in valid_links:
+            payload = json.dumps({"url": link, "language": "en"})
+            await self.kafka_provider.send(topic="discovery_queue", value=payload.encode("utf-8"))
+        
+        if valid_links:
+            log.debug("links_discovered", count=len(valid_links))
+
+    def _decode_payload(self, value: Any) -> Result[dict[str, Any], Exception]:
+        match value:
+            case bytes():
+                return self._parse_json(value.decode("utf-8"))
+            case str():
+                return self._parse_json(value)
+            case dict():
+                return Success(value)
+            case _:
+                return Failure(TypeError(f"Unsupported message type: {type(value)}"))
+
+    def _parse_json(self, value: str) -> Result[dict[str, Any], Exception]:
+        try:
+            data = json.loads(value)
+            return Success(data) if isinstance(data, dict) else Failure(TypeError("Payload not a dict"))
+        except json.JSONDecodeError as e:
+            return Failure(e)
