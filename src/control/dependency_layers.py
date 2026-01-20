@@ -246,3 +246,4 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         policy=relevance_policy,
         language_lookup=config.kafka.language_lookup
     )
+
