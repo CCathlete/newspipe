@@ -50,7 +50,7 @@ class KafkaProvider(Protocol):
     async def getmany(
         self,
         *partitions: Any,
-        timeout_ms: int | float = 0,
+        timeout_ms: int = 0,
         max_records: int | None = None
     ) -> dict[TopicPartition, list[ConsumerRecord[Any, Any]]]: ...
 

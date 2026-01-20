@@ -8,6 +8,7 @@ from aiokafka.structs import TopicPartition, ConsumerRecord
 from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure
 
+from ..models import RelevancePolicy
 from ..interfaces import KafkaProvider, CrawlerRunConfig
 from application.services.data_ingestion import IngestionPipeline
 
@@ -29,6 +30,7 @@ class DiscoveryConsumer:
     ingestion_pipeline: IngestionPipeline
     logger: FilteringBoundLogger
     run_config: CrawlerRunConfig
+    discovery_policy: RelevancePolicy
     language_lookup: Mapping[str, str] = field(default_factory=dict)
 
     async def run(self) -> None:
@@ -73,6 +75,7 @@ class DiscoveryConsumer:
                     result: Result[int, Exception] = await self.ingestion_pipeline.execute(
                         start_url=url,
                         language=language,
+                        policy=self.discovery_policy,
                     )
 
                     match result:

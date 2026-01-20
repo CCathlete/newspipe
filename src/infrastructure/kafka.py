@@ -22,8 +22,6 @@ class KafkaConsumerAdapter(KafkaProvider):
 
     @cached_property
     def _consumer(self) -> AIOKafkaConsumer:
-        # Initialize the consumer with the initial topics.
-        # Note: In aiokafka, topics can be passed here or via subscribe later.
         return AIOKafkaConsumer(
             list(self.topics),
             bootstrap_servers=self.bootstrap_servers,
