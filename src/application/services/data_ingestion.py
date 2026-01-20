@@ -88,13 +88,13 @@ class IngestionPipeline:
         processed_urls: set[str] = set()
         url_queue: list[str] = [start_url]
         buffered_records: list[BronzeRecord] = []
-        total_records_ingested = 0
-        session_ts = datetime.now(UTC).timestamp()
+        total_records_ingested: int = 0
+        session_ts: float = datetime.now(UTC).timestamp()
 
         async def _check_and_flush_buffer() -> Result[None, Exception]:
             nonlocal total_records_ingested
             if len(buffered_records) >= self.buffer_size:
-                flush_res = await self._flush_records_buffer(buffered_records, log)
+                flush_res: Result[int, Exception] = await self._flush_records_buffer(buffered_records, log)
                 match flush_res:
                     case Success(count):
                         total_records_ingested += count
@@ -135,7 +135,6 @@ class IngestionPipeline:
                                     chunk_id=f"{current_url}_{index}",
                                     source_url=current_url,
                                     content=chunk,
-                                    control_action="RELEVANT",
                                     language=language,
                                     ingested_at=session_ts,
                                 )

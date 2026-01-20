@@ -12,38 +12,19 @@ from pyspark.sql.types import (
 )
 
 from returns.maybe import Maybe, Nothing
-from typing import Literal, TypeAlias, override
+from typing import Literal, override
 import time
-
-actionsType: TypeAlias = list[dict[str, str | list[dict[str, str]] | str]]
-
-
-class BronzeTagResponse(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    chunk_id: str = Field(alias="chunkId")
-    source_url: str  # The origin of the stream.
-    control_action: Literal[
-        "IRRELEVANT",
-        "RELEVANT",
-    ] = Field(alias="controlAction")
-    language: str
-    content: str
-    actions: actionsType = Field(default=[])
 
 
 class BronzeRecord(SparkModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
     chunk_id: str
     source_url: str  # The origin of the stream.
     content: str
-    control_action: str
     ingested_at: float = Field(default_factory=time.time)
-    language: str = "sk"  # e.g., "sk", "he", "en", "ar"
+    language: str = "en"  # e.g., "sk", "he", "en", "ar"
     embedding: Maybe[list[float]] = Field(default=Nothing)
 
-    gram_type: str = "GM3"
 
     @field_serializer("embedding")
     def serialize_maybe_embedding(
@@ -77,11 +58,9 @@ class BronzeRecord(SparkModel):
             StructField("chunk_id", StringType(), False),
             StructField("source_url", StringType(), False),
             StructField("content", StringType(), False),
-            StructField("control_action", StringType(), False),
             StructField("ingested_at", DoubleType(), False),
             StructField("language", StringType(), False),
             StructField("embedding", ArrayType(FloatType()), True),  # Nullable
-            StructField("gram_type", StringType(), False),
         ])
 
 

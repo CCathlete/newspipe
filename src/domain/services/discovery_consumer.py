@@ -9,7 +9,7 @@ from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure
 
 from ..interfaces import KafkaProvider, CrawlerRunConfig
-from .data_ingestion import IngestionPipeline
+from application.services.data_ingestion import IngestionPipeline
 
 
 def _resolve_language(
