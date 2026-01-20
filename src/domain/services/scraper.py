@@ -112,13 +112,13 @@ class StreamScraper:
 
     async def _discover_links(self, result: CrawlerResult, log: FilteringBoundLogger) -> None:
         """Extracts and filters links from crawl result, pushing them back to the discovery queue."""
-        # Note: Crawl4AI typically returns links in extracted_content or metadata
+        # Crawl4AI typically returns links in extracted_content or metadata
         links: list[str] = getattr(result, "links", [])
         
         valid_links = [l for l in links if self._is_valid_navigation(l)]
         
         for link in valid_links:
-            payload = json.dumps({"url": link, "language": "en"})
+            payload: str = json.dumps({"url": link, "language": "en"})
             await self.kafka_provider.send(topic="discovery_queue", value=payload.encode("utf-8"))
         
         if valid_links:
