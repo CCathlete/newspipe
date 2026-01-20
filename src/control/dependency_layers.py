@@ -244,6 +244,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         logger=logger_provider,
         run_config=run_config,
         policy=relevance_policy,
+        traversal_rules=traversal_rules,
         language_lookup=config.kafka.language_lookup
     )
 

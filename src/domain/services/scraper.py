@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass
 from typing import Any, Callable, Final
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 from collections.abc import AsyncIterator
 
 from structlog.typing import FilteringBoundLogger
@@ -17,7 +17,7 @@ from domain.interfaces import (
     CrawlerRunConfig,
     KafkaProvider
 )
-from domain.models import RelevancePolicy
+from domain.models import RelevancePolicy, TraversalRules
 
 
 @dataclass(slots=True, frozen=True)
@@ -25,7 +25,8 @@ class StreamScraper:
     logger: FilteringBoundLogger
     kafka_provider: KafkaProvider
     crawler_factory: Callable[[], Crawler]
-    policy: RelevancePolicy
+    relevance_policy: RelevancePolicy
+    traversal_rules: TraversalRules
 
     async def process_from_topic(
         self,
@@ -33,7 +34,7 @@ class StreamScraper:
         run_config: CrawlerRunConfig,
         topic: str = "discovery_queue",
     ) -> AsyncIterator[Result[str, Exception]]:
-        log: Final = self.logger.bind(topic=topic, policy_name=self.policy.name)
+        log: Final = self.logger.bind(topic=topic, policy_name=self.relevance_policy.name)
         log.info("discovery_process_started")
         
         self.kafka_provider.subscribe([topic])
@@ -95,9 +96,9 @@ class StreamScraper:
             yield Failure(e)
 
     def _is_valid_navigation(self, url: str) -> bool:
-        rules = self.policy.traversal
-        parsed = urlparse(url)
-        path = parsed.path.lower()
+        rules: TraversalRules = self.traversal_rules
+        parsed: ParseResult = urlparse(url)
+        path: str = parsed.path.lower()
 
         if rules.allowed_domains and parsed.netloc not in rules.allowed_domains:
             return False
