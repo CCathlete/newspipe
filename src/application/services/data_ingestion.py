@@ -1,4 +1,4 @@
-# src/domain/services/data_ingestion.py
+# src/application/services/data_ingestion.py
 
 from dataclasses import dataclass
 from datetime import datetime, UTC
@@ -8,15 +8,15 @@ from returns.io import IOFailure, IOResult, IOSuccess
 from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure
 
-from ..models import BronzeRecord, RelevancePolicy
-from ..interfaces import (
+from domain.models import BronzeRecord, RelevancePolicy
+from domain.interfaces import (
     ScraperProvider,
     StorageProvider,
     AIProvider,
     KafkaProvider,
 )
-from .linguistic_model import LinguisticService
-from ..interfaces import ChunkingStrategy, CrawlerRunConfig
+from domain.services.linguistic_model import LinguisticService
+from domain.interfaces import ChunkingStrategy, CrawlerRunConfig
 
 T = TypeVar("T")
 
