@@ -20,7 +20,7 @@ from structlog.processors import JSONRenderer, TimeStamper, StackInfoRenderer, f
 
 from domain.models import RelevancePolicy, TraversalRules
 from application.services.data_ingestion import IngestionPipeline
-from application.services.discovery_consumer import DiscoveryConsumer
+from domain.services.discovery_consumer import DiscoveryConsumer
 from domain.services.scraper import StreamScraper
 from infrastructure.litellm_client import LitellmClient
 from infrastructure.lakehouse import LakehouseConnector
@@ -174,7 +174,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     )
 
     
-    spark = providers.Factory(
+    spark = providers.Singleton(
         _create_spark_session,
         resolved_lakehouse_cfg_dict=resolved_lakehouse_config
     )

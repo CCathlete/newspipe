@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from structlog.typing import FilteringBoundLogger
 from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.types import StructType, Row
-from returns.result import Result, Success, Failure
+# from returns.result import Result, Success, Failure
 from returns.future import (
     future_safe,
     FutureResult,
@@ -16,8 +16,8 @@ from returns.maybe import Maybe
 from typing import Never
 from urllib.parse import urlparse
 
-from ..domain.models import BronzeRecord
-from ..domain.interfaces import SparkSessionInterface
+from domain.models import BronzeRecord
+from domain.interfaces import SparkSessionInterface
 
 
 def _sanitize(text: str) -> str:
@@ -60,8 +60,8 @@ class LakehouseConnector:
         records: list[BronzeRecord]
     ) -> FutureResult[int, Exception]:
 
+        log: FilteringBoundLogger = self.logger.bind()
         try:
-            log = self.logger.bind()
             if not records:
                 log.warning("No records to write")
                 return FutureSuccess(0)
