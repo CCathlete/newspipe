@@ -33,8 +33,8 @@ def _get_seed_urls(seeds_file_path: Path) -> dict[str, list[str]]:
     if seeds_file_path.exists():
         with open(seeds_file_path, "r") as f:
             seeds_and_filters: dict[str, list[str]] = json.load(f)
-            include_section: list[str] | dict[str, list[str]] = seeds_and_filters.get("include", [])
-            exclude_section: list[str] | dict[str, list[str]] = seeds_and_filters.get("exclude", [])
+            include_section: list[str] = seeds_and_filters.get("include", [])
+            exclude_section: list[str] = seeds_and_filters.get("exclude", [])
             assert isinstance(include_section, list) and isinstance(exclude_section, list)
             to_include, to_exclude = include_section, exclude_section
             seeds = {
