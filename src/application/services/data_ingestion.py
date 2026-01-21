@@ -114,6 +114,7 @@ class IngestionPipeline:
                     url=current_url,
                     strategy=self.strategy,
                     run_config=self.run_config,
+                    language=language,
                 )
             ):
                 match chunk_res:

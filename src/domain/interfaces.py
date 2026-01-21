@@ -95,6 +95,7 @@ class ScraperProvider(Protocol):
         url: str,
         strategy: ChunkingStrategy,
         run_config: CrawlerRunConfig,
+        language: str,
     ) -> AsyncIterator[Result[str, Exception]]: ...
 
     def process_from_topic(
