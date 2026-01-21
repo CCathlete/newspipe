@@ -1,12 +1,15 @@
 # src/control/dependency_layers.py
 
 import sys
+import json
 import httpx
 import logging
 import structlog
-from logging.handlers import RotatingFileHandler
+from typing import Any
 from pyspark.sql import SparkSession
+from logging.handlers import RotatingFileHandler
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
+
 from dependency_injector import containers, providers
 from crawl4ai import (
     AsyncWebCrawler,
@@ -126,6 +129,19 @@ def _create_spark_session(resolved_lakehouse_cfg_dict) -> SparkSession:
             .getOrCreate()
                 )
 
+def _get_active_policy(file_path: str) -> dict[str, Any]:
+    with open(file_path, "r") as f:
+        data: list[dict[str, Any]] = json.load(f)
+    
+    active_policy = next((p for p in data if p.get("active") is True), None)
+    
+    if not active_policy:
+        raise ValueError(f"No active policy found in {file_path}")
+    
+    return active_policy
+
+
+
 class DataPlatformContainer(containers.DeclarativeContainer):
     config = providers.Configuration()
 
@@ -150,21 +166,26 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         bootstrap_servers=config.kafka.bootstrap_servers
     )
 
-    traversal_rules = providers.Singleton(
+    # --- Single Source Policy Extraction ---
+    active_policy_dict = providers.Callable(_get_active_policy, "traversal_policies.json")
+
+    # --- Domain Model Instantiation ---
+    # We map the combined JSON into the separate models your services expect
+    traversal_rules = providers.Factory(
         TraversalRules,
-        allowed_domains=config.policy.allowed_domains,
-        required_path_segments=config.policy.required_segments,
-        blocked_path_segments=config.policy.blocked_segments,
-        max_depth=config.policy.max_depth
+        allowed_domains=active_policy_dict.provided.get("allowed_domains", []),
+        required_path_segments=active_policy_dict.provided.get("required_path_segments", []),
+        blocked_path_segments=active_policy_dict.provided.get("blocked_path_segments", []),
+        max_depth=active_policy_dict.provided.get("max_depth", 5)
     )
 
-    relevance_policy = providers.Singleton(
+    relevance_policy = providers.Factory(
         RelevancePolicy,
-        name=config.policy.name,
-        description=config.policy.description,
+        name=active_policy_dict.provided["name"],
+        description=active_policy_dict.provided["description"],
         traversal=traversal_rules,
-        include_terms=config.policy.include_terms,
-        exclude_terms=config.policy.exclude_terms
+        include_terms=active_policy_dict.provided["include_terms"],
+        exclude_terms=active_policy_dict.provided["exclude_terms"]
     )
 
     resolved_lakehouse_config = providers.Factory(

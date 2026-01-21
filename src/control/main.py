@@ -25,6 +25,28 @@ def _get_active_config(file_path: Path) -> dict[str, Any]:
         
     return active_configs[-1]
 
+def _get_seed_urls(seeds_file_path: Path) -> dict[str, list[str]]:
+    seeds: dict[str, list[str]]
+    to_include: list[str]
+    to_exclude: list[str]
+
+    if seeds_file_path.exists():
+        with open(seeds_file_path, "r") as f:
+            seeds_and_filters: dict[str, list[str]] = json.load(f)
+            include_section: list[str] | dict[str, list[str]] = seeds_and_filters.get("include", [])
+            exclude_section: list[str] | dict[str, list[str]] = seeds_and_filters.get("exclude", [])
+            assert isinstance(include_section, list) and isinstance(exclude_section, list)
+            to_include, to_exclude = include_section, exclude_section
+            seeds = {
+                language: urls for language, urls in seeds_and_filters.items() if language in to_include and language not in to_exclude
+            }
+
+    else:
+        raise ValueError("No seed urls in %s", seeds_file_path)
+    
+    return seeds
+
+
 async def run_discovery(
     seeds_by_lang: dict[str, list[str]],
     pipeline: IngestionPipeline,
@@ -62,6 +84,7 @@ async def main_async() -> None:
     
     traversal_cfg: dict[str, Any] = _get_active_config(input_dir / "traversal_policies.json")
     relevance_cfg: dict[str, Any] = _get_active_config(input_dir / "relevance_policies.json")
+    seeds: dict[str, list[str]]  = _get_seed_urls(input_dir / "seed_urls.json")
 
     container.config.from_dict({
         "policy": {
@@ -95,13 +118,13 @@ async def main_async() -> None:
         relevance_policy: RelevancePolicy = container.relevance_policy()
         consumer: DiscoveryConsumer = container.discovery_consumer()
 
-        seed_path: Path = input_dir / "seed_urls.json"
-        if seed_path.exists():
-            with open(seed_path, "r") as f:
-                seeds: dict[str, list[str]] = json.load(f)
-            await run_discovery(seeds, pipeline, relevance_policy)
-
-        await run_consumer_worker(consumer)
+        results: tuple[BaseException | None, ...] = await asyncio.gather(
+            run_discovery(seeds, pipeline, relevance_policy),
+            run_consumer_worker(consumer),
+            return_exceptions=True
+        )
+        if not all(result is None for result in results):
+            raise ValueError("Process failed.")
 
     finally:
         if (shutdown_task := container.shutdown_resources()) is not None:
