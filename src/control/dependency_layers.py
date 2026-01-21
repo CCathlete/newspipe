@@ -129,18 +129,6 @@ def _create_spark_session(resolved_lakehouse_cfg_dict) -> SparkSession:
             .getOrCreate()
                 )
 
-def _get_active_policy(file_path: str) -> dict[str, Any]:
-    with open(file_path, "r") as f:
-        data: list[dict[str, Any]] = json.load(f)
-    
-    active_policy = next((p for p in data if p.get("active") is True), None)
-    
-    if not active_policy:
-        raise ValueError(f"No active policy found in {file_path}")
-    
-    return active_policy
-
-
 
 class DataPlatformContainer(containers.DeclarativeContainer):
     config = providers.Configuration()
@@ -166,26 +154,25 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         bootstrap_servers=config.kafka.bootstrap_servers
     )
 
-    # --- Single Source Policy Extraction ---
-    active_policy_dict = providers.Callable(_get_active_policy, "traversal_policies.json")
+    traversal_dict: dict[str, Any] = config.get("policy").get("traversal")
 
     # --- Domain Model Instantiation ---
     # We map the combined JSON into the separate models your services expect
     traversal_rules = providers.Factory(
         TraversalRules,
-        allowed_domains=active_policy_dict.provided.get("allowed_domains", []),
-        required_path_segments=active_policy_dict.provided.get("required_path_segments", []),
-        blocked_path_segments=active_policy_dict.provided.get("blocked_path_segments", []),
-        max_depth=active_policy_dict.provided.get("max_depth", 5)
+        required_path_segments=traversal_dict.get("required_path_segments", []),
+        blocked_path_segments=traversal_dict.get("blocked_path_segments", []),
+        max_depth=traversal_dict.get("max_depth", 5)
     )
+
+    relevance_dict: dict[str, Any] = config.get("policy").get("relevance")
 
     relevance_policy = providers.Factory(
         RelevancePolicy,
-        name=active_policy_dict.provided["name"],
-        description=active_policy_dict.provided["description"],
-        traversal=traversal_rules,
-        include_terms=active_policy_dict.provided["include_terms"],
-        exclude_terms=active_policy_dict.provided["exclude_terms"]
+        name=relevance_dict.get("name", ""),
+        description=relevance_dict.get("description", ""),
+        include_terms=relevance_dict.get("include_terms", []),
+        exclude_terms=relevance_dict.get("exclude_terms", [])
     )
 
     resolved_lakehouse_config = providers.Factory(
