@@ -81,18 +81,41 @@ async def run_consumer_worker(consumer: DiscoveryConsumer) -> None:
         raise
 
 async def main_async(
+    seeds: dict[str, list[str]],
     pipeline: IngestionPipeline = Provide[DataPlatformContainer.pipeline],
     relevance_policy: RelevancePolicy = Provide[DataPlatformContainer.relevance_policy],
     consumer: DiscoveryConsumer = Provide[DataPlatformContainer.discovery_consumer],
-    container: DataPlatformContainer = Provide[DataPlatformContainer]
+    logger: logging.Logger = Provide[DataPlatformContainer.logger_provider],
+    container: DataPlatformContainer = Provide[DataPlatformContainer],
 ) -> None:
+
+    if (init_task := container.init_resources()) is not None:
+        await init_task
+
+    try:
+        results: tuple[BaseException | None, ...] = await asyncio.gather(
+            run_discovery(seeds, pipeline, relevance_policy),
+            run_consumer_worker(consumer),
+            return_exceptions=True
+        )
+        if not all(result is None for result in results):
+            logger.info("Results are all None: %s", results)
+    except Exception as e:
+        logger.error("Process failed: %s", e)
+        
+
+    finally:
+        if (shutdown_task := container.shutdown_resources()) is not None:
+            await shutdown_task
+
+def main() -> None:
     input_dir: Path = root_path / "input_files"
+    seeds: dict[str, list[str]]  = _get_seed_urls(input_dir / "seed_urls.json")
     
     traversal_cfg: dict[str, Any] = _get_active_config(input_dir / "traversal_policies.json")
     relevance_cfg: dict[str, Any] = _get_active_config(input_dir / "relevance_policies.json")
-    seeds: dict[str, list[str]]  = _get_seed_urls(input_dir / "seed_urls.json")
 
-    container.config.from_dict({
+    config: dict[str, Any] = {
         "policy": {
             "traversal": traversal_cfg,
             "relevance": relevance_cfg
@@ -114,32 +137,12 @@ async def main_async(
         },
         "stream_scraper": {"window_size": 500, "overlap": 50},
         "spark_mode": "local[*]" if os.getenv("LOCAL_SPARK_MODE") else "spark://localhost:7077",
-    })
+    }
 
-    if (init_task := container.init_resources()) is not None:
-        await init_task
-
-    logger: logging.Logger = container.logger_provider()
-    try:
-        results: tuple[BaseException | None, ...] = await asyncio.gather(
-            run_discovery(seeds, pipeline, relevance_policy),
-            run_consumer_worker(consumer),
-            return_exceptions=True
-        )
-        if not all(result is None for result in results):
-            logger.info("Results are all None: %s", results)
-    except Exception as e:
-        logger.error("Process failed: %s", e)
-        
-
-    finally:
-        if (shutdown_task := container.shutdown_resources()) is not None:
-            await shutdown_task
-
-def main() -> None:
     container: DataPlatformContainer = DataPlatformContainer()
+    container.config.from_dict(config)
     container.wire(modules=[__name__])
-    asyncio.run(main_async())
+    asyncio.run(main_async(seeds))
 
 if __name__ == "__main__":
     main()
