@@ -4,7 +4,6 @@ import sys
 import httpx
 import logging
 import structlog
-from typing import Any
 from pyspark.sql import SparkSession
 from logging.handlers import RotatingFileHandler
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
@@ -157,19 +156,19 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     # --- Domain Model Instantiation ---
     traversal_rules = providers.Factory(
         TraversalRules,
-        allowed_domains=config.policy.traversal.allowed_domains.if_none([]),
-        required_path_segments=config.policy.traversal.required_path_segments.if_none([]),
-        blocked_path_segments=config.policy.traversal.blocked_path_segments.if_none([]),
-        max_depth=config.policy.traversal.max_depth.as_int() or 5
+        allowed_domains=config.policy.traversal.allowed_domains,
+        required_path_segments=config.policy.traversal.required_path_segments,
+        blocked_path_segments=config.policy.traversal.blocked_path_segments,
+        max_depth=config.policy.traversal.max_depth
     )
 
     relevance_policy = providers.Factory(
         RelevancePolicy,
-        name=config.policy.relevance.name.if_none(""),
-        description=config.policy.relevance.description.if_none(""),
+        name=config.policy.relevance.name,
+        description=config.policy.relevance.description,
         traversal=traversal_rules,
-        include_terms=config.policy.relevance.include_terms.if_none([]),
-        exclude_terms=config.policy.relevance.exclude_terms.if_none([])
+        include_terms=config.policy.relevance.include_terms,
+        exclude_terms=config.policy.relevance.exclude_terms
     )
 
     resolved_lakehouse_config = providers.Factory(

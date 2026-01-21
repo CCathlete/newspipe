@@ -2,9 +2,11 @@
 
 import asyncio
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any
+from dependency_injector.wiring import Provide
 from returns.result import Success, Failure, Result
 
 from application.services.data_ingestion import IngestionPipeline
@@ -78,8 +80,12 @@ async def run_consumer_worker(consumer: DiscoveryConsumer) -> None:
         print(f"Consumer crashed: {e}")
         raise
 
-async def main_async() -> None:
-    container: DataPlatformContainer = DataPlatformContainer()
+async def main_async(
+    pipeline: IngestionPipeline = Provide[DataPlatformContainer.pipeline],
+    relevance_policy: RelevancePolicy = Provide[DataPlatformContainer.relevance_policy],
+    consumer: DiscoveryConsumer = Provide[DataPlatformContainer.discovery_consumer],
+    container: DataPlatformContainer = Provide[DataPlatformContainer]
+) -> None:
     input_dir: Path = root_path / "input_files"
     
     traversal_cfg: dict[str, Any] = _get_active_config(input_dir / "traversal_policies.json")
@@ -113,24 +119,26 @@ async def main_async() -> None:
     if (init_task := container.init_resources()) is not None:
         await init_task
 
+    logger: logging.Logger = container.logger_provider()
     try:
-        pipeline: IngestionPipeline = container.pipeline()
-        relevance_policy: RelevancePolicy = container.relevance_policy()
-        consumer: DiscoveryConsumer = container.discovery_consumer()
-
         results: tuple[BaseException | None, ...] = await asyncio.gather(
             run_discovery(seeds, pipeline, relevance_policy),
             run_consumer_worker(consumer),
             return_exceptions=True
         )
         if not all(result is None for result in results):
-            raise ValueError("Process failed.")
+            logger.info("Results are all None: %s", results)
+    except Exception as e:
+        logger.error("Process failed: %s", e)
+        
 
     finally:
         if (shutdown_task := container.shutdown_resources()) is not None:
             await shutdown_task
 
 def main() -> None:
+    container: DataPlatformContainer = DataPlatformContainer()
+    container.wire(modules=[__name__])
     asyncio.run(main_async())
 
 if __name__ == "__main__":

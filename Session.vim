@@ -28,20 +28,19 @@ badd +1 control/dependency_layers.py
 badd +89 ../newspipe.vim
 badd +22 ../input_files/seed_urls.json
 badd +14 ~/Repos/infra-stuff/nvim/lua/core/debuggerconfig.lua
-badd +85 src/control/main.py
+badd +112 src/control/main.py
 badd +131 src/domain/services/scraper.py
 badd +13 input_files/traversal_policies.json
-badd +168 src/control/dependency_layers.py
-badd +48 src/domain/models.py
+badd +158 src/control/dependency_layers.py
+badd +62 src/domain/models.py
 badd +1 ~/.cache/nvim/dap.log
 badd +1 ~/.cache/nvim/dap-python-stderr.log
+badd +4 \[dap-terminal]\ Python:\ module\ src.control.main
+badd +275 Session.vim
 argglobal
 %argdel
 $argadd infrastructure/lakehouse.py
 set stal=2
-tabnew +setlocal\ bufhidden=wipe
-tabnew +setlocal\ bufhidden=wipe
-tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
@@ -109,7 +108,7 @@ normal! zt
 keepjumps 131
 normal! 0
 tabnext
-edit src/domain/models.py
+edit src/control/main.py
 argglobal
 balt src/domain/services/scraper.py
 setlocal foldmethod=manual
@@ -122,34 +121,21 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 62 - ((31 * winheight(0) + 16) / 32)
+let s:l = 112 - ((27 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 62
-normal! 011|
-tabnext
-edit ~/Repos/newspipe/pyproject.toml
-argglobal
-balt src/domain/models.py
-setlocal foldmethod=manual
-setlocal foldexpr=0
-setlocal foldmarker={{{,}}}
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldenable
-silent! normal! zE
-let &fdl = &fdl
-let s:l = 1 - ((0 * winheight(0) + 16) / 32)
-if s:l < 1 | let s:l = 1 | endif
-keepjumps exe s:l
-normal! zt
-keepjumps 1
+keepjumps 112
 normal! 0
 tabnext
 edit src/control/dependency_layers.py
+wincmd t
+let s:save_winminheight = &winminheight
+let s:save_winminwidth = &winminwidth
+set winminheight=0
+set winheight=1
+set winminwidth=0
+set winwidth=1
 argglobal
 balt input_files/traversal_policies.json
 setlocal foldmethod=manual
@@ -162,59 +148,12 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 168 - ((14 * winheight(0) + 16) / 32)
+let s:l = 158 - ((5 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 168
-normal! 040|
-tabnext
-edit src/control/main.py
-wincmd t
-let s:save_winminheight = &winminheight
-let s:save_winminwidth = &winminwidth
-set winminheight=0
-set winheight=1
-set winminwidth=0
-set winwidth=1
-argglobal
-balt control/main.py
-setlocal foldmethod=manual
-setlocal foldexpr=0
-setlocal foldmarker={{{,}}}
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldenable
-silent! normal! zE
-let &fdl = &fdl
-let s:l = 85 - ((15 * winheight(0) + 16) / 32)
-if s:l < 1 | let s:l = 1 | endif
-keepjumps exe s:l
-normal! zt
-keepjumps 85
-normal! 037|
-tabnext
-edit ~/Repos/infra-stuff/nvim/lua/core/debuggerconfig.lua
-argglobal
-balt ../input_files/seed_urls.json
-setlocal foldmethod=manual
-setlocal foldexpr=v:lua.vim.treesitter.foldexpr()
-setlocal foldmarker={{{,}}}
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldenable
-silent! normal! zE
-let &fdl = &fdl
-let s:l = 14 - ((13 * winheight(0) + 16) / 32)
-if s:l < 1 | let s:l = 1 | endif
-keepjumps exe s:l
-normal! zt
-keepjumps 14
-normal! 016|
+keepjumps 158
+normal! 0
 tabnext
 edit ~/Repos/infra-stuff/nvim/lua/core/keymaps.lua
 argglobal
@@ -250,13 +189,13 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 32 - ((31 * winheight(0) + 16) / 32)
+let s:l = 24 - ((23 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 32
-normal! 0
-tabnext 7
+keepjumps 24
+normal! 035|
+tabnext 5
 set stal=1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
   silent exe 'bwipe ' . s:wipebuf
