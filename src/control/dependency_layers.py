@@ -1,7 +1,6 @@
 # src/control/dependency_layers.py
 
 import sys
-import json
 import httpx
 import logging
 import structlog
@@ -154,25 +153,23 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         bootstrap_servers=config.kafka.bootstrap_servers
     )
 
-    traversal_dict: dict[str, Any] = config.get("policy").get("traversal")
 
     # --- Domain Model Instantiation ---
-    # We map the combined JSON into the separate models your services expect
     traversal_rules = providers.Factory(
         TraversalRules,
-        required_path_segments=traversal_dict.get("required_path_segments", []),
-        blocked_path_segments=traversal_dict.get("blocked_path_segments", []),
-        max_depth=traversal_dict.get("max_depth", 5)
+        allowed_domains=config.policy.traversal.allowed_domains.if_none([]),
+        required_path_segments=config.policy.traversal.required_path_segments.if_none([]),
+        blocked_path_segments=config.policy.traversal.blocked_path_segments.if_none([]),
+        max_depth=config.policy.traversal.max_depth.as_int() or 5
     )
-
-    relevance_dict: dict[str, Any] = config.get("policy").get("relevance")
 
     relevance_policy = providers.Factory(
         RelevancePolicy,
-        name=relevance_dict.get("name", ""),
-        description=relevance_dict.get("description", ""),
-        include_terms=relevance_dict.get("include_terms", []),
-        exclude_terms=relevance_dict.get("exclude_terms", [])
+        name=config.policy.relevance.name.if_none(""),
+        description=config.policy.relevance.description.if_none(""),
+        traversal=traversal_rules,
+        include_terms=config.policy.relevance.include_terms.if_none([]),
+        exclude_terms=config.policy.relevance.exclude_terms.if_none([])
     )
 
     resolved_lakehouse_config = providers.Factory(

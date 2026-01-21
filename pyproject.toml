@@ -18,6 +18,7 @@ dependencies = [
     "aiokafka",
     "dotenv",
     "crawl4ai",
+    "debugpy",
 ]
 
 [tool.setuptools.packages.find]
