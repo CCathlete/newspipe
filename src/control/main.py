@@ -28,28 +28,27 @@ def _get_active_config(file_path: Path) -> dict[str, Any]:
     return active_configs[-1]
 
 def _get_seed_urls(seeds_file_path: Path) -> dict[str, list[str]]:
-    seeds: dict[str, list[str]]
-    to_include: list[str]
-    to_exclude: list[str]
+    if not seeds_file_path.exists():
+        raise ValueError(f"No seed urls in {seeds_file_path}")
 
-    if seeds_file_path.exists():
-        with open(seeds_file_path, "r") as f:
-            seeds_and_filters: dict[str, list[str]] = json.load(f)
-            include_section: list[str] = seeds_and_filters.get("include", [])
-            exclude_section: list[str] = seeds_and_filters.get("exclude", [])
-            assert isinstance(include_section, list) and isinstance(exclude_section, list)
-            to_include, to_exclude = include_section, exclude_section
-            seeds = {
-                language: urls for language, urls in seeds_and_filters.items() if language in to_include and language not in to_exclude
-            }
+    with open(seeds_file_path, "r") as f:
+        data: dict[str, Any] = json.load(f)
 
-    else:
-        raise ValueError("No seed urls in %s", seeds_file_path)
+    to_include: list[str] = data.get("include", [])
+    to_exclude: list[str] = data.get("exclude", [])
     
-    return seeds
+    internal_keys: set[str] = {"include", "exclude"}
+
+    return {
+        lang: urls 
+        for lang, urls in data.items() 
+        if lang not in internal_keys 
+        and lang in to_include 
+        and lang not in to_exclude
+    }
 
 
-async def run_discovery(
+async def run_ingestion(
     seeds_by_lang: dict[str, list[str]],
     pipeline: IngestionPipeline,
     relevance_policy: RelevancePolicy,
@@ -71,7 +70,7 @@ async def run_discovery(
                 case Failure(e):
                     print(f"Seed Failed: {url} | {e}")
 
-async def run_consumer_worker(consumer: DiscoveryConsumer) -> None:
+async def run_stream_consumer(consumer: DiscoveryConsumer) -> None:
     try:
         await consumer.run()
     except KeyboardInterrupt:
@@ -94,8 +93,8 @@ async def main_async(
 
     try:
         results: tuple[BaseException | None, ...] = await asyncio.gather(
-            run_discovery(seeds, pipeline, relevance_policy),
-            run_consumer_worker(consumer),
+            run_ingestion(seeds, pipeline, relevance_policy),
+            run_stream_consumer(consumer),
             return_exceptions=True
         )
         if not all(result is None for result in results):
