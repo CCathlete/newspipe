@@ -156,7 +156,6 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     # --- Domain Model Instantiation ---
     traversal_rules = providers.Factory(
         TraversalRules,
-        allowed_domains=config.policy.traversal.allowed_domains,
         required_path_segments=config.policy.traversal.required_path_segments,
         blocked_path_segments=config.policy.traversal.blocked_path_segments,
         max_depth=config.policy.traversal.max_depth
@@ -166,7 +165,6 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         RelevancePolicy,
         name=config.policy.relevance.name,
         description=config.policy.relevance.description,
-        traversal=traversal_rules,
         include_terms=config.policy.relevance.include_terms,
         exclude_terms=config.policy.relevance.exclude_terms
     )
