@@ -65,7 +65,6 @@ class BronzeRecord(SparkModel):
 
 
 class TraversalRules(BaseModel):
-    allowed_domains: list[str] = Field(default_factory=list)
     required_path_segments: list[str] = Field(default_factory=list)
     blocked_path_segments: list[str] = Field(default_factory=list)
     max_depth: int = 3
@@ -73,7 +72,6 @@ class TraversalRules(BaseModel):
 
 class RelevancePolicy(BaseModel):
     name: str
-    description: str  # Used by LLM Gate
-    traversal: TraversalRules  # Used by the Scraper's link Guard.
+    description: str
     include_terms: list[str] = Field(default_factory=list)
     exclude_terms: list[str] = Field(default_factory=list)

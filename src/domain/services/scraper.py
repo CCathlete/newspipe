@@ -100,9 +100,6 @@ class StreamScraper:
         parsed: ParseResult = urlparse(url)
         path: str = parsed.path.lower()
 
-        if rules.allowed_domains and parsed.netloc not in rules.allowed_domains:
-            return False
-
         if any(seg in path for seg in rules.blocked_path_segments):
             return False
 
