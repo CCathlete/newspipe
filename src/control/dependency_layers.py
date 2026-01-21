@@ -211,7 +211,8 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         logger=logger_provider,
         kafka_provider=kafka_producer,
         crawler_factory=scraping_provider.provider,
-        relevance_policy=relevance_policy
+        relevance_policy=relevance_policy,
+        traversal_rules=traversal_rules
     )
 
     litellm = providers.Factory(
