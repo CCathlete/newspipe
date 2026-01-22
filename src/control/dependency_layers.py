@@ -180,6 +180,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         _create_spark_session,
         resolved_lakehouse_cfg_dict=resolved_lakehouse_config
     )
+
     strategy = providers.Singleton(
         OverlappingWindowChunking,
         window_size=config.stream_scraper.window_size,
