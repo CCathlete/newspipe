@@ -133,19 +133,15 @@ def _create_spark_session(resolved_lakehouse_cfg_dict) -> SparkSession:
 
 def setup_phoenix(endpoint: str, project: str, api_key:str) -> Generator[TracerProvider, None, None]:
     # This registers Phoenix as the OTel collector
+    # auto_instrument=False since we're using httpx instead of the python SDK.
     tracer_provider = register(
         project_name=project,
         endpoint=endpoint,
-        auto_instrument=True,
         api_key=api_key
     )
-    # This patches LiteLLM to send traces to that provider
-    instrumentor = LiteLLMInstrumentor()
-    instrumentor.instrument(tracer_provider=tracer_provider)
     
-    yield tracer_provider # The resource is 'live' here
+    yield tracer_provider
     
-    instrumentor.uninstrument() # Cleanup on shutdown
 
 
 class DataPlatformContainer(containers.DeclarativeContainer):

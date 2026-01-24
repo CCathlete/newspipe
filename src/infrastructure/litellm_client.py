@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
+from opentelemetry import trace
 from dataclasses import dataclass
 from httpx import AsyncClient, Response
 from openinference.instrumentation import TracerProvider
@@ -21,6 +23,10 @@ class LitellmClient:
     embedding_model: str = "nomic-embed-text"
 
     @property
+    def _tracer(self) -> trace.Tracer:
+        return trace.get_tracer(__name__, tracer_provider=self.telemetry_observer)
+
+    @property
     def chat_url(self) -> str:
         return f"{self.litellm_server_url.rstrip('/')}/v1/chat/completions"
 
@@ -33,19 +39,47 @@ class LitellmClient:
         payload: dict[str, Any], 
         endpoint: str
     ) -> Result[Response, Exception]:
-        try:
-            response = await self.client.post(
-                url=endpoint,
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-                timeout=60.0,
-            )
-            return Success(response)
-        except Exception as e:
-            return Failure(e)
+        # Define span name based on the action
+        span_name = "chat_completion" if "chat" in endpoint else "embedding"
+        
+        # We use the OpenInference semantic conventions so Phoenix parses the data
+        with self._tracer.start_as_current_span(span_name) as span:
+            span.set_attribute("llm.model_name", self.model)
+            span.set_attribute("llm.invocation_parameters", json.dumps(payload))
+            
+            # Record input for Phoenix UI
+            if "messages" in payload:
+                span.set_attribute("input.value", payload["messages"][0]["content"])
+            elif "input" in payload:
+                span.set_attribute("input.value", str(payload["input"]))
+
+            try:
+                response = await self.client.post(
+                    url=endpoint,
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                    timeout=60.0,
+                )
+                
+                if response.status_code == 200:
+                    res_json = response.json()
+                    # Record output for Phoenix UI
+                    if "choices" in res_json:
+                        span.set_attribute("output.value", res_json["choices"][0]["message"]["content"])
+                    
+                    return Success(response)
+                
+                error_msg: str = f"LLM Error {response.status_code}: {response.text}"
+                span.set_status(trace.Status(trace.StatusCode.ERROR, error_msg))
+                return Failure(ValueError(error_msg))
+
+            except Exception as e:
+                span.record_exception(e)
+                span.set_status(trace.Status(trace.StatusCode.ERROR))
+                return Failure(e)
 
     def _extract_content(self, response_json: dict[str, Any]) -> Result[str, Exception]:
         match response_json:
@@ -65,7 +99,7 @@ class LitellmClient:
             f"POLICY: {policy_description}\n"
             f"LANGUAGE: {language}\n"
             f"TEXT: {text}\n"
-            f"INSTRUCTION: Answer ONLY 'YES' or 'NO'."
+            f"INSTRUCTION: Answer ONLY 'RELEVANT' or 'NOT RELEVANT'."
         )
 
         payload = {
