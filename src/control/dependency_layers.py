@@ -1,15 +1,14 @@
 # src/control/dependency_layers.py
 
 import sys
-from typing import Generator
 import httpx
 import logging
 import structlog
 from phoenix.otel import register
 from pyspark.sql import SparkSession
 from logging.handlers import RotatingFileHandler
+from typing import Generator, Any, AsyncIterator
 from openinference.instrumentation import TracerProvider
-from openinference.instrumentation.litellm import LiteLLMInstrumentor
 
 from dependency_injector import containers, providers
 from crawl4ai import (
@@ -141,6 +140,36 @@ def setup_phoenix(endpoint: str, project: str, api_key:str) -> Generator[TracerP
     )
     
     yield tracer_provider
+
+
+async def init_kafka_producer(
+        bootstrap_servers: str,
+        logger: Any
+) -> AsyncIterator[KafkaProducerAdapter]:
+    adapter = KafkaProducerAdapter(
+        bootstrap_servers=bootstrap_servers,
+        logger=logger
+    )
+    await adapter._producer.start()
+    yield adapter
+    await adapter._producer.stop()
+
+
+async def init_kafka_consumer(
+    bootstrap_servers: str, 
+    group_id: str, 
+    topics: tuple[str, ...], 
+    logger: Any
+) -> AsyncIterator[KafkaConsumerAdapter]:
+    adapter = KafkaConsumerAdapter(
+        bootstrap_servers=bootstrap_servers,
+        group_id=group_id,
+        topics=topics,
+        logger=logger
+    )
+    await adapter._consumer.start()
+    yield adapter
+    await adapter._consumer.stop()
     
 
 
@@ -158,19 +187,19 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         }
     )
 
-    kafka_producer = providers.Singleton(
-    KafkaProducerAdapter,
-    bootstrap_servers=config.kafka.bootstrap_servers,
-    logger=logger_provider
-)
+    kafka_producer = providers.Resource(
+        init_kafka_producer,
+        bootstrap_servers=config.kafka.bootstrap_servers,
+        logger=logger_provider
+    )
 
-    kafka_consumer = providers.Singleton(
-    KafkaConsumerAdapter,
-    bootstrap_servers=config.kafka.bootstrap_servers,
-    group_id=config.kafka.group_id,
-    topics=providers.Callable(lambda: ("discovery_queue",)),
-    logger=logger_provider
-)
+    kafka_consumer = providers.Resource(
+        init_kafka_consumer,
+        bootstrap_servers=config.kafka.bootstrap_servers,
+        group_id=config.kafka.group_id,
+        topics=providers.Callable(lambda: ("discovery_queue",)),
+        logger=logger_provider
+    )
 
 
     # --- Domain Model Instantiation ---

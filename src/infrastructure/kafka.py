@@ -1,4 +1,5 @@
 # src/infrastructure/kafka.py
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -78,11 +79,10 @@ class KafkaProducerAdapter(KafkaProvider):
         try:
             # Note: For AIOKafkaProducer, it is best practice to start/stop
             # the producer around operations, or manage it as a context manager.
-            # Since we are using a property, we ensure start is called here.
-            await self._producer.start()
+            # Our dependency container manages the init and cleanup so no need for it here.
             await self._producer.send_and_wait(topic, value, key=key)
-            await self._producer.stop()
             return Success(True)
+
         except Exception as exc:
             return Failure(exc)
 
