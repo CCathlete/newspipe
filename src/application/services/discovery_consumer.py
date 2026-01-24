@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from aiokafka.structs import ConsumerRecord
-from returns.future import future_safe
-from returns.io import IOFailure, IOSuccess
-from returns.result import Failure, Result, Success, safe
+from returns.future import FutureResult, FutureResultE, future_safe
+from returns.io import IOFailure, IOResultE, IOSuccess
+from returns.result import Failure, Result, ResultE, Success, safe
 from structlog.typing import FilteringBoundLogger
 
 from domain.interfaces import AIProvider, KafkaProvider
@@ -61,37 +61,35 @@ class DiscoveryConsumer:
         
         return processed_count
 
+    @future_safe
     async def _process_chunk_record(self, record: ConsumerRecord) -> None:
-        decode_result: Result[dict[str, Any], Exception] = (
-            Result.from_value(record.value)
-            .bind(self._safe_decode)
-        )
-        
+        decode_result: Result[dict[str, Any], Exception] = self._safe_decode(record.value)
+
         match decode_result:
             case Success(data):
                 if "chunk" not in data:
                     return
 
-                tag_future: Result[bool, Exception] = await self.llm.is_relevant(
+                tag_future: FutureResultE[ResultE[bool]] = self.llm.is_relevant(
                     text=data["chunk"],
                     policy_description=self.discovery_policy.description,
                     language=data.get("language", "en")
                 )
-                io_tag_res = await tag_future.awaitable()
+
+                io_tag_res: IOResultE[ResultE[bool]] = await tag_future.awaitable()
                 
                 match io_tag_res:
-                    case IOSuccess(res):
-                        match res:
-                            case Success(True):
-                                ingest_future = await self.ingestion_pipeline.ingest_relevant_chunk(data)
-                                io_ingest_res = await ingest_future.awaitable()
-                                
-                                match io_ingest_res:
-                                    case IOSuccess(i_res):
-                                        match i_res:
-                                            case Success(count):
-                                                self.logger.info("chunk_ingested", url=data["url"], count=count)
-                                            case Failure(e):
+                    case IOSuccess(Success(res)):
+                        if res == True:
+                            ingest_future: IOResultE[int] = await self.ingestion_pipeline.ingest_relevant_chunk(data)
+                            io_ingest_res = await ingest_future.awaitable()
+                        
+                        match io_ingest_res:
+                            case IOSuccess(i_res):
+                                match i_res:
+                                    case Success(count):
+                                        self.logger.info("chunk_ingested", url=data["url"], count=count)
+                                    case Failure(e):
                                                 self.logger.error("ingestion_logic_failed", error=str(e))
                                     case IOFailure(e):
                                         self.logger.error("ingestion_io_failed", error=str(e))

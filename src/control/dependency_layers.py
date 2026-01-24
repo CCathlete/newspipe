@@ -22,8 +22,8 @@ from crawl4ai.chunking_strategy import OverlappingWindowChunking
 from structlog.processors import JSONRenderer, TimeStamper, StackInfoRenderer, format_exc_info
 
 from domain.models import RelevancePolicy, TraversalRules
-from application.services.data_ingestion import IngestionPipeline
-from domain.services.discovery_consumer import DiscoveryConsumer
+from domain.services.data_ingestion import IngestionPipeline
+from application.services.discovery_consumer import DiscoveryConsumer
 from domain.services.scraper import StreamScraper
 from infrastructure.litellm_client import LitellmClient
 from infrastructure.lakehouse import LakehouseConnector

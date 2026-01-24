@@ -4,7 +4,7 @@ from typing import Any, Iterable, Protocol, runtime_checkable
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 from returns.result import Result
-from returns.future import FutureResult
+from returns.future import FutureResult, future_safe
 from aiokafka.structs import TopicPartition, ConsumerRecord
 from .models import BronzeRecord
 
@@ -18,6 +18,7 @@ class SparkSessionInterface(Protocol):
 
 
 class AIProvider(Protocol):
+    @future_safe
     async def is_relevant(
         self,
         text: str,
@@ -26,6 +27,7 @@ class AIProvider(Protocol):
     ) -> Result[bool, Exception]:
         ...
 
+    @future_safe
     async def embed_text(self, text: str) -> Result[list[float], Exception]:
         ...
 

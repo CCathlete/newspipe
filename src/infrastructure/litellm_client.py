@@ -8,7 +8,7 @@ from opentelemetry import trace
 from dataclasses import dataclass
 from httpx import AsyncClient, Response
 from openinference.instrumentation import TracerProvider
-from returns.future import FutureResult, future_safe
+from returns.future import future_safe
 from returns.io import IOFailure, IOResult, IOSuccess
 from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure, safe
