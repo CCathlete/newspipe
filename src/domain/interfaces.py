@@ -1,6 +1,6 @@
 # src/domain/interfaces.py
 
-from typing import Any, Iterable, Protocol, AsyncIterator, runtime_checkable
+from typing import Any, Iterable, Protocol, runtime_checkable
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 from returns.result import Result
