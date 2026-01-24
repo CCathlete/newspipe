@@ -1,11 +1,15 @@
 # src/control/dependency_layers.py
 
 import sys
+from typing import Generator
 import httpx
 import logging
 import structlog
+from phoenix.otel import register
 from pyspark.sql import SparkSession
 from logging.handlers import RotatingFileHandler
+from openinference.instrumentation import TracerProvider
+from openinference.instrumentation.litellm import LiteLLMInstrumentor
 
 from dependency_injector import containers, providers
 from crawl4ai import (
@@ -127,6 +131,20 @@ def _create_spark_session(resolved_lakehouse_cfg_dict) -> SparkSession:
             .getOrCreate()
                 )
 
+def setup_phoenix(endpoint: str, project: str) -> Generator[TracerProvider, None, None]:
+    # This registers Phoenix as the OTel collector
+    tracer_provider = register(
+        project_name=project,
+        endpoint=endpoint
+    )
+    # This patches LiteLLM to send traces to that provider
+    instrumentor = LiteLLMInstrumentor()
+    instrumentor.instrument(tracer_provider=tracer_provider)
+    
+    yield tracer_provider # The resource is 'live' here
+    
+    instrumentor.uninstrument() # Cleanup on shutdown
+
 
 class DataPlatformContainer(containers.DeclarativeContainer):
     config = providers.Configuration()
@@ -220,13 +238,21 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         traversal_rules=traversal_rules
     )
 
+    # Telemetry object that monitors LLM performance (including embedding).
+    telemetry = providers.Resource(
+        setup_phoenix,
+        endpoint=config.litellm.telemetry_endpoint,
+        project=config.litellm.project_name,
+    )
+
     litellm = providers.Factory(
         LitellmClient,
         model=config.litellm.model,
         api_key=config.litellm.api_key,
         litellm_server_url=config.litellm.base_url,
         client=http_client,
-        logger=logger_provider
+        logger=logger_provider,
+        telemetry_observer=telemetry,
     )
 
     lakehouse = providers.Factory(

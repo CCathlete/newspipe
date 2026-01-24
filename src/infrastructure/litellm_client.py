@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 from dataclasses import dataclass
 from httpx import AsyncClient, Response
+from openinference.instrumentation import TracerProvider
 from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure
 
@@ -16,6 +17,7 @@ class LitellmClient:
     client: AsyncClient
     litellm_server_url: str
     logger: FilteringBoundLogger
+    telemetry_observer: TracerProvider
     embedding_model: str = "nomic-embed-text"
 
     @property

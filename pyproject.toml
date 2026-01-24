@@ -19,6 +19,8 @@ dependencies = [
     "dotenv",
     "crawl4ai",
     "debugpy",
+    "arize-phoenix",
+    "openinference-instrumentation-litellm",
 ]
 
 [tool.setuptools.packages.find]
