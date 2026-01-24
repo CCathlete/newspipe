@@ -1,4 +1,5 @@
-# src/domain/services/discovery_consumer.py
+# src/application/services/discovery_consumer.py
+
 from dataclasses import dataclass
 import json
 from typing import Any
