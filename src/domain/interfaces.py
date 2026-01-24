@@ -90,20 +90,17 @@ class Crawler(Protocol):
 
 
 class ScraperProvider(Protocol):
-    def scrape_and_chunk(
+    async def deep_crawl(
         self,
         url: str,
         strategy: ChunkingStrategy,
         run_config: CrawlerRunConfig,
         language: str,
-    ) -> AsyncIterator[Result[str, Exception]]: ...
-
-    def process_from_topic(
-        self,
-        strategy: ChunkingStrategy,
-        run_config: CrawlerRunConfig,
-        topic: str = "discovery_queue",
-    ) -> AsyncIterator[Result[str, Exception]]: ...
+        discovery_topics: list[str] = ["discovery_queue"],
+        chunks_topic: str = "raw_chunks",
+    ) -> Result[bool, Exception]:
+        """Performs crawl, discovers links, and publishes chunks to Kafka."""
+        ...
 
 
 class KafkaMessage(Protocol):

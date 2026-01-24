@@ -1,87 +1,72 @@
 # src/domain/services/discovery_consumer.py
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import json
-import asyncio
-from typing import Mapping
+from typing import Any
 
-from aiokafka.structs import TopicPartition, ConsumerRecord
+from aiokafka.structs import ConsumerRecord
 from structlog.typing import FilteringBoundLogger
-from returns.result import Result, Success, Failure
+from returns.result import Result, Success, Failure, safe
 
 from ..models import RelevancePolicy
-from ..interfaces import KafkaProvider, CrawlerRunConfig
+from ..interfaces import KafkaProvider, AIProvider
 from application.services.data_ingestion import IngestionPipeline
 
 
-def _resolve_language(
-    url: str,
-    default_lang: str,
-    lookup: Mapping[str, str],
-) -> str:
-    """Map domain to language if available, otherwise return default."""
-    from urllib.parse import urlparse
-    domain = urlparse(url).netloc.lower()
-    return lookup.get(domain, default_lang)
-
+# src/domain/services/discovery_consumer.py
 
 @dataclass(slots=True, frozen=True)
 class DiscoveryConsumer:
     kafka_provider: KafkaProvider
+    llm: AIProvider
     ingestion_pipeline: IngestionPipeline
     logger: FilteringBoundLogger
-    run_config: CrawlerRunConfig
     discovery_policy: RelevancePolicy
-    language_lookup: Mapping[str, str] = field(default_factory=dict)
 
-    async def run(self, read_from_topics: list[str]=["discovery_queue"]) -> None:
-        self.logger.info("discovery_consumer_started")
-        self.kafka_provider.subscribe(read_from_topics)
+    async def run(self, topics: list[str] = ["raw_chunks"]) -> None:
+        self.logger.info("discovery_consumer_started", topics=topics)
+        self.kafka_provider.subscribe(topics)
 
         while True:
-            # 1. Consume messages
-            messages: dict[TopicPartition, list[ConsumerRecord]] = await self.kafka_provider.getmany(
-                timeout_ms=1000, max_records=100
-            )
+            messages = await self.kafka_provider.getmany(timeout_ms=1000, max_records=50)
             if not messages:
-                await asyncio.sleep(0.1)
                 continue
 
-            for partition, records in messages.items():
+            for records in messages.values():
                 for record in records:
-                    # 2. Decode payload
-                    try:
-                        assert isinstance(record.value, bytes)
-                        payload = json.loads(record.value.decode("utf-8"))
-                    except Exception as exc:
-                        self.logger.warning(
-                            "json_decode_failed", error=str(exc))
-                        continue
+                    await self._process_chunk_record(record)
 
-                    url = payload.get("url")
-                    if not url:
-                        self.logger.warning(
-                            "malformed_message", payload=payload)
-                        continue
+    async def _process_chunk_record(self, record: ConsumerRecord) -> None:
+        # Pipeline: Decode -> AI Tagging -> Ingest
+        result = (
+            Result.from_value(record.value)
+            .bind(self._safe_decode)
+            .bind(lambda data: Success(data) if "chunk" in data else Failure(ValueError("No chunk")))
+        )
 
-                    # 3. Determine language
-                    payload_lang = payload.get("language")
-                    parent_default = getattr(self.run_config, "language", "en")
-                    language = (
-                        payload_lang
-                        or _resolve_language(url, parent_default, self.language_lookup)
-                    )
+        match result:
+            case Success(data):
+                # Call LiteLLM for tagging
+                tag_res = await self.llm.is_relevant(
+                    text=data["chunk"], 
+                    policy_description=self.discovery_policy.description,
+                    language=data.get("language", "en")
+                )
+                
+                match tag_res:
+                    case Success(True):
+                        # Pass only relevant chunks to ingestion
+                        await self.ingestion_pipeline.ingest_relevant_chunk(data)
+                        self.logger.info("chunk_ingested", url=data["url"])
+                    case Success(False):
+                        self.logger.info("chunk_skipped_irrelevant", url=data["url"])
+                    case Failure(e):
+                        self.logger.info("tagging_failed", error=str(e))
+            
+            case Failure(e):
+                self.logger.info("decode_failed", error=str(e))
 
-                    # 4. Delegate to pipeline
-                    result: Result[int, Exception] = await self.ingestion_pipeline.execute(
-                        start_url=url,
-                        language=language,
-                        policy=self.discovery_policy,
-                    )
-
-                    match result:
-                        case Success(cnt):
-                            self.logger.info(
-                                "crawled_child", url=url, records_written=cnt)
-                        case Failure(e):
-                            self.logger.error(
-                                "crawling_failed", url=url, error=str(e))
+    @safe
+    def _safe_decode(self, value: bytes | None) -> dict[str, Any]:
+        if value is None:
+            raise ValueError("Null record value")
+        return json.loads(value.decode("utf-8"))
