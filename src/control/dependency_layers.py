@@ -6,7 +6,6 @@ import logging
 import structlog
 from pyspark.sql import SparkSession
 from logging.handlers import RotatingFileHandler
-from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 
 from dependency_injector import containers, providers
 from crawl4ai import (
@@ -25,6 +24,7 @@ from domain.services.discovery_consumer import DiscoveryConsumer
 from domain.services.scraper import StreamScraper
 from infrastructure.litellm_client import LitellmClient
 from infrastructure.lakehouse import LakehouseConnector
+from infrastructure.kafka import KafkaProducerAdapter, KafkaConsumerAdapter
 
 logging.basicConfig(
     level=logging.INFO,
@@ -142,15 +142,19 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         }
     )
 
-    kafka_producer = providers.Resource(
-        AIOKafkaProducer,
-        bootstrap_servers=config.kafka.bootstrap_servers
-    )
+    kafka_producer = providers.Singleton(
+    KafkaProducerAdapter,
+    bootstrap_servers=config.kafka.bootstrap_servers,
+    logger=logger_provider
+)
 
-    kafka_consumer = providers.Resource(
-        AIOKafkaConsumer,
-        bootstrap_servers=config.kafka.bootstrap_servers
-    )
+    kafka_consumer = providers.Singleton(
+    KafkaConsumerAdapter,
+    bootstrap_servers=config.kafka.bootstrap_servers,
+    group_id=config.kafka.group_id,
+    topics=providers.Callable(lambda: ("discovery_queue",)),
+    logger=logger_provider
+)
 
 
     # --- Domain Model Instantiation ---

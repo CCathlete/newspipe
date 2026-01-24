@@ -9,6 +9,10 @@ from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from aiokafka.structs import TopicPartition, ConsumerRecord
 from returns.result import Failure, Success, Result
 from structlog.typing import FilteringBoundLogger
+from aiokafka.admin import AIOKafkaAdminClient, NewTopic
+from aiokafka.errors import TopicAlreadyExistsError
+from returns.result import Result, Success, Failure
+
 
 from ..domain.interfaces import KafkaProvider
 
@@ -30,7 +34,7 @@ class KafkaConsumerAdapter(KafkaProvider):
             enable_auto_commit=False,
         )
 
-    def subscribe(self, *topics: list[str]) -> None:
+    def subscribe(self, topics: list[str]) -> None:
         """
         Subscribe to new topics dynamically. 
         This method updates the internal consumer subscription.
@@ -94,3 +98,39 @@ class KafkaProducerAdapter(KafkaProvider):
     ) -> dict[TopicPartition, list[ConsumerRecord]]:
         """Producer does not support consumption."""
         return {}
+
+    async def ensure_topics_exist(
+        self, 
+        topics: list[str], 
+        num_partitions: int = 1, 
+        replication_factor: int = 1
+    ) -> Result[list[str], Exception]:
+        admin_client = AIOKafkaAdminClient(
+            bootstrap_servers=self.bootstrap_servers,
+            client_id='admin-client'
+        )
+        
+        try:
+            new_topics: list[NewTopic] = [
+                NewTopic(
+                    name=topic, 
+                    num_partitions=num_partitions, 
+                    replication_factor=replication_factor
+                ) 
+                for topic in topics
+            ]
+            
+            # This call is synchronous in aiokafka's admin client
+            await admin_client.create_topics(new_topics=new_topics, validate_only=False)
+            return Success(topics)
+            
+        except TopicAlreadyExistsError:
+            return Success(topics)
+        except Exception as e:
+            return Failure(e)
+        finally:
+            await admin_client.close()
+
+
+
+

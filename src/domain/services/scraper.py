@@ -32,12 +32,12 @@ class StreamScraper:
         self,
         strategy: ChunkingStrategy,
         run_config: CrawlerRunConfig,
-        topic: str = "discovery_queue",
+        topics: list[str] = ["discovery_queue"],
     ) -> AsyncIterator[Result[str, Exception]]:
-        log: Final = self.logger.bind(topic=topic, policy_name=self.relevance_policy.name)
+        log: Final = self.logger.bind(topic=topics[0], policy_name=self.relevance_policy.name)
         log.info("discovery_process_started")
         
-        self.kafka_provider.subscribe([topic])
+        self.kafka_provider.subscribe(topics)
 
         while True:
             messages: dict[TopicPartition, list[ConsumerRecord[Any, Any]]]  = await self.kafka_provider.getmany(timeout_ms=1000)
@@ -108,7 +108,12 @@ class StreamScraper:
 
         return True
 
-    async def _discover_links(self, result: CrawlerResult, log: FilteringBoundLogger) -> None:
+    async def _discover_links(
+        self,
+        result: CrawlerResult,
+        log: FilteringBoundLogger,
+        topics: list[str] = ["discovery_queue"]
+    ) -> None:
         """Extracts and filters links from crawl result, pushing them back to the discovery queue."""
         # Crawl4AI typically returns links in extracted_content or metadata
         links: list[str] = getattr(result, "links", [])
@@ -117,7 +122,7 @@ class StreamScraper:
         
         for link in valid_links:
             payload: str = json.dumps({"url": link, "language": "en"})
-            await self.kafka_provider.send(topic="discovery_queue", value=payload.encode("utf-8"))
+            [await self.kafka_provider.send(topic=topic, value=payload.encode("utf-8")) for topic in topics]
         
         if valid_links:
             log.debug("links_discovered", count=len(valid_links))

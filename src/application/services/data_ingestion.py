@@ -77,18 +77,31 @@ class IngestionPipeline:
             case _:
                 return Failure(Exception("Unknown issue in ingestion."))
 
-async def execute(
+    async def execute(
         self,
         start_url: str,
         language: str,
         policy: RelevancePolicy,
     ) -> Result[int, Exception]:
-        log: FilteringBoundLogger = self.logger.bind(url=start_url)
+        """Crawl start_url, filter by policy, and embed relevant chunks."""
+        log = self.logger.bind(url=start_url)
         processed_urls: set[str] = set()
         url_queue: list[str] = [start_url]
         buffered_records: list[BronzeRecord] = []
         total_records_ingested: int = 0
         session_ts: float = datetime.now(UTC).timestamp()
+
+        async def _check_and_flush_buffer() -> Result[None, Exception]:
+            nonlocal total_records_ingested
+            if len(buffered_records) >= self.buffer_size:
+                flush_res: Result[int, Exception] = await self._flush_records_buffer(buffered_records, log)
+                match flush_res:
+                    case Success(count):
+                        total_records_ingested += count
+                        return Success(None)
+                    case Failure(e):
+                        return Failure(e)
+            return Success(None)
 
         while url_queue:
             current_url = url_queue.pop(0)
@@ -105,13 +118,18 @@ async def execute(
                 )
             ):
                 match chunk_res:
-                    case Success(chunk) if cheap_pre_filter(chunk):
+                    case Success(chunk):
+                        if not cheap_pre_filter(chunk):
+                            continue  # skip irrelevant chunk early
+
+                        # -------------------------
+                        # Policy-driven LLM gate
+                        # -------------------------
                         gate_res: Result[bool, Exception] = await self.llm.is_relevant(
                             text=chunk,
                             language=language,
                             policy_description=policy.model_dump_json(),
                         )
-                        
                         match gate_res:
                             case Success(True):
                                 record = BronzeRecord(
@@ -122,22 +140,29 @@ async def execute(
                                     ingested_at=session_ts,
                                 )
                                 buffered_records.append(record)
-                                
-                                if len(buffered_records) >= self.buffer_size:
-                                    flush_res = await self._flush_records_buffer(buffered_records, log)
-                                    total_records_ingested += flush_res.unwrap_or(0)
-                            
+                                flush_res = await _check_and_flush_buffer()
+                                if isinstance(flush_res, Failure):
+                                    return flush_res
                             case Success(False):
                                 continue
                             case Failure(e):
-                                log.warning("gate_failed", url=current_url, error=str(e))
-                                
+                                log.warning(
+                                    "gate_failed", url=current_url, error=str(e))
                     case Failure(e):
                         log.warning("chunk_failed", url=current_url, error=str(e))
 
+            # -------------------------
+            # Kafka push for new URLs handled separately by crawler
+            # -------------------------
+
+        # Final flush
         if buffered_records:
-            final_flush = await self._flush_records_buffer(buffered_records, log)
-            total_records_ingested += final_flush.unwrap_or(0)
+            final_res = await self._flush_records_buffer(buffered_records, log)
+            match final_res:
+                case Success(count):
+                    total_records_ingested += count
+                case Failure(e):
+                    return Failure(e)
 
         log.info("pipeline_complete", total_records_ingested=total_records_ingested)
         return Success(total_records_ingested)

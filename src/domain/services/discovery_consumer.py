@@ -33,9 +33,9 @@ class DiscoveryConsumer:
     discovery_policy: RelevancePolicy
     language_lookup: Mapping[str, str] = field(default_factory=dict)
 
-    async def run(self) -> None:
+    async def run(self, read_from_topics: list[str]=["discovery_queue"]) -> None:
         self.logger.info("discovery_consumer_started")
-        self.kafka_provider.subscribe(["discovery_queue"])
+        self.kafka_provider.subscribe(read_from_topics)
 
         while True:
             # 1. Consume messages
