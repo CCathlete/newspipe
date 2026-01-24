@@ -131,11 +131,13 @@ def _create_spark_session(resolved_lakehouse_cfg_dict) -> SparkSession:
             .getOrCreate()
                 )
 
-def setup_phoenix(endpoint: str, project: str) -> Generator[TracerProvider, None, None]:
+def setup_phoenix(endpoint: str, project: str, api_key:str) -> Generator[TracerProvider, None, None]:
     # This registers Phoenix as the OTel collector
     tracer_provider = register(
         project_name=project,
-        endpoint=endpoint
+        endpoint=endpoint,
+        auto_instrument=True,
+        api_key=api_key
     )
     # This patches LiteLLM to send traces to that provider
     instrumentor = LiteLLMInstrumentor()
@@ -242,7 +244,8 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     telemetry = providers.Resource(
         setup_phoenix,
         endpoint=config.litellm.telemetry_endpoint,
-        project=config.litellm.project_name,
+        project=config.litellm.telemetry_project_name,
+        api_key=config.litellm.telemetry_api_key,
     )
 
     litellm = providers.Factory(
