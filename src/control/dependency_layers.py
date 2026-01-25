@@ -262,7 +262,9 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         kafka_provider=kafka_producer,
         crawler_factory=scraping_provider.provider,
         relevance_policy=relevance_policy,
-        traversal_rules=traversal_rules
+        traversal_rules=traversal_rules,
+        run_config=run_config,
+        strategy=strategy
     )
 
     # Telemetry object that monitors LLM performance (including embedding).

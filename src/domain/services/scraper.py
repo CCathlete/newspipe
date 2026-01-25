@@ -25,6 +25,8 @@ class StreamScraper:
     kafka_provider: KafkaProvider
     crawler_factory: Callable[[], Crawler]
     traversal_rules: TraversalRules
+    run_config: CrawlerRunConfig
+    strategy: ChunkingStrategy
 
     @future_safe
     async def initialize_and_seed(self, seeds: dict[str, list[str]], topics: list[str]) -> list[str]:
@@ -48,14 +50,12 @@ class StreamScraper:
     async def deep_crawl(
         self,
         url: str,
-        strategy: ChunkingStrategy,
-        run_config: CrawlerRunConfig,
         language: str,
         discovery_topics: list[str] = ["discovery_queue"],
         chunks_topic: str = "raw_chunks",
-    ) -> bool:
+    ) -> None:
         async with self.crawler_factory() as crawler:
-            result: CrawlerResult = await crawler.arun(url=url, config=run_config)
+            result: CrawlerResult = await crawler.arun(url=url, config=self.run_config)
 
             if not result.success:
                 raise RuntimeError(result.error_message or "Crawl failed")
@@ -68,10 +68,10 @@ class StreamScraper:
             if not result.markdown:
                 raise ValueError(f"No content retrieved from {url}")
 
-            publish_future: FutureResultE[None] = self._publish_chunks(result.markdown, strategy, url, language, chunks_topic)
+            publish_future: FutureResultE[None] = self._publish_chunks(result.markdown, self.strategy, url, language, chunks_topic)
             await publish_future.awaitable()
             
-            return True
+            return None
 
     @future_safe
     async def _publish_chunks(

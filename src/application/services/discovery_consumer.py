@@ -10,13 +10,12 @@ from returns.io import IOFailure, IOResultE, IOSuccess
 from returns.result import Failure, ResultE, Success, safe
 from structlog.typing import FilteringBoundLogger
 
-from domain.interfaces import KafkaProvider
+from domain.interfaces import KafkaProvider, ScraperProvider
 from domain.services.data_ingestion import IngestionPipeline
-from domain.services.scraper import StreamScraper
 
 @dataclass(slots=True, frozen=True)
 class DiscoveryConsumer:
-    scraper: StreamScraper
+    scraper: ScraperProvider
     ingestion_pipeline: IngestionPipeline
     kafka_connector: KafkaProvider
     logger: FilteringBoundLogger
@@ -59,7 +58,8 @@ class DiscoveryConsumer:
     @future_safe
     async def _handle_discovery(self, record: ConsumerRecord) -> None:
         """New URLs found: Trigger the Scraper."""
-        match self._safe_decode(record.value):
+        decode_result: ResultE[dict[str, Any]] = self._safe_decode(record.value)
+        match decode_result:
             case Success(data):
                 # We assume standard keys: url, language, strategy_params, etc.
                 crawl_f: FutureResultE[bool] = self.scraper.deep_crawl(
@@ -84,13 +84,12 @@ class DiscoveryConsumer:
         match self._safe_decode(record.value):
             case Success(data):
                 # The IngestionPipeline handles its own LLM tagging monadically
-                ingest_f: FutureResultE[int] = self.ingestion_pipeline.ingest_relevant_chunk(data)
-                res_io: IOResultE[int] = await ingest_f.awaitable()
+                ingest_f: FutureResultE[None] = self.ingestion_pipeline.ingest_relevant_chunk(data)
+                res_io: IOResultE[None] = await ingest_f.awaitable()
                 
                 match res_io:
-                    case IOSuccess(Success(count)):
-                        if count > 0:
-                            self.logger.info("chunk_persisted", url=data["url"])
+                    case IOSuccess(Success(_)):
+                        self.logger.info("chunk_persisted", url=data["url"])
                     case IOFailure(Failure(e)):
                         self.logger.error("ingestion_failed", url=data["url"], error=str(e))
             case Failure(e):

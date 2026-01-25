@@ -110,6 +110,7 @@ class Crawler(Protocol):
 
 
 class ScraperProvider(Protocol):
+    @future_safe
     async def deep_crawl(
         self,
         url: str,
@@ -118,8 +119,16 @@ class ScraperProvider(Protocol):
         language: str,
         discovery_topics: list[str] = ["discovery_queue"],
         chunks_topic: str = "raw_chunks",
-    ) -> Result[bool, Exception]:
+    ) -> None:
         """Performs crawl, discovers links, and publishes chunks to Kafka."""
+        ...
+
+    @future_safe
+    async def initialize_and_seed(
+            self,
+            seeds: dict[str, list[str]],
+            topics: list[str]
+    ) -> list[str]:
         ...
 
 

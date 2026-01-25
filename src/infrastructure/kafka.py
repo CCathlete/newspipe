@@ -69,6 +69,39 @@ class KafkaConsumerAdapter(KafkaProvider):
         """Consumers cannot send messages."""
         raise RuntimeError("Send not supported by consumer")
 
+    @future_safe
+    async def ensure_topics_exist(
+        self, 
+        topics: list[str], 
+        num_partitions: int = 1, 
+        replication_factor: int = 1
+    ) -> list[str]:
+        admin_client = AIOKafkaAdminClient(
+            bootstrap_servers=self.bootstrap_servers,
+            client_id='admin-client'
+        )
+        
+        try:
+            new_topics: list[NewTopic] = [
+                NewTopic(
+                    name=topic, 
+                    num_partitions=num_partitions, 
+                    replication_factor=replication_factor
+                ) 
+                for topic in topics
+            ]
+            
+            # This call is synchronous in aiokafka's admin client
+            await admin_client.create_topics(new_topics=new_topics, validate_only=False)
+            return topics
+            
+        except TopicAlreadyExistsError:
+            return topics
+        except Exception as e:
+            raise e
+        finally:
+            await admin_client.close()
+
 
 @dataclass(slots=True, frozen=True)
 class KafkaProducerAdapter(KafkaProvider):
