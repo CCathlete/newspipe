@@ -5,20 +5,22 @@ from dataclasses import dataclass
 from typing import Any
 
 from aiokafka.structs import ConsumerRecord
-from returns.future import FutureResult, FutureResultE, future_safe
+from returns.future import FutureResultE, future_safe
 from returns.io import IOFailure, IOResultE, IOSuccess
-from returns.result import Failure, Result, ResultE, Success, safe
+from returns.result import Failure, ResultE, Success, safe
 from structlog.typing import FilteringBoundLogger
 
 from domain.interfaces import AIProvider, KafkaProvider
 from domain.models import RelevancePolicy
 from domain.services.data_ingestion import IngestionPipeline
+from domain.services.scraper_service import ScraperService
 
 @dataclass(slots=True, frozen=True)
 class DiscoveryConsumer:
-    kafka_provider: KafkaProvider
-    llm: AIProvider
+    scraper: ScraperService
     ingestion_pipeline: IngestionPipeline
+    kafka_connector: KafkaProvider # Used only for the low-level loop
+    llm: AIProvider
     logger: FilteringBoundLogger
     discovery_policy: RelevancePolicy
 
@@ -26,79 +28,76 @@ class DiscoveryConsumer:
     async def run(self, seeds: dict[str, list[str]]) -> int:
         topics: list[str] = ["raw_chunks"]
         
-        # --- Infrastructure Verification ---
-        infra_future = await self.kafka_provider.ensure_topics_exist(topics)
-        infra_res = await infra_future.awaitable()
+        # 1. Orchestrate Domain Scraper: Ensure infra is ready and seeds are pushed
+        scraper_future: FutureResultE[list[str]] = self.scraper.initialize_and_seed(seeds, topics)
+        scraper_io_res: IOResultE[list[str]] = await scraper_future.awaitable()
         
-        match infra_res:
-            case IOSuccess(res):
-                match res:
-                    case Success(_):
-                        self.logger.info("infrastructure_ready", topics=topics)
-                    case Failure(e):
-                        self.logger.error("topic_creation_logic_failed", error=str(e))
-                        raise e
-            case IOFailure(e):
-                self.logger.error("topic_creation_io_failed", error=str(e))
+        match scraper_io_res:
+            case IOSuccess(Success(_)):
+                self.logger.info("scraper_initialized_and_seeded", topics=topics)
+            case IOFailure(Failure(e)):
+                self.logger.error("scraper_initialization_failed", error=str(e))
                 raise e
+            case _:
+                raise RuntimeError("Inconsistent monadic state during scraper init")
 
-        # --- Seed Injection ---
-        await self.kafka_provider.produce_seeds(seeds)
-        
-        self.logger.info("discovery_consumer_started", topics=topics)
-        self.kafka_provider.subscribe(topics)
-
+        # 2. Start Consumption Loop
+        self.kafka_connector.subscribe(topics)
         processed_count: int = 0
+        
         while True:
-            messages = await self.kafka_provider.getmany(timeout_ms=1000, max_records=50)
+            messages = await self.kafka_connector.getmany(timeout_ms=1000, max_records=50)
             if not messages:
                 continue
 
             for records in messages.values():
                 for record in records:
-                    await self._process_chunk_record(record)
+                    # We await the future_safe process method
+                    await (await self._process_chunk_record(record)).awaitable()
                     processed_count += 1
         
         return processed_count
 
     @future_safe
     async def _process_chunk_record(self, record: ConsumerRecord) -> None:
-        decode_result: Result[dict[str, Any], Exception] = self._safe_decode(record.value)
+        decode_result: ResultE[dict[str, Any]] = self._safe_decode(record.value)
 
         match decode_result:
             case Success(data):
                 if "chunk" not in data:
                     return
 
-                tag_future: FutureResultE[ResultE[bool]] = self.llm.is_relevant(
+                # Request relevance tagging from LLM
+                tag_future: FutureResultE[bool] = self.llm.is_relevant(
                     text=data["chunk"],
                     policy_description=self.discovery_policy.description,
                     language=data.get("language", "en")
                 )
 
-                io_tag_res: IOResultE[ResultE[bool]] = await tag_future.awaitable()
+                io_tag_res: IOResultE[bool] = await tag_future.awaitable()
                 
                 match io_tag_res:
-                    case IOSuccess(Success(res)):
-                        if res == True:
-                            ingest_future: IOResultE[int] = await self.ingestion_pipeline.ingest_relevant_chunk(data)
+                    case IOSuccess(Success(is_relevant)):
+                        if is_relevant:
+                            # Pass to Domain Ingestion Pipeline
+                            ingest_future: FutureResultE[None] = self.ingestion_pipeline.ingest_relevant_chunk(data)
                             io_ingest_res = await ingest_future.awaitable()
                         
-                        match io_ingest_res:
-                            case IOSuccess(i_res):
-                                match i_res:
-                                    case Success(count):
-                                        self.logger.info("chunk_ingested", url=data["url"], count=count)
-                                    case Failure(e):
-                                                self.logger.error("ingestion_logic_failed", error=str(e))
-                                    case IOFailure(e):
-                                        self.logger.error("ingestion_io_failed", error=str(e))
-                            case Success(False):
-                                pass
-                            case Failure(e):
-                                self.logger.error("tagging_logic_failed", error=str(e))
-                    case IOFailure(e):
+                            match io_ingest_res:
+                                case IOSuccess(Success(count)):
+                                    self.logger.info("chunk_ingested", url=data["url"], count=count)
+                                case IOFailure(Failure(e)):
+                                    self.logger.error("ingestion_io_failed", error=str(e))
+                                case _:
+                                    self.logger.error("inconsistent_ingestion_state")
+                        else:
+                            self.logger.debug("chunk_skipped_irrelevant", url=data.get("url"))
+
+                    case IOFailure(Failure(e)):
                         self.logger.error("tagging_io_failed", error=str(e))
+                    case _:
+                        self.logger.error("inconsistent_tagging_state")
+
             case Failure(e):
                 self.logger.error("decode_failed", error=str(e))
 

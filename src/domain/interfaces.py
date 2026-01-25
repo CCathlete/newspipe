@@ -3,7 +3,7 @@
 from typing import Any, Iterable, Protocol, runtime_checkable
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
-from returns.result import Result
+from returns.result import Result, safe
 from returns.future import FutureResult, future_safe
 from aiokafka.structs import TopicPartition, ConsumerRecord
 from .models import BronzeRecord
@@ -24,7 +24,7 @@ class AIProvider(Protocol):
         text: str,
         policy_description: str,
         language: str = "en",
-    ) -> Result[bool, Exception]:
+    ) -> bool:
         ...
 
     @future_safe
@@ -40,21 +40,35 @@ class StorageProvider(Protocol):
 
 
 class KafkaProvider(Protocol):
+    @future_safe
     async def send(
         self,
         topic: str,
         value: bytes,
         key: bytes | None = None,
-    ) -> Result[bool, Exception]: ...
+    ) -> bool: ...
 
-    def subscribe(self, topics: list[str]) -> None: ...
+    @safe
+    def subscribe(self, topics: list[str]) -> None:
+        ...
 
+    @future_safe
     async def getmany(
         self,
         *partitions: Any,
         timeout_ms: int = 0,
         max_records: int | None = None
-    ) -> dict[TopicPartition, list[ConsumerRecord[Any, Any]]]: ...
+    ) -> dict[TopicPartition, list[ConsumerRecord[Any, Any]]]: 
+        ...
+
+    @future_safe
+    async def ensure_topics_exist(
+        self, 
+        topics: list[str], 
+        num_partitions: int = 1, 
+        replication_factor: int = 1
+    ) ->list[str]:
+        ...
 
 
 @runtime_checkable
