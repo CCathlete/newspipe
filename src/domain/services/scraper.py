@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass
 from typing import Callable
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 from returns.future import FutureResultE, future_safe
 from returns.io import IOFailure, IOResultE, IOSuccess
@@ -36,8 +36,7 @@ class StreamScraper:
                 for lang, urls in seeds.items():
                     for url in urls:
                         payload: bytes = json.dumps({"url": url, "language": lang}).encode("utf-8")
-                        # Initial seeds trigger the discovery queue
-                        send_future: FutureResultE[bool] = self.kafka_provider.send(topic="discovery_queue", value=payload)
+                        send_future: FutureResultE[None] = self.kafka_provider.send(topic="discovery_queue", value=payload)
                         await send_future.awaitable()
                 return topics
             case IOFailure(Failure(e)):
@@ -61,17 +60,20 @@ class StreamScraper:
             if not result.success:
                 raise RuntimeError(result.error_message or "Crawl failed")
 
-            # 1. Deterministic Link Discovery
-            discovery_future: FutureResultE[None] = self._discover_links(result, discovery_topics, language)
+            # 1. Deterministic Link Discovery (now uses url to resolve relatives)
+            discovery_future: FutureResultE[None] = self._discover_links(result, url, discovery_topics, language)
             await discovery_future.awaitable()
 
             # 2. Content Chunking & Publishing
             if not result.markdown:
                 raise ValueError(f"No content retrieved from {url}")
 
-            await self._publish_chunks(result.markdown, strategy, url, language, chunks_topic)
+            publish_future: FutureResultE[None] = self._publish_chunks(result.markdown, strategy, url, language, chunks_topic)
+            await publish_future.awaitable()
+            
             return True
 
+    @future_safe
     async def _publish_chunks(
         self, 
         content: str, 
@@ -88,8 +90,8 @@ class StreamScraper:
                     "language": language
                 }).encode("utf-8")
                 
-                send_res_future: FutureResultE[bool] = self.kafka_provider.send(topic=topic, value=payload)
-                send_res_io: IOResultE[bool] = await send_res_future.awaitable()
+                send_res_future: FutureResultE[None] = self.kafka_provider.send(topic=topic, value=payload)
+                send_res_io: IOResultE[None] = await send_res_future.awaitable()
                 
                 match send_res_io:
                     case IOSuccess(Success(_)):
@@ -98,9 +100,10 @@ class StreamScraper:
                         self.logger.error("chunk_publish_failed", url=url, error=str(e))
 
     @future_safe
-    async def _discover_links(self, result: CrawlerResult, topics: list[str], language: str) -> None:
-        # Accessing validated links attribute from CrawlerResult protocol
-        links: list[str] = result.links
+    async def _discover_links(self, result: CrawlerResult, base_url: str, topics: list[str], language: str) -> None:
+        raw_links: list[str] = result.links or []
+        links: list[str] = [urljoin(base_url, l) for l in raw_links]
+        
         valid_links: list[str] = []
 
         for link in links:
@@ -118,8 +121,8 @@ class StreamScraper:
         for link in valid_links:
             payload: bytes = json.dumps({"url": link, "language": language}).encode("utf-8")
             for topic in topics:
-                publish_future: FutureResultE[bool] = self.kafka_provider.send(topic=topic, value=payload)
-                publish_io_monad: IOResultE[bool] = await publish_future.awaitable()
+                publish_future: FutureResultE[None] = self.kafka_provider.send(topic=topic, value=payload)
+                publish_io_monad: IOResultE[None] = await publish_future.awaitable()
 
                 match publish_io_monad:
                     case IOSuccess(Success(_)):
