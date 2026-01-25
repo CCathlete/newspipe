@@ -2,7 +2,7 @@
 
 import json
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Callable
 from urllib.parse import urlparse
 
 from returns.future import FutureResultE, future_safe
@@ -28,23 +28,22 @@ class StreamScraper:
 
     @future_safe
     async def initialize_and_seed(self, seeds: dict[str, list[str]], topics: list[str]) -> list[str]:
-        # Infrastructure Check
         infra_future: FutureResultE[list[str]] = self.kafka_provider.ensure_topics_exist(topics)
         infra_res: IOResultE[list[str]] = await infra_future.awaitable()
         
         match infra_res:
             case IOSuccess(Success(_)):
-                # Seed Injection
                 for lang, urls in seeds.items():
                     for url in urls:
-                        payload = json.dumps({"url": url, "language": lang}).encode("utf-8")
-                        # Using the discovery topic for initial seeds
-                        await self.kafka_provider.send(topic="discovery_queue", value=payload)
+                        payload: bytes = json.dumps({"url": url, "language": lang}).encode("utf-8")
+                        # Initial seeds trigger the discovery queue
+                        send_future: FutureResultE[bool] = self.kafka_provider.send(topic="discovery_queue", value=payload)
+                        await send_future.awaitable()
                 return topics
             case IOFailure(Failure(e)):
                 raise e
             case _:
-                raise RuntimeError("Inconsistent Kafka state")
+                raise RuntimeError("Inconsistent Kafka state during initialization")
 
     @future_safe
     async def deep_crawl(
@@ -63,7 +62,8 @@ class StreamScraper:
                 raise RuntimeError(result.error_message or "Crawl failed")
 
             # 1. Deterministic Link Discovery
-            await self._discover_links(result, discovery_topics, language)
+            discovery_future: FutureResultE[None] = self._discover_links(result, discovery_topics, language)
+            await discovery_future.awaitable()
 
             # 2. Content Chunking & Publishing
             if not result.markdown:
@@ -82,13 +82,13 @@ class StreamScraper:
     ) -> None:
         for chunk in strategy.chunk(content):
             if len(chunk.strip()) > 100:
-                payload = json.dumps({
+                payload: bytes = json.dumps({
                     "url": url,
                     "chunk": chunk.strip(),
                     "language": language
                 }).encode("utf-8")
                 
-                send_res_future: FutureResultE[bool] =  self.kafka_provider.send(topic=topic, value=payload)
+                send_res_future: FutureResultE[bool] = self.kafka_provider.send(topic=topic, value=payload)
                 send_res_io: IOResultE[bool] = await send_res_future.awaitable()
                 
                 match send_res_io:
@@ -99,24 +99,22 @@ class StreamScraper:
 
     @future_safe
     async def _discover_links(self, result: CrawlerResult, topics: list[str], language: str) -> None:
-
-        # TODO: result has no links attribute currently.
-        links: list[str] = getattr(result, "links", [])
+        # Accessing validated links attribute from CrawlerResult protocol
+        links: list[str] = result.links
         valid_links: list[str] = []
 
         for link in links:
             validity_future: FutureResultE[bool] = self._is_valid_navigation(link)
-            validity_io_monad: IOResultE[bool]= await validity_future.awaitable()
+            validity_io_monad: IOResultE[bool] = await validity_future.awaitable()
+            
             match validity_io_monad:
                 case IOSuccess(Success(is_valid_link)):
-                    if is_valid_link == True:
+                    if is_valid_link:
                         valid_links.append(link)
-
                 case IOFailure(Failure(e)):
-                    self.logger.error("Failure in validating link %s: %s", link, e)
+                    self.logger.error("Failure in validating link", link=link, error=str(e))
                     raise e
 
-        
         for link in valid_links:
             payload: bytes = json.dumps({"url": link, "language": language}).encode("utf-8")
             for topic in topics:
@@ -136,6 +134,3 @@ class StreamScraper:
         if any(seg in path for seg in rules.blocked_path_segments):
             return False
         return not rules.required_path_segments or any(seg in path for seg in rules.required_path_segments)
-
-
-

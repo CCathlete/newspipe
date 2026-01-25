@@ -46,7 +46,8 @@ class KafkaProvider(Protocol):
         topic: str,
         value: bytes,
         key: bytes | None = None,
-    ) -> bool: ...
+    ) -> None:
+        ...
 
     @safe
     def subscribe(self, topics: list[str]) -> None:

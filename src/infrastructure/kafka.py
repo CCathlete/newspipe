@@ -65,7 +65,7 @@ class KafkaConsumerAdapter(KafkaProvider):
         topic: str,
         value: bytes,
         key: bytes | None = None
-    ) -> bool:
+    ) -> None:
         """Consumers cannot send messages."""
         raise RuntimeError("Send not supported by consumer")
 
@@ -85,7 +85,7 @@ class KafkaProducerAdapter(KafkaProvider):
             topic: str,
             value: bytes,
             key: bytes | None = None
-    ) -> bool:
+    ) -> None:
         """
         Send a message to the specified topic.
         Uses the cached producer instance for efficiency.
@@ -95,7 +95,7 @@ class KafkaProducerAdapter(KafkaProvider):
             # the producer around operations, or manage it as a context manager.
             # Our dependency container manages the init and cleanup so no need for it here.
             await self._producer.send_and_wait(topic, value, key=key)
-            return True
+            return None
 
         except Exception as e:
             raise e
