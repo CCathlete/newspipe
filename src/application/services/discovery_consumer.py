@@ -13,11 +13,11 @@ from structlog.typing import FilteringBoundLogger
 from domain.interfaces import AIProvider, KafkaProvider
 from domain.models import RelevancePolicy
 from domain.services.data_ingestion import IngestionPipeline
-from domain.services.scraper_service import ScraperService
+from domain.services.scraper import StreamScraper
 
 @dataclass(slots=True, frozen=True)
 class DiscoveryConsumer:
-    scraper: ScraperService
+    scraper: StreamScraper
     ingestion_pipeline: IngestionPipeline
     kafka_connector: KafkaProvider # Used only for the low-level loop
     llm: AIProvider
