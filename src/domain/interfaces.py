@@ -72,19 +72,21 @@ class KafkaProvider(Protocol):
 
 
 @runtime_checkable
-class CrawlerResult(Protocol):
-    success: bool
-    error_message: str | None
-    markdown: str
-    metadata: dict[str, Any]
-
-
-@runtime_checkable
 class ChunkingStrategy(Protocol):
     window_size: int
     overlap: int
 
-    def chunk(self, content: str) -> list[str]: ...
+    def chunk(self, content: str) -> list[str]: 
+        ...
+
+
+@runtime_checkable
+class CrawlerResult(Protocol):
+    success: bool
+    error_message: str | None
+    markdown: str
+    links:list[str]
+    metadata: dict[str, Any]
 
 
 @runtime_checkable
@@ -92,6 +94,7 @@ class CrawlerRunConfig(Protocol):
     cache_mode: Any
     chunking_strategy: ChunkingStrategy
     markdown_generator: Any
+    link_extraction: bool
 
 
 @runtime_checkable
