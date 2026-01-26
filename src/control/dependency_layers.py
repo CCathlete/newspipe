@@ -261,7 +261,6 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         logger=logger_provider,
         kafka_provider=kafka_producer,
         crawler_factory=scraping_provider.provider,
-        relevance_policy=relevance_policy,
         traversal_rules=traversal_rules,
         run_config=run_config,
         strategy=strategy
@@ -294,23 +293,18 @@ class DataPlatformContainer(containers.DeclarativeContainer):
 
     pipeline = providers.Factory(
         IngestionPipeline,
-        scraper=scraper,
         llm=litellm,
         lakehouse=lakehouse,
-        kafka_producer=kafka_producer,
         logger=logger_provider,
-        strategy=strategy,
-        run_config=run_config,
-        buffer_size=10
+        buffer_size=10,
+        relevance_policy=relevance_policy
     )
 
     discovery_consumer = providers.Factory(
         DiscoveryConsumer,
-        kafka_provider=kafka_consumer,
+        scraper=scraper,
         ingestion_pipeline=pipeline,
+        kafka_consumer=kafka_consumer,
         logger=logger_provider,
-        run_config=run_config,
-        discovery_policy=relevance_policy,
-        language_lookup=config.kafka.language_lookup
     )
 

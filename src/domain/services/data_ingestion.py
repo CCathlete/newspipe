@@ -9,30 +9,47 @@ from returns.future import FutureResult, FutureResultE, future_safe
 from returns.result import Failure, Success
 from structlog.typing import FilteringBoundLogger
 
-from domain.models import BronzeRecord
-from domain.interfaces import StorageProvider
+from domain.models import BronzeRecord, RelevancePolicy
+from domain.interfaces import AIProvider, StorageProvider
 
 @dataclass(slots=True, frozen=True)
 class IngestionPipeline:
+    llm: AIProvider
     lakehouse: StorageProvider
     logger: FilteringBoundLogger
-    buffer_size: int = 10
+    buffer_size: int
+    relevance_policy: RelevancePolicy
     _buffer: list[BronzeRecord] = field(default_factory=list, init=False)
 
     @future_safe
-    async def ingest_relevant_chunk(self, data: dict[str, Any]) -> None:
+    async def ingest_if_relevant(self, data: dict[str, Any]) -> None:
         log: Final = self.logger.bind(url=data.get("url"))
 
-        is_created: FutureResultE = self._create_record(data)
-        io_is_created: IOResultE = await is_created
+        content: str = data.get("chunk", "")
+        language: str = data.get("language", "")
+        is_relevant_future: FutureResultE[bool] = self.llm.is_relevant(
+            text=content,
+            language=language,
+            policy_description=self.relevance_policy.description
+        )
+        is_relevant_io: IOResultE[bool] = await is_relevant_future.awaitable()
+        match is_relevant_io:
+            case IOSuccess(Success(is_relevant)):
+                if is_relevant == True:
+                    self.logger.info("Chunk %s is relevant, ingesting further.", content)
 
-        match io_is_created:
-            case IOSuccess(Success(was_it)):
-                self._buffer.append(was_it)
-                self._check_and_flush(log)
-                return
+                    is_created: FutureResultE = self._create_record(data)
+                    io_is_created: IOResultE = await is_created
 
-            case _: raise
+                    match io_is_created:
+                        case IOSuccess(Success(bronzerecord)):
+                            self._buffer.append(bronzerecord)
+                            self._check_and_flush(log)
+                            return
+
+                        case _: raise
+            case IOFailure(Failure(e)):
+                self.logger.error("Failed to get relevance from llm: %s", e)
 
 
     @future_safe

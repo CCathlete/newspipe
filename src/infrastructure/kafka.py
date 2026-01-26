@@ -28,7 +28,7 @@ class KafkaConsumerAdapter(KafkaProvider):
     @cached_property
     def _consumer(self) -> AIOKafkaConsumer:
         return AIOKafkaConsumer(
-            list(self.topics),
+            *list(self.topics),
             bootstrap_servers=self.bootstrap_servers,
             group_id=self.group_id,
             auto_offset_reset="earliest",

@@ -17,7 +17,7 @@ from domain.services.data_ingestion import IngestionPipeline
 class DiscoveryConsumer:
     scraper: ScraperProvider
     ingestion_pipeline: IngestionPipeline
-    kafka_connector: KafkaProvider
+    kafka_consumer: KafkaProvider
     logger: FilteringBoundLogger
 
     @future_safe
@@ -40,10 +40,10 @@ class DiscoveryConsumer:
             case _:
                 raise RuntimeError("Inconsistent state")
 
-        self.kafka_connector.subscribe(topics)
+        self.kafka_consumer.subscribe(topics)
         
         while True:
-            messages_future: FutureResultE[dict[TopicPartition, list[ConsumerRecord[Any, Any]]]] = self.kafka_connector.getmany(
+            messages_future: FutureResultE[dict[TopicPartition, list[ConsumerRecord[Any, Any]]]] = self.kafka_consumer.getmany(
                 timeout_ms=1000,
                 max_records=50
             )
@@ -100,7 +100,7 @@ class DiscoveryConsumer:
         match self._safe_decode(record.value):
             case Success(data):
                 # The IngestionPipeline handles its own LLM tagging monadically
-                ingest_f: FutureResultE[None] = self.ingestion_pipeline.ingest_relevant_chunk(data)
+                ingest_f: FutureResultE[None] = self.ingestion_pipeline.ingest_if_relevant(data)
                 res_io: IOResultE[None] = await ingest_f.awaitable()
                 
                 match res_io:
