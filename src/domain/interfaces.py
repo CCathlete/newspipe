@@ -114,8 +114,6 @@ class ScraperProvider(Protocol):
     async def deep_crawl(
         self,
         url: str,
-        strategy: ChunkingStrategy,
-        run_config: CrawlerRunConfig,
         language: str,
         discovery_topics: list[str] = ["discovery_queue"],
         chunks_topic: str = "raw_chunks",

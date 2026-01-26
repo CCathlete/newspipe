@@ -1,6 +1,9 @@
 let SessionLoad = 1
 let s:so_save = &g:so | let s:siso_save = &g:siso | setg so=0 siso=0 | setl so=-1 siso=-1
 let v:this_session=expand("<sfile>:p")
+let NvimTreeSetup =  1 
+let TabbyTabNames = "{\"3\":\"main\",\"4\":\"kafka\",\"5\":\"dependency\",\"6\":\"litellm\",\"7\":\"discovery\",\"8\":\"debug\",\"9\":\"terraform\",\"11\":\"log\",\"10\":\"terminal\"}"
+let NvimTreeRequired =  1 
 silent only
 silent tabonly
 cd ~/Repos/newspipe
@@ -17,7 +20,7 @@ badd +81 infrastructure/lakehouse.py
 badd +55 application/services/data_ingestion.py
 badd +1 infrastructure/litellm_client.py
 badd +1 domain/services/scraper.py
-badd +1 term://~/Repos/newspipe/src//89645:/usr/bin/fish
+badd +41 term://~/Repos/newspipe/src//89645:/usr/bin/fish
 badd +1 pyproject.toml
 badd +1 control/main.py
 badd +32 ~/Repos/infra-stuff/nvim/lua/core/keymaps.lua
@@ -48,7 +51,7 @@ badd +1 newspipe.log
 badd +135 src/infrastructure/litellm_client.py
 badd +1 ~/Repos/pipeline_infra/env.auto.tfvars
 badd +200 ~/Repos/pipeline_infra/variables.tf
-badd +0 \[dap-repl-48]
+badd +1 \[dap-repl-48]
 badd +76 src/application/services/discovery_consumer.py
 badd +62 src/domain/interfaces.py
 badd +1 src/infrastructure/kafka.py
@@ -120,12 +123,12 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 60 - ((20 * winheight(0) + 16) / 32)
+let s:l = 63 - ((23 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 60
-normal! 036|
+keepjumps 63
+normal! 024|
 tabnext
 edit src/infrastructure/kafka.py
 argglobal
@@ -205,7 +208,7 @@ if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
 keepjumps 76
-normal! 039|
+normal! 016|
 tabnext
 edit \[dap-terminal]\ Python:\ module\ src.control.main
 let s:save_splitbelow = &splitbelow
@@ -333,12 +336,12 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 1 - ((0 * winheight(0) + 16) / 32)
+let s:l = 2 - ((1 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 1
-normal! 032|
+keepjumps 2
+normal! 035|
 tabnext
 argglobal
 if bufexists(fnamemodify("term://~/Repos/newspipe//125731:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//125731:/usr/bin/fish | else | edit term://~/Repos/newspipe//125731:/usr/bin/fish | endif

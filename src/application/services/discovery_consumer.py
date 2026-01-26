@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from aiokafka.structs import ConsumerRecord
+from aiokafka.structs import ConsumerRecord, TopicPartition
 from returns.future import FutureResultE, future_safe
 from returns.io import IOFailure, IOResultE, IOSuccess
 from returns.result import Failure, ResultE, Success, safe
@@ -28,8 +28,8 @@ class DiscoveryConsumer:
         topics: list[str] = ["raw_chunks", "discovery_queue"]
         
         # 1. Initialize infra and seeds
-        scraper_f: FutureResultE[list[str]] = self.scraper.initialize_and_seed(seeds, topics)
-        scraper_io: IOResultE[list[str]] = await scraper_f.awaitable()
+        scraper_future: FutureResultE[list[str]] = self.scraper.initialize_and_seed(seeds, topics)
+        scraper_io: IOResultE[list[str]] = await scraper_future.awaitable()
         
         match scraper_io:
             case IOSuccess(Success(_)):
@@ -43,17 +43,35 @@ class DiscoveryConsumer:
         self.kafka_connector.subscribe(topics)
         
         while True:
-            messages = await self.kafka_connector.getmany(timeout_ms=1000, max_records=50)
-            if not messages:
-                continue
+            messages_future: FutureResultE[dict[TopicPartition, list[ConsumerRecord[Any, Any]]]] = self.kafka_connector.getmany(
+                timeout_ms=1000,
+                max_records=50
+            )
+            messages_io_monad: IOResultE[dict[TopicPartition, list[ConsumerRecord[Any, Any]]]] = await messages_future.awaitable()
 
-            for tp, records in messages.items():
-                for record in records:
-                    # Route based on topic
-                    if tp.topic == "discovery_queue":
-                        await (await self._handle_discovery(record)).awaitable()
-                    elif tp.topic == "raw_chunks":
-                        await (await self._handle_ingestion(record)).awaitable()
+            match messages_io_monad:
+                case IOSuccess(Success(messages)):
+                    for tp, records in messages.items():
+                        for record in records:
+                            # Route based on topic
+                            if tp.topic == "discovery_queue":
+                                discovery_io_result: IOResultE[None] = await self._handle_discovery(record).awaitable()
+                                match discovery_io_result:
+                                    case IOSuccess(Success(_)):
+                                        self.logger.info("Record %s passed to discovery queue.", record.value)
+                                    case IOFailure(Failure(e)):
+                                        self.logger.error("Record %s failed to pass to discovery queue.", record.value)
+
+                            elif tp.topic == "raw_chunks":
+                                ingestion_io_result: IOResultE[None] = await self._handle_ingestion(record).awaitable()
+                                match ingestion_io_result:
+                                    case IOSuccess(Success(_)):
+                                        self.logger.info("Record %s passed to ingestion queue.", record.value)
+                                    case IOFailure(Failure(e)):
+                                        self.logger.error("Record %s failed to pass to ingestion queue.", record.value)
+
+                case IOFailure(Failure(e)):
+                    self.logger.error("Problem with consumption: %s", e)
 
     @future_safe
     async def _handle_discovery(self, record: ConsumerRecord) -> None:
@@ -62,13 +80,11 @@ class DiscoveryConsumer:
         match decode_result:
             case Success(data):
                 # We assume standard keys: url, language, strategy_params, etc.
-                crawl_f: FutureResultE[bool] = self.scraper.deep_crawl(
+                crawl_f: FutureResultE[None] = self.scraper.deep_crawl(
                     url=data["url"],
-                    strategy=..., # Pass from message or use default
-                    run_config=...,
                     language=data.get("language", "en")
                 )
-                res_io: IOResultE[bool] = await crawl_f.awaitable()
+                res_io: IOResultE[None] = await crawl_f.awaitable()
                 
                 match res_io:
                     case IOSuccess(Success(_)):
