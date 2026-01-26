@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from returns.io import IOFailure, IOSuccess
 from returns.result import Failure, Success
 import structlog
 from dependency_injector.wiring import Provide, inject
@@ -58,9 +59,9 @@ async def main_async(
     logger.info("starting_discovery_application_service")
 
     match await discovery_service.run(seeds):
-        case Success(_):
+        case IOSuccess(Success(_)):
             logger.info("discovery_service_completed_gracefully")
-        case Failure(e):
+        case IOFailure(Failure(e)):
             logger.error("discovery_service_crashed", error=str(e))
 
     if (shutdown_task := container.shutdown_resources()) is not None:
