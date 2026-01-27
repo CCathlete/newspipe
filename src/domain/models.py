@@ -75,8 +75,8 @@ class TraversalRules(BaseModel):
         all_segments: list[str] = [
             seg.lower() for seg in parsed.path.split("/") if seg
         ]
-        without_repo_and_user: list[str] = all_segments[3:]
-        return without_repo_and_user
+        without_base_path: list[str] = all_segments[5:]
+        return without_base_path
 
     def is_path_allowed(self, url: str, current_depth: int) -> bool:
         if current_depth > self.max_depth:
