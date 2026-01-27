@@ -89,7 +89,7 @@ class TraversalRules(BaseModel):
             return False
 
         # Allow root + navigation levels
-        if current_depth <= 1:
+        if current_depth == 0:
             return True
 
         # 2. Required segments (exact match)
