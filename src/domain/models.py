@@ -80,6 +80,10 @@ class TraversalRules(BaseModel):
 
         segments: list[str] = self._path_segments(url)
 
+        # Allow root + navigation levels
+        if current_depth <= 1:
+            return True
+
         # 1. Hard block
         if any(seg in segments for seg in self.blocked_path_segments):
             return False
