@@ -1,6 +1,6 @@
 # src/domain/models.py
 
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from sparkdantic import SparkModel
 from pyspark.sql.types import (
@@ -71,8 +71,12 @@ class TraversalRules(BaseModel):
     max_depth: int = 3
 
     def _path_segments(self, url: str) -> list[str]:
-        parsed = urlparse(url)
-        return [seg.lower() for seg in parsed.path.split("/") if seg]
+        parsed: ParseResult = urlparse(url)
+        all_segments: list[str] = [
+            seg.lower() for seg in parsed.path.split("/") if seg
+        ]
+        without_repo_and_user: list[str] = all_segments[3:]
+        return without_repo_and_user
 
     def is_path_allowed(self, url: str, current_depth: int) -> bool:
         if current_depth > self.max_depth:
@@ -80,13 +84,13 @@ class TraversalRules(BaseModel):
 
         segments: list[str] = self._path_segments(url)
 
-        # Allow root + navigation levels
-        if current_depth <= 1:
-            return True
-
         # 1. Hard block
         if any(seg in segments for seg in self.blocked_path_segments):
             return False
+
+        # Allow root + navigation levels
+        if current_depth <= 1:
+            return True
 
         # 2. Required segments (exact match)
         if self.required_path_segments:
