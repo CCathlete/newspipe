@@ -2,7 +2,7 @@ let SessionLoad = 1
 let s:so_save = &g:so | let s:siso_save = &g:siso | setg so=0 siso=0 | setl so=-1 siso=-1
 let v:this_session=expand("<sfile>:p")
 let NvimTreeSetup =  1 
-let TabbyTabNames = "{\"11\":\"log\",\"10\":\"terminal\",\"3\":\"main\",\"4\":\"kafka\",\"5\":\"ingestion\",\"6\":\"discovery\",\"7\":\"litellm\",\"8\":\"debug\",\"9\":\"terraform\"}"
+let TabbyTabNames = "{\"3\":\"main\",\"4\":\"kafka\",\"5\":\"ingestion\",\"6\":\"discovery\",\"7\":\"litellm\",\"8\":\"debug\",\"9\":\"terraform\",\"10\":\"terminal\",\"11\":\"log\"}"
 let NvimTreeRequired =  1 
 silent only
 silent tabonly
@@ -20,7 +20,7 @@ badd +81 infrastructure/lakehouse.py
 badd +55 application/services/data_ingestion.py
 badd +1 infrastructure/litellm_client.py
 badd +1 domain/services/scraper.py
-badd +336 term://~/Repos/newspipe/src//89645:/usr/bin/fish
+badd +927 term://~/Repos/newspipe/src//89645:/usr/bin/fish
 badd +1 pyproject.toml
 badd +1 control/main.py
 badd +32 ~/Repos/infra-stuff/nvim/lua/core/keymaps.lua
@@ -54,8 +54,9 @@ badd +200 ~/Repos/pipeline_infra/variables.tf
 badd +1 \[dap-repl-48]
 badd +11 src/application/services/discovery_consumer.py
 badd +62 src/domain/interfaces.py
-badd +72 src/infrastructure/kafka.py
-badd +42 src/domain/services/data_ingestion.py
+badd +84 src/infrastructure/kafka.py
+badd +56 src/domain/services/data_ingestion.py
+badd +0 term://~/Repos/newspipe//382906:/usr/bin/fish
 argglobal
 %argdel
 $argadd infrastructure/lakehouse.py
@@ -144,21 +145,14 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 1 - ((0 * winheight(0) + 16) / 32)
+let s:l = 169 - ((9 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 1
-normal! 0
+keepjumps 169
+normal! 09|
 tabnext
 edit src/domain/services/data_ingestion.py
-wincmd t
-let s:save_winminheight = &winminheight
-let s:save_winminwidth = &winminwidth
-set winminheight=0
-set winheight=1
-set winminwidth=0
-set winwidth=1
 argglobal
 balt src/control/dependency_layers.py
 setlocal foldmethod=manual
@@ -171,12 +165,12 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 42 - ((27 * winheight(0) + 16) / 32)
+let s:l = 56 - ((20 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 42
-normal! 0
+keepjumps 56
+normal! 059|
 tabnext
 edit src/application/services/discovery_consumer.py
 argglobal
@@ -238,7 +232,9 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-wincmd =
+exe '1resize ' . ((&lines * 10 + 17) / 35)
+exe '2resize ' . ((&lines * 10 + 17) / 35)
+exe '3resize ' . ((&lines * 10 + 17) / 35)
 argglobal
 balt src/domain/services/scraper.py
 setlocal foldmethod=manual
@@ -304,7 +300,9 @@ normal! zt
 keepjumps 1
 normal! 0
 wincmd w
-wincmd =
+exe '1resize ' . ((&lines * 10 + 17) / 35)
+exe '2resize ' . ((&lines * 10 + 17) / 35)
+exe '3resize ' . ((&lines * 10 + 17) / 35)
 tabnext
 edit ~/Repos/pipeline_infra/data_platform.tf
 argglobal
@@ -327,11 +325,11 @@ keepjumps 697
 normal! 03|
 tabnext
 argglobal
-if bufexists(fnamemodify("term://~/Repos/newspipe/src//89645:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe/src//89645:/usr/bin/fish | else | edit term://~/Repos/newspipe/src//89645:/usr/bin/fish | endif
+if bufexists(fnamemodify("term://~/Repos/newspipe//382906:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//382906:/usr/bin/fish | else | edit term://~/Repos/newspipe//382906:/usr/bin/fish | endif
 if &buftype ==# 'terminal'
-  silent file term://~/Repos/newspipe/src//89645:/usr/bin/fish
+  silent file term://~/Repos/newspipe//382906:/usr/bin/fish
 endif
-balt domain/services/scraper.py
+balt ~/Repos/pipeline_infra/data_platform.tf
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -340,11 +338,11 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 305 - ((0 * winheight(0) + 16) / 32)
+let s:l = 1 - ((0 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 305
+keepjumps 1
 normal! 035|
 tabnext
 argglobal
@@ -361,13 +359,13 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 7 - ((6 * winheight(0) + 16) / 32)
+let s:l = 5 - ((4 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 7
-normal! 0
-tabnext 5
+keepjumps 5
+normal! 035|
+tabnext 10
 set stal=1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
   silent exe 'bwipe ' . s:wipebuf

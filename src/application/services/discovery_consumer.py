@@ -80,11 +80,11 @@ class DiscoveryConsumer:
         match decode_result:
             case Success(data):
                 # We assume standard keys: url, language, strategy_params, etc.
-                crawl_f: FutureResultE[None] = self.scraper.deep_crawl(
+                crawl_future: FutureResultE[None] = self.scraper.deep_crawl(
                     url=data["url"],
                     language=data.get("language", "en")
                 )
-                res_io: IOResultE[None] = await crawl_f.awaitable()
+                res_io: IOResultE[None] = await crawl_future.awaitable()
                 
                 match res_io:
                     case IOSuccess(Success(_)):

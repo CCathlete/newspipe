@@ -8,6 +8,7 @@ from typing import Any
 
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from aiokafka.structs import TopicPartition, ConsumerRecord
+from aiokafka.protocol.api import Response
 from returns.future import future_safe
 from returns.result import  safe
 from structlog.typing import FilteringBoundLogger
@@ -80,7 +81,8 @@ class KafkaConsumerAdapter(KafkaProvider):
             bootstrap_servers=self.bootstrap_servers,
             client_id='admin-client'
         )
-        
+        await admin_client.start()
+
         try:
             new_topics: list[NewTopic] = [
                 NewTopic(
@@ -92,7 +94,10 @@ class KafkaConsumerAdapter(KafkaProvider):
             ]
             
             # This call is synchronous in aiokafka's admin client
-            await admin_client.create_topics(new_topics=new_topics, validate_only=False)
+            response: Response = await admin_client.create_topics(new_topics=new_topics, validate_only=False)
+            if response:
+                self.logger.info("Kafka's topic creation response: %s", response)
+
             return topics
             
         except TopicAlreadyExistsError:
@@ -159,7 +164,8 @@ class KafkaProducerAdapter(KafkaProvider):
             bootstrap_servers=self.bootstrap_servers,
             client_id='admin-client'
         )
-        
+
+        await admin_client.start()
         try:
             new_topics: list[NewTopic] = [
                 NewTopic(
@@ -171,7 +177,7 @@ class KafkaProducerAdapter(KafkaProvider):
             ]
             
             # This call is synchronous in aiokafka's admin client
-            await admin_client.create_topics(new_topics=new_topics, validate_only=False)
+            await admin_client.create_topics(new_topics=new_topics, validate_only=False, timeout_ms=1500)
             return topics
             
         except TopicAlreadyExistsError:

@@ -44,7 +44,19 @@ class IngestionPipeline:
                     match io_is_created:
                         case IOSuccess(Success(bronzerecord)):
                             self._buffer.append(bronzerecord)
-                            self._check_and_flush(log)
+                            flush_io: IOResultE[int] = await self._check_and_flush(log)
+                            match flush_io:
+                                case IOSuccess(Success(did_it_flush)):
+                                    if did_it_flush > 0:
+                                        self.logger.info(
+                                            "Record starting with %s was successfully pushed to the lakehouse.",
+                                            str(bronzerecord)[:10]
+                                        )
+                                    else:
+                                        self.logger.error("Record buffer is empty.")
+
+                                case IOFailure(Failure(e)):
+                                    self.logger.error("Failed to flush record: %s", e)
                             return
 
                         case _: raise

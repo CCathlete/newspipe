@@ -91,7 +91,8 @@ def main() -> None:
             "password": os.getenv("MINIO_SECRET_KEY"),
         },
         "kafka": {
-            "bootstrap_servers": "localhost:29092",
+            # "bootstrap_servers": "localhost:29092",
+            "bootstrap_servers": f"{os.getenv("HOST_IP")}:29092",
             "language_lookup": {}
         },
         "stream_scraper": {"window_size": 500, "overlap": 50},
