@@ -1,5 +1,6 @@
 # src/domain/models.py
 
+from urllib.parse import urlparse
 from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from sparkdantic import SparkModel
 from pyspark.sql.types import (
@@ -69,16 +70,25 @@ class TraversalRules(BaseModel):
     blocked_path_segments: list[str] = Field(default_factory=list)
     max_depth: int = 3
 
+    def _path_segments(self, url: str) -> list[str]:
+        parsed = urlparse(url)
+        return [seg.lower() for seg in parsed.path.split("/") if seg]
+
     def is_path_allowed(self, url: str, current_depth: int) -> bool:
         if current_depth > self.max_depth:
             return False
-        
-        # Must contain at least one required segment (e.g., 'src' or 'blob')
-        has_required = any(seg in url for seg in self.required_path_segments)
-        # Must NOT contain any blocked segments (e.g., 'stargazers', 'activity')
-        is_blocked = any(seg in url for seg in self.blocked_path_segments)
-        
-        return has_required and not is_blocked
+
+        segments: list[str] = self._path_segments(url)
+
+        # 1. Hard block
+        if any(seg in segments for seg in self.blocked_path_segments):
+            return False
+
+        # 2. Required segments (exact match)
+        if self.required_path_segments:
+            return any(seg in segments for seg in self.required_path_segments)
+
+        return True
 
 
 class RelevancePolicy(BaseModel):
