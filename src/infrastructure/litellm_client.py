@@ -157,9 +157,3 @@ class LitellmClient:
 
 
 
-
-        # return (
-        #     response
-        #     .bind(lambda res: Success(res.json()))
-        #     .bind(lambda j: Success(j["data"][0]["embedding"]))
-        # )
