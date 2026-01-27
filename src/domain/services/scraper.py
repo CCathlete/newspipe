@@ -113,7 +113,7 @@ class StreamScraper:
         ) -> None:
             internal_links: list[dict[str, str]] = result.links.get("internal", [])
             raw_links: list[str] = [link_properties.get("href", "") for link_properties in internal_links]
-            links: list[str] = [urljoin(base_url, l) for l in raw_links]
+            links: list[str] = [link for link in raw_links if base_url in link]
             
             for link in links:
                 # Pass depth to the validation check
