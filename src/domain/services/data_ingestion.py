@@ -27,6 +27,13 @@ class IngestionPipeline:
 
         content: str = data.get("chunk", "")
         language: str = data.get("language", "")
+
+        # 1. Heuristic Filter (Cheap)
+        if not self.relevance_policy.validate_content(content):
+            log.debug("chunk_rejected_by_policy_heuristics")
+            return
+
+        # 2. LLM Filter (Expensive)
         is_relevant_future: FutureResultE[bool] = self.llm.is_relevant(
             text=content,
             language=language,

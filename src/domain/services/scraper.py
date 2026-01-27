@@ -53,6 +53,7 @@ class StreamScraper:
         language: str,
         discovery_topics: list[str] = ["discovery_queue"],
         chunks_topic: str = "raw_chunks",
+        depth: int = 0
     ) -> None:
         async with self.crawler_factory() as crawler:
             result: CrawlerResult = await crawler.arun(url=url, config=self.run_config)
@@ -61,7 +62,9 @@ class StreamScraper:
                 raise RuntimeError(result.error_message or "Crawl failed")
 
             # 1. Deterministic Link Discovery (now uses url to resolve relatives)
-            discovery_future: FutureResultE[None] = self._discover_links(result, url, discovery_topics, language)
+            discovery_future: FutureResultE[None] = self._discover_links(
+                result, url, discovery_topics, language, depth
+            )
             await discovery_future.awaitable()
 
             # 2. Content Chunking & Publishing
@@ -100,40 +103,55 @@ class StreamScraper:
                         self.logger.error("chunk_publish_failed", url=url, error=str(e))
 
     @future_safe
-    async def _discover_links(self, result: CrawlerResult, base_url: str, topics: list[str], language: str) -> None:
-        raw_links: list[str] = result.links or []
-        links: list[str] = [urljoin(base_url, l) for l in raw_links]
-        
-        valid_links: list[str] = []
-
-        for link in links:
-            validity_future: FutureResultE[bool] = self._is_valid_navigation(link)
-            validity_io_monad: IOResultE[bool] = await validity_future.awaitable()
+    async def _discover_links(
+            self, 
+            result: CrawlerResult, 
+            base_url: str, 
+            topics: list[str], 
+            language: str,
+            current_depth: int  # Pass this from deep_crawl
+        ) -> None:
+            raw_links: list[str] = result.links or []
+            links: list[str] = [urljoin(base_url, l) for l in raw_links]
             
-            match validity_io_monad:
-                case IOSuccess(Success(is_valid_link)):
-                    if is_valid_link:
-                        valid_links.append(link)
-                case IOFailure(Failure(e)):
-                    self.logger.error("Failure in validating link", link=link, error=str(e))
-                    raise e
-
-        for link in valid_links:
-            payload: bytes = json.dumps({"url": link, "language": language}).encode("utf-8")
-            for topic in topics:
-                publish_future: FutureResultE[None] = self.kafka_provider.send(topic=topic, value=payload)
-                publish_io_monad: IOResultE[None] = await publish_future.awaitable()
-
-                match publish_io_monad:
-                    case IOSuccess(Success(_)):
-                        self.logger.info("discovery_link_published", url=link, topic=topic)
+            for link in links:
+                # Pass depth to the validation check
+                validity_future: FutureResultE[bool] = self._is_valid_navigation(
+                    link, 
+                    current_depth + 1
+                )
+                validity_io_monad: IOResultE[bool] = await validity_future.awaitable()
+                
+                match validity_io_monad:
+                    case IOSuccess(Success(True)):
+                        # Now the payload includes depth so the next crawler knows where it is
+                        payload: bytes = json.dumps({
+                            "url": link, 
+                            "language": language,
+                            "depth": current_depth + 1
+                        }).encode("utf-8")
+                        
+                        for topic in topics:
+                            send_future: FutureResultE[None] = self.kafka_provider.send(
+                                topic=topic, 
+                                value=payload
+                            )
+                            await send_future.awaitable()
+                            
+                    case IOSuccess(Success(False)):
+                        continue # Blocked or reached max depth
+                        
                     case IOFailure(Failure(e)):
-                        self.logger.error("discovery_link_failed", url=link, error=str(e))
+                        self.logger.error("nav_validation_failed", url=link, error=str(e))
 
     @future_safe
-    async def _is_valid_navigation(self, url: str) -> bool:
-        rules: TraversalRules = self.traversal_rules
-        path: str = urlparse(url).path.lower()
-        if any(seg in path for seg in rules.blocked_path_segments):
-            return False
-        return not rules.required_path_segments or any(seg in path for seg in rules.required_path_segments)
+    async def _is_valid_navigation(self, url: str, current_depth: int) -> bool:
+            """
+            Directly utilizes the TraversalRules model logic to determine 
+            if the crawler should proceed to this URL.
+            """
+            # Calling the traversal policy's method directly
+            return self.traversal_rules.is_path_allowed(
+                url=url, 
+                current_depth=current_depth
+            )
