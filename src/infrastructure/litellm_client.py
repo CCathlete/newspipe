@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import asyncio
 from typing import Any
 from opentelemetry import trace
 from dataclasses import dataclass
@@ -14,6 +15,7 @@ from structlog.typing import FilteringBoundLogger
 from returns.result import Result, Success, Failure, safe
 
 
+
 @dataclass(slots=True, frozen=True)
 class LitellmClient:
     model: str
@@ -22,6 +24,7 @@ class LitellmClient:
     litellm_server_url: str
     logger: FilteringBoundLogger
     telemetry_observer: TracerProvider
+    semaphore: asyncio.Semaphore
     embedding_model: str = "nomic-embed-text"
 
     @property
@@ -57,27 +60,30 @@ class LitellmClient:
                 span.set_attribute("input.value", str(payload["input"]))
 
             try:
-                response = await self.client.post(
-                    url=endpoint,
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                    timeout=60.0,
-                )
-                
-                if response.status_code == 200:
-                    res_json = response.json()
-                    # Record output for Phoenix UI
-                    if "choices" in res_json:
-                        span.set_attribute("output.value", res_json["choices"][0]["message"]["content"])
+                async with self.semaphore:
+                    response = await self.client.post(
+                        url=endpoint,
+                        headers={
+                            "Authorization": f"Bearer {self.api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        json=payload,
+                        timeout=60.0,
+                    )
                     
+                    if response.status_code != 200:
+                        error_msg = f"LLM Error {response.status_code}: {response.text}"
+                        span.set_status(trace.Status(trace.StatusCode.ERROR, error_msg))
+                        raise ValueError(error_msg)
+
+                    res_json = response.json()
+                    if "choices" in res_json:
+                        span.set_attribute(
+                            "output.value",
+                            res_json["choices"][0]["message"]["content"],
+                        )
+
                     return response
-                
-                error_msg: str = f"LLM Error {response.status_code}: {response.text}"
-                span.set_status(trace.Status(trace.StatusCode.ERROR, error_msg))
-                raise ValueError(error_msg)
 
             except Exception as e:
                 span.record_exception(e)

@@ -12,7 +12,7 @@ from structlog.typing import FilteringBoundLogger
 from domain.models import BronzeRecord, RelevancePolicy
 from domain.interfaces import AIProvider, StorageProvider
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class IngestionPipeline:
     llm: AIProvider
     lakehouse: StorageProvider
@@ -40,35 +40,40 @@ class IngestionPipeline:
             policy_description=self.relevance_policy.description
         )
         is_relevant_io: IOResultE[bool] = await is_relevant_future.awaitable()
+        flush: bool = False
         match is_relevant_io:
             case IOSuccess(Success(is_relevant)):
                 if is_relevant == True:
                     self.logger.info("Chunk %s is relevant, ingesting further.", content)
+                    flush = True
 
-                    is_created: FutureResultE = self._create_record(data)
-                    io_is_created: IOResultE = await is_created
-
-                    match io_is_created:
-                        case IOSuccess(Success(bronzerecord)):
-                            self._buffer.append(bronzerecord)
-                            flush_io: IOResultE[int] = await self._check_and_flush(log)
-                            match flush_io:
-                                case IOSuccess(Success(did_it_flush)):
-                                    if did_it_flush > 0:
-                                        self.logger.info(
-                                            "Record starting with %s was successfully pushed to the lakehouse.",
-                                            str(bronzerecord)[:10]
-                                        )
-                                    else:
-                                        self.logger.error("Record buffer is empty.")
-
-                                case IOFailure(Failure(e)):
-                                    self.logger.error("Failed to flush record: %s", e)
-                            return
-
-                        case _: raise
             case IOFailure(Failure(e)):
                 self.logger.error("Failed to get relevance from llm: %s", e)
+                flush = True
+
+        if flush == True:
+            is_created: FutureResultE = self._create_record(data)
+            io_is_created: IOResultE = await is_created
+
+            match io_is_created:
+                case IOSuccess(Success(bronzerecord)):
+                    self._buffer.append(bronzerecord)
+                    flush_io: IOResultE[int] = await self._check_and_flush(log)
+                    match flush_io:
+                        case IOSuccess(Success(did_it_flush)):
+                            if did_it_flush > 0:
+                                self.logger.info(
+                                    "Record starting with %s was successfully pushed to the lakehouse.",
+                                    str(bronzerecord)[:10]
+                                )
+                            else:
+                                self.logger.error("Record buffer is empty.")
+
+                        case IOFailure(Failure(e)):
+                            self.logger.error("Failed to flush record: %s", e)
+                    return
+
+                case _: raise
 
 
     @future_safe

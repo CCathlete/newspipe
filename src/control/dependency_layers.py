@@ -4,6 +4,7 @@ import sys
 import httpx
 import logging
 import structlog
+from asyncio import Semaphore
 from phoenix.otel import register
 from pyspark.sql import SparkSession
 from logging.handlers import RotatingFileHandler
@@ -224,7 +225,6 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         logger=logger_provider
     )
 
-    
     spark = providers.Singleton(
         _create_spark_session,
         resolved_lakehouse_cfg_dict=resolved_lakehouse_config
@@ -274,6 +274,11 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         api_key=config.litellm.telemetry_api_key,
     )
 
+    semaphore = providers.Singleton(
+        Semaphore,
+        config.litellm.max_concurrency
+    )
+
     litellm = providers.Factory(
         LitellmClient,
         model=config.litellm.model,
@@ -282,6 +287,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         client=http_client,
         logger=logger_provider,
         telemetry_observer=telemetry,
+        semaphore=semaphore,
     )
 
     lakehouse = providers.Factory(

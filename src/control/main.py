@@ -83,6 +83,7 @@ def main() -> None:
             "telemetry_endpoint": f"{os.getenv('PHOENIX_COLLECTOR_ENDPOINT')}/v1/traces",
             "telemetry_api_key": os.getenv("PHOENIX_API_KEY"), 
             "telemetry_project_name": "newspipe",
+            "max_concurrency": 2 # Concurrent requests to llm.
         },
         "lakehouse": {
             "bronze_path": "s3a://lakehouse/bronze",
