@@ -86,7 +86,7 @@ class CrawlerResult(Protocol):
     success: bool
     error_message: str | None
     markdown: str
-    links:list[str]
+    links:dict[str, list[dict[str, str]]]
     metadata: dict[str, Any]
 
 

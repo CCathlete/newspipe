@@ -109,9 +109,10 @@ class StreamScraper:
             base_url: str, 
             topics: list[str], 
             language: str,
-            current_depth: int  # Pass this from deep_crawl
+            current_depth: int  # Passed from deep_crawl.
         ) -> None:
-            raw_links: list[str] = result.links or []
+            internal_links: list[dict[str, str]] = result.links.get("internal", [])
+            raw_links: list[str] = [link_properties.get("href", "") for link_properties in internal_links]
             links: list[str] = [urljoin(base_url, l) for l in raw_links]
             
             for link in links:
