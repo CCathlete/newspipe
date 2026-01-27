@@ -69,9 +69,31 @@ class TraversalRules(BaseModel):
     blocked_path_segments: list[str] = Field(default_factory=list)
     max_depth: int = 3
 
+    def is_path_allowed(self, url: str, current_depth: int) -> bool:
+        if current_depth > self.max_depth:
+            return False
+        
+        # Must contain at least one required segment (e.g., 'src' or 'blob')
+        has_required = any(seg in url for seg in self.required_path_segments)
+        # Must NOT contain any blocked segments (e.g., 'stargazers', 'activity')
+        is_blocked = any(seg in url for seg in self.blocked_path_segments)
+        
+        return has_required and not is_blocked
+
 
 class RelevancePolicy(BaseModel):
     name: str
     description: str
     include_terms: list[str] = Field(default_factory=list)
     exclude_terms: list[str] = Field(default_factory=list)
+
+    def validate_content(self, content: str) -> bool:
+        content_lower = content.lower()
+        # Heavy-handed exclusion: if it contains 'html' or 'css', it's likely a UI leak
+        if any(term.lower() in content_lower for term in self.exclude_terms):
+            return False
+        
+        return any(term.lower() in content_lower for term in self.include_terms)
+
+
+
