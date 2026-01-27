@@ -93,7 +93,11 @@ class StreamScraper:
                     "language": language
                 }).encode("utf-8")
                 
-                send_res_future: FutureResultE[None] = self.kafka_provider.send(topic=topic, value=payload)
+                send_res_future: FutureResultE[None] = self.kafka_provider.send(
+                    topic=topic,
+                    value=payload,
+                    key=url.encode("utf-8")
+                )
                 send_res_io: IOResultE[None] = await send_res_future.awaitable()
                 
                 match send_res_io:
@@ -135,7 +139,8 @@ class StreamScraper:
                         for topic in topics:
                             send_future: FutureResultE[None] = self.kafka_provider.send(
                                 topic=topic, 
-                                value=payload
+                                value=payload,
+                                key=link.encode("utf-8")
                             )
                             await send_future.awaitable()
                             
