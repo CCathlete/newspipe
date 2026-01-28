@@ -2,7 +2,7 @@ let SessionLoad = 1
 let s:so_save = &g:so | let s:siso_save = &g:siso | setg so=0 siso=0 | setl so=-1 siso=-1
 let v:this_session=expand("<sfile>:p")
 let NvimTreeSetup =  1 
-let TabbyTabNames = "{\"12\":\"log\",\"3\":\"main\",\"10\":\"terraform\",\"5\":\"ingestion\",\"6\":\"discovery\",\"7\":\"interfaces\",\"8\":\"litellm\",\"9\":\"debug\",\"4\":\"kafka\",\"11\":\"terminal\"}"
+let TabbyTabNames = "{\"12\":\"log\",\"10\":\"terraform\",\"3\":\"main\",\"4\":\"kafka\",\"5\":\"ingestion\",\"6\":\"discovery\",\"7\":\"interfaces\",\"8\":\"litellm\",\"9\":\"debug\",\"11\":\"terminal\"}"
 let NvimTreeRequired =  1 
 silent only
 silent tabonly
@@ -25,15 +25,15 @@ badd +1 pyproject.toml
 badd +1 control/main.py
 badd +32 ~/Repos/infra-stuff/nvim/lua/core/keymaps.lua
 badd +1 ~/Repos/cs
-badd +13 input_files/relevance_policies.json
+badd +14 input_files/relevance_policies.json
 badd +13 ../input_files/traversal_policies.json
 badd +1 control/dependency_layers.py
 badd +89 ~/Repos/newspipe.vim
 badd +22 ../input_files/seed_urls.json
 badd +14 ~/Repos/infra-stuff/nvim/lua/core/debuggerconfig.lua
 badd +26 src/control/main.py
-badd +114 src/domain/services/scraper.py
-badd +13 input_files/traversal_policies.json
+badd +1 src/domain/services/scraper.py
+badd +1 input_files/traversal_policies.json
 badd +306 src/control/dependency_layers.py
 badd +78 src/domain/models.py
 badd +51 ~/.cache/nvim/dap.log
@@ -52,13 +52,15 @@ badd +1 ~/Repos/pipeline_infra/env.auto.tfvars
 badd +200 ~/Repos/pipeline_infra/variables.tf
 badd +1 \[dap-repl-48]
 badd +8 src/application/services/discovery_consumer.py
-badd +62 src/domain/interfaces.py
+badd +1 src/domain/interfaces.py
 badd +169 src/infrastructure/kafka.py
 badd +1 src/domain/services/data_ingestion.py
 badd +1 term://~/Repos/newspipe//382906:/usr/bin/fish
 badd +1 \[dap-terminal]\ dap-1
-badd +0 \[dap-repl-138]
-badd +0 \[dap-terminal]\ Python:\ module\ src.control.main
+badd +1 \[dap-repl-138]
+badd +1 \[dap-terminal]\ Python:\ module\ src.control.main
+badd +0 \[dap-repl-66]
+badd +0 notebooks/python/silver_layer.py
 argglobal
 %argdel
 $argadd infrastructure/lakehouse.py
@@ -75,9 +77,9 @@ tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabrewind
-edit input_files/relevance_policies.json
+edit notebooks/python/silver_layer.py
 argglobal
-balt ../input_files/traversal_policies.json
+balt input_files/relevance_policies.json
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -88,12 +90,12 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 14 - ((13 * winheight(0) + 16) / 32)
+let s:l = 1 - ((0 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 14
-normal! 0194|
+keepjumps 1
+normal! 0
 tabnext
 edit input_files/traversal_policies.json
 let s:save_splitbelow = &splitbelow
@@ -240,13 +242,6 @@ keepjumps 104
 normal! 024|
 tabnext
 edit src/domain/interfaces.py
-wincmd t
-let s:save_winminheight = &winminheight
-let s:save_winminwidth = &winminwidth
-set winminheight=0
-set winheight=1
-set winminwidth=0
-set winwidth=1
 argglobal
 balt src/control/main.py
 setlocal foldmethod=manual
@@ -286,7 +281,7 @@ normal! zt
 keepjumps 135
 normal! 025|
 tabnext
-edit src/domain/services/scraper.py
+edit \[dap-terminal]\ Python:\ module\ src.control.main
 let s:save_splitbelow = &splitbelow
 let s:save_splitright = &splitright
 set splitbelow splitright
@@ -306,12 +301,11 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-wincmd =
+exe '1resize ' . ((&lines * 10 + 17) / 35)
+exe '2resize ' . ((&lines * 10 + 17) / 35)
+exe '3resize ' . ((&lines * 10 + 17) / 35)
 argglobal
-if bufexists(fnamemodify("\[dap-terminal]\ Python:\ module\ src.control.main", ":p")) | buffer \[dap-terminal]\ Python:\ module\ src.control.main | else | edit \[dap-terminal]\ Python:\ module\ src.control.main | endif
-if &buftype ==# 'terminal'
-  silent file \[dap-terminal]\ Python:\ module\ src.control.main
-endif
+balt src/domain/services/scraper.py
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -320,14 +314,20 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 2 - ((0 * winheight(0) + 0) / 1)
+silent! normal! zE
+let &fdl = &fdl
+let s:l = 1 - ((0 * winheight(0) + 5) / 10)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 2
+keepjumps 1
 normal! 0
 wincmd w
 argglobal
+if bufexists(fnamemodify("src/domain/services/scraper.py", ":p")) | buffer src/domain/services/scraper.py | else | edit src/domain/services/scraper.py | endif
+if &buftype ==# 'terminal'
+  silent file src/domain/services/scraper.py
+endif
 balt src/domain/models.py
 setlocal foldmethod=manual
 setlocal foldexpr=0
@@ -339,16 +339,18 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 114 - ((5 * winheight(0) + 10) / 21)
+let s:l = 114 - ((2 * winheight(0) + 5) / 10)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
 keepjumps 114
-normal! 044|
+normal! 01|
 wincmd w
 argglobal
-enew
-file \[dap-repl-66]
+if bufexists(fnamemodify("\[dap-repl-66]", ":p")) | buffer \[dap-repl-66] | else | edit \[dap-repl-66] | endif
+if &buftype ==# 'terminal'
+  silent file \[dap-repl-66]
+endif
 balt src/domain/services/scraper.py
 setlocal foldmethod=manual
 setlocal foldexpr=0
@@ -358,8 +360,18 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
+silent! normal! zE
+let &fdl = &fdl
+let s:l = 1 - ((0 * winheight(0) + 5) / 10)
+if s:l < 1 | let s:l = 1 | endif
+keepjumps exe s:l
+normal! zt
+keepjumps 1
+normal! 0
 wincmd w
-wincmd =
+exe '1resize ' . ((&lines * 10 + 17) / 35)
+exe '2resize ' . ((&lines * 10 + 17) / 35)
+exe '3resize ' . ((&lines * 10 + 17) / 35)
 tabnext
 edit ~/Repos/pipeline_infra/data_platform.tf
 argglobal
@@ -422,7 +434,7 @@ keepjumps exe s:l
 normal! zt
 keepjumps 32
 normal! 0
-tabnext 7
+tabnext 1
 set stal=1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
   silent exe 'bwipe ' . s:wipebuf
