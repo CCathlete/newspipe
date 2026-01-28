@@ -2,7 +2,7 @@ let SessionLoad = 1
 let s:so_save = &g:so | let s:siso_save = &g:siso | setg so=0 siso=0 | setl so=-1 siso=-1
 let v:this_session=expand("<sfile>:p")
 let NvimTreeSetup =  1 
-let TabbyTabNames = "{\"12\":\"log\",\"10\":\"terraform\",\"3\":\"main\",\"4\":\"kafka\",\"5\":\"ingestion\",\"6\":\"discovery\",\"7\":\"interfaces\",\"8\":\"litellm\",\"9\":\"debug\",\"11\":\"terminal\"}"
+let TabbyTabNames = "{\"12\":\"log\",\"10\":\"terraform\",\"2\":\"gemini\",\"3\":\"main\",\"4\":\"kafka\",\"5\":\"ingestion\",\"6\":\"discovery\",\"7\":\"interfaces\",\"8\":\"litellm\",\"9\":\"debug\",\"11\":\"terminal\"}"
 let NvimTreeRequired =  1 
 silent only
 silent tabonly
@@ -31,11 +31,11 @@ badd +1 control/dependency_layers.py
 badd +89 ~/Repos/newspipe.vim
 badd +22 ../input_files/seed_urls.json
 badd +14 ~/Repos/infra-stuff/nvim/lua/core/debuggerconfig.lua
-badd +26 src/control/main.py
+badd +52 src/control/main.py
 badd +1 src/domain/services/scraper.py
-badd +1 input_files/traversal_policies.json
-badd +306 src/control/dependency_layers.py
-badd +78 src/domain/models.py
+badd +13 input_files/traversal_policies.json
+badd +69 src/control/dependency_layers.py
+badd +117 src/domain/models.py
 badd +51 ~/.cache/nvim/dap.log
 badd +1 ~/.cache/nvim/dap-python-stderr.log
 badd +275 Session.vim
@@ -60,7 +60,10 @@ badd +1 \[dap-terminal]\ dap-1
 badd +1 \[dap-repl-138]
 badd +1 \[dap-terminal]\ Python:\ module\ src.control.main
 badd +0 \[dap-repl-66]
-badd +0 notebooks/python/silver_layer.py
+badd +54 notebooks/python/silver_layer.py
+badd +0 term://~/Repos/newspipe//6787:/usr/bin/fish
+badd +1 .gitignore
+badd +1 src/infrastructure/lakehouse.py
 argglobal
 %argdel
 $argadd infrastructure/lakehouse.py
@@ -78,35 +81,6 @@ tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabrewind
 edit notebooks/python/silver_layer.py
-argglobal
-balt input_files/relevance_policies.json
-setlocal foldmethod=manual
-setlocal foldexpr=0
-setlocal foldmarker={{{,}}}
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldenable
-silent! normal! zE
-let &fdl = &fdl
-let s:l = 1 - ((0 * winheight(0) + 16) / 32)
-if s:l < 1 | let s:l = 1 | endif
-keepjumps exe s:l
-normal! zt
-keepjumps 1
-normal! 0
-tabnext
-edit input_files/traversal_policies.json
-let s:save_splitbelow = &splitbelow
-let s:save_splitright = &splitright
-set splitbelow splitright
-wincmd _ | wincmd |
-vsplit
-1wincmd h
-wincmd w
-let &splitbelow = s:save_splitbelow
-let &splitright = s:save_splitright
 wincmd t
 let s:save_winminheight = &winminheight
 let s:save_winminwidth = &winminwidth
@@ -114,10 +88,8 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe 'vert 1resize ' . ((&columns * 54 + 71) / 142)
-exe 'vert 2resize ' . ((&columns * 87 + 71) / 142)
 argglobal
-balt input_files/relevance_policies.json
+balt src/control/main.py
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -128,19 +100,19 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 13 - ((12 * winheight(0) + 16) / 32)
+let s:l = 54 - ((0 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 13
-normal! 031|
-wincmd w
+keepjumps 54
+normal! 051|
+tabnext
 argglobal
-if bufexists(fnamemodify("src/domain/models.py", ":p")) | buffer src/domain/models.py | else | edit src/domain/models.py | endif
+if bufexists(fnamemodify("term://~/Repos/newspipe//6787:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//6787:/usr/bin/fish | else | edit term://~/Repos/newspipe//6787:/usr/bin/fish | endif
 if &buftype ==# 'terminal'
-  silent file src/domain/models.py
+  silent file term://~/Repos/newspipe//6787:/usr/bin/fish
 endif
-balt input_files/traversal_policies.json
+balt src/domain/models.py
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -149,17 +121,12 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-silent! normal! zE
-let &fdl = &fdl
-let s:l = 117 - ((30 * winheight(0) + 16) / 32)
+let s:l = 1369 - ((31 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 117
+keepjumps 1369
 normal! 0
-wincmd w
-exe 'vert 1resize ' . ((&columns * 54 + 71) / 142)
-exe 'vert 2resize ' . ((&columns * 87 + 71) / 142)
 tabnext
 edit src/control/main.py
 argglobal
@@ -174,12 +141,12 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 63 - ((23 * winheight(0) + 16) / 32)
+let s:l = 49 - ((7 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 63
-normal! 024|
+keepjumps 49
+normal! 021|
 tabnext
 edit src/infrastructure/kafka.py
 argglobal
@@ -301,9 +268,7 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe '1resize ' . ((&lines * 10 + 17) / 35)
-exe '2resize ' . ((&lines * 10 + 17) / 35)
-exe '3resize ' . ((&lines * 10 + 17) / 35)
+wincmd =
 argglobal
 balt src/domain/services/scraper.py
 setlocal foldmethod=manual
@@ -369,9 +334,7 @@ normal! zt
 keepjumps 1
 normal! 0
 wincmd w
-exe '1resize ' . ((&lines * 10 + 17) / 35)
-exe '2resize ' . ((&lines * 10 + 17) / 35)
-exe '3resize ' . ((&lines * 10 + 17) / 35)
+wincmd =
 tabnext
 edit ~/Repos/pipeline_infra/data_platform.tf
 argglobal
@@ -407,12 +370,12 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 32 - ((31 * winheight(0) + 16) / 32)
+let s:l = 24 - ((23 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 32
-normal! 0
+keepjumps 24
+normal! 035|
 tabnext
 argglobal
 if bufexists(fnamemodify("term://~/Repos/newspipe//125731:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//125731:/usr/bin/fish | else | edit term://~/Repos/newspipe//125731:/usr/bin/fish | endif
@@ -448,7 +411,6 @@ if filereadable(s:sx)
 endif
 let &g:so = s:so_save | let &g:siso = s:siso_save
 set hlsearch
-nohlsearch
 doautoall SessionLoadPost
 unlet SessionLoad
 " vim: set ft=vim :
