@@ -1,17 +1,14 @@
-# %% 
+# %%
 import os
 import sys
 from pathlib import Path
 from typing import TypeAlias
 from dotenv import load_dotenv
 
-# Add project root to sys.path to allow importing from src
 try:
-    # Assumes the notebook is in notebooks/python/
-    root_path = Path(__file__).parents[2]
+    root_path: Path = Path(__file__).parents[2]
 except NameError:
-    # __file__ is not defined in interactive mode, so use cwd
-    root_path = Path.cwd()
+    root_path: Path = Path.cwd()
 
 if str(root_path) not in sys.path:
     sys.path.append(str(root_path))
@@ -25,93 +22,68 @@ from returns.result import ResultE, Success, Failure, safe
 
 ConfigType: TypeAlias = dict[str, dict[str, str] | str]
 
-
-# %% 
-
+# %%
 @safe
-def get_spark_session() -> tuple[SparkSession, ConfigType]:
-    """
-    Initializes the DataPlatformContainer and returns a configured SparkSession.
-    This function is wrapped in `safe` to eagerly execute and capture any
-    exceptions in a `Result` container.
-    """
+def initialize_platform() -> tuple[SparkSession, ConfigType]:
     config: ConfigType = {
         "lakehouse": {
             "bronze_path": "s3a://lakehouse/bronze",
-            "endpoint": "http://localhost:9000",
+            "endpoint": "http://minio.catgineer.com",
             "username": os.getenv("MINIO_ACCESS_KEY", ""),
             "password": os.getenv("MINIO_SECRET_KEY", ""),
         },
         "spark_mode": "local[*]",
     }
-
-    container = DataPlatformContainer()
+    container: DataPlatformContainer = DataPlatformContainer()
     container.config.from_dict(config)
 
-    # The provider will raise an exception if config is missing,
-    # which will be caught by @safe and returned as a Failure.
-    spark = container.spark()
-    return spark, config
+    return container.spark(), config
 
+setup_result: ResultE[tuple[SparkSession, ConfigType]] = initialize_platform()
+
+match setup_result:
+    case Success((spark, config)):
+        print("Spark Session Active")
+        lake_config: dict[str, str] | str = config["lakehouse"]
+    case Failure(err):
+        print(f"Setup Failed: {err}")
+
+# %%
 @safe
-def read_bronze_dataframe(spark: SparkSession, bronze_path: str) -> DataFrame:
-    """
-    Reads the partitioned bronze data from all sources in the S3 data lake,
-    adding a `source` column extracted from the file path.
-    """
-    # Read all JSON files recursively. Spark will discover partitions (ingested_date).
-    read_path = os.path.join(bronze_path, "*", "ingested_date=*")
-    df = spark.read.json(read_path)
-
-    # The source name is part of the file path. We extract it into a 'source' column.
-    # The path looks like: s3a://.../bronze/<source>/ingested_date=.../file.json
-    df_with_source = df.withColumn(
+def load_bronze(spark: SparkSession, path: str) -> DataFrame:
+    df: DataFrame = spark.read.json(path)
+    return df.withColumn(
         "source",
-        F.regexp_extract(F.input_file_name(), r"bronze\/(.*?)\/ingested_date=", 1)
+        F.regexp_extract(F.input_file_name(), r"bronze/([^/]+)/", 1)
     )
-    
-    return df_with_source
 
+match setup_result:
+    case Success((spark, config)):
+        lakehouse_dict: dict[str, str] | str = config["lakehouse"]
+        assert isinstance(lakehouse_dict, dict)
+        bronze_path: str = lakehouse_dict["bronze_path"]
+        bronze_result: ResultE[DataFrame] = load_bronze(spark, bronze_path)
+        
+        match bronze_result:
+            case Success(df):
+                print("Bronze Data Loaded")
+                df.printSchema()
+                bronze_df: DataFrame = df
+            case Failure(err):
+                print(f"Load Failed: {err}")
+
+# %%
 @safe
-def show_dataframe(df: DataFrame) -> DataFrame:
-    """Shows the DataFrame and returns it."""
-    df.show()
-    return df
+def inspect_data(df: DataFrame) -> int:
+    df.show(5, truncate=False)
+    return df.count()
 
-# %% 
-def main() -> None:
-    """Main pipeline to connect to S3, read bronze data, and examine it."""
-
-    result_tuple: ResultE[tuple[SparkSession, ConfigType]] = get_spark_session()
-
-    match result_tuple:
-        case Success((spark, config_dict)):
-            print("Spark session created successfully.")
-            
-            assert isinstance(config_dict["lakehouse"], dict)
-            bronze_result: ResultE[DataFrame] = read_bronze_dataframe(
-                spark=spark,
-                bronze_path=config_dict["lakehouse"]["bronze_path"]
-            )
-            
-            match bronze_result:
-                case Success(bronze_df):
-                    print("Successfully read from bronze layer. DataFrame schema:")
-                    bronze_df.printSchema()
-                    
-                    print("\nBronze DataFrame content:")
-                    show_result: ResultE[DataFrame] = show_dataframe(bronze_df)
-                    
-                    match show_result:
-                        case Success(_):
-                            print("Successfully shown DataFrame.")
-                        case Failure(err):
-                            print(f"Failed to show DataFrame: {err}")
-                case Failure(err):
-                    print(f"Failed to read from bronze layer: {err}")
-        case Failure(err):
-            print(f"Failed to create Spark session: {err}")
-
-
-if __name__ == "__main__":
-    main()
+assert bronze_result
+match bronze_result:
+    case Success(df):
+        inspection: ResultE[int] = inspect_data(df)
+        match inspection:
+            case Success(count):
+                print(f"Total records in Bronze: {count}")
+            case Failure(err):
+                print(f"Inspection Error: {err}")
