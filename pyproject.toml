@@ -21,6 +21,7 @@ dependencies = [
     "debugpy",
     "arize-phoenix",
     "openinference-instrumentation-litellm",
+    "ipykernel",
 ]
 
 [tool.setuptools.packages.find]
