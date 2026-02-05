@@ -57,12 +57,14 @@ def load_bronze(spark: SparkSession, path: str) -> DataFrame:
         F.regexp_extract(F.input_file_name(), r"bronze/([^/]+)/", 1)
     )
 
+bronze_result: ResultE[DataFrame] = Failure(Exception("Initial value for bronze result."))
+
 match setup_result:
     case Success((spark, config)):
         lakehouse_dict: dict[str, str] | str = config["lakehouse"]
         assert isinstance(lakehouse_dict, dict)
         bronze_path: str = lakehouse_dict["bronze_path"]
-        bronze_result: ResultE[DataFrame] = load_bronze(spark, bronze_path)
+        bronze_result = load_bronze(spark, bronze_path)
         
         match bronze_result:
             case Success(df):
@@ -78,7 +80,6 @@ def inspect_data(df: DataFrame) -> int:
     df.show(5, truncate=False)
     return df.count()
 
-assert bronze_result
 match bronze_result:
     case Success(df):
         inspection: ResultE[int] = inspect_data(df)
