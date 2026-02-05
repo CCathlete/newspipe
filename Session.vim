@@ -2,7 +2,7 @@ let SessionLoad = 1
 let s:so_save = &g:so | let s:siso_save = &g:siso | setg so=0 siso=0 | setl so=-1 siso=-1
 let v:this_session=expand("<sfile>:p")
 let NvimTreeSetup =  1 
-let TabbyTabNames = "{\"12\":\"log\",\"10\":\"terraform\",\"2\":\"gemini\",\"3\":\"main\",\"4\":\"kafka\",\"5\":\"ingestion\",\"6\":\"discovery\",\"7\":\"interfaces\",\"8\":\"litellm\",\"9\":\"debug\",\"11\":\"terminal\"}"
+let TabbyTabNames = "{\"6\":\"interfaces\",\"7\":\"litellm\",\"8\":\"debug\",\"9\":\"terraform\",\"5\":\"discovery\",\"4\":\"ingestion\",\"11\":\"log\",\"2\":\"main\",\"3\":\"kafka\",\"10\":\"terminal\",\"1\":\"gemini\"}"
 let NvimTreeRequired =  1 
 silent only
 silent tabonly
@@ -31,7 +31,7 @@ badd +1 control/dependency_layers.py
 badd +89 ~/Repos/newspipe.vim
 badd +22 ../input_files/seed_urls.json
 badd +14 ~/Repos/infra-stuff/nvim/lua/core/debuggerconfig.lua
-badd +52 src/control/main.py
+badd +49 src/control/main.py
 badd +1 src/domain/services/scraper.py
 badd +13 input_files/traversal_policies.json
 badd +69 src/control/dependency_layers.py
@@ -59,11 +59,13 @@ badd +1 term://~/Repos/newspipe//382906:/usr/bin/fish
 badd +1 \[dap-terminal]\ dap-1
 badd +1 \[dap-repl-138]
 badd +1 \[dap-terminal]\ Python:\ module\ src.control.main
-badd +0 \[dap-repl-66]
-badd +54 notebooks/python/silver_layer.py
-badd +0 term://~/Repos/newspipe//6787:/usr/bin/fish
+badd +1 \[dap-repl-66]
+badd +1 notebooks/python/silver_layer.py
+badd +1 term://~/Repos/newspipe//6787:/usr/bin/fish
 badd +1 .gitignore
 badd +1 src/infrastructure/lakehouse.py
+badd +1 notebooks/python/silver_layer.ipynb
+badd +0 notebooks/python/silver_layer.md
 argglobal
 %argdel
 $argadd infrastructure/lakehouse.py
@@ -78,9 +80,29 @@ tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
-tabnew +setlocal\ bufhidden=wipe
 tabrewind
-edit notebooks/python/silver_layer.py
+argglobal
+if bufexists(fnamemodify("term://~/Repos/newspipe//6787:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//6787:/usr/bin/fish | else | edit term://~/Repos/newspipe//6787:/usr/bin/fish | endif
+if &buftype ==# 'terminal'
+  silent file term://~/Repos/newspipe//6787:/usr/bin/fish
+endif
+balt src/domain/models.py
+setlocal foldmethod=manual
+setlocal foldexpr=0
+setlocal foldmarker={{{,}}}
+setlocal foldignore=#
+setlocal foldlevel=0
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal foldenable
+let s:l = 32 - ((31 * winheight(0) + 16) / 32)
+if s:l < 1 | let s:l = 1 | endif
+keepjumps exe s:l
+normal! zt
+keepjumps 32
+normal! 0
+tabnext
+edit notebooks/python/silver_layer.md
 wincmd t
 let s:save_winminheight = &winminheight
 let s:save_winminwidth = &winminwidth
@@ -100,53 +122,12 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 54 - ((0 * winheight(0) + 16) / 32)
+let s:l = 9 - ((8 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 54
-normal! 051|
-tabnext
-argglobal
-if bufexists(fnamemodify("term://~/Repos/newspipe//6787:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//6787:/usr/bin/fish | else | edit term://~/Repos/newspipe//6787:/usr/bin/fish | endif
-if &buftype ==# 'terminal'
-  silent file term://~/Repos/newspipe//6787:/usr/bin/fish
-endif
-balt src/domain/models.py
-setlocal foldmethod=manual
-setlocal foldexpr=0
-setlocal foldmarker={{{,}}}
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldenable
-let s:l = 1369 - ((31 * winheight(0) + 16) / 32)
-if s:l < 1 | let s:l = 1 | endif
-keepjumps exe s:l
-normal! zt
-keepjumps 1369
+keepjumps 9
 normal! 0
-tabnext
-edit src/control/main.py
-argglobal
-balt src/control/dependency_layers.py
-setlocal foldmethod=manual
-setlocal foldexpr=0
-setlocal foldmarker={{{,}}}
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldenable
-silent! normal! zE
-let &fdl = &fdl
-let s:l = 49 - ((7 * winheight(0) + 16) / 32)
-if s:l < 1 | let s:l = 1 | endif
-keepjumps exe s:l
-normal! zt
-keepjumps 49
-normal! 021|
 tabnext
 edit src/infrastructure/kafka.py
 argglobal
@@ -309,7 +290,7 @@ if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
 keepjumps 114
-normal! 01|
+normal! 0
 wincmd w
 argglobal
 if bufexists(fnamemodify("\[dap-repl-66]", ":p")) | buffer \[dap-repl-66] | else | edit \[dap-repl-66] | endif
@@ -375,7 +356,7 @@ if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
 keepjumps 24
-normal! 035|
+normal! 0
 tabnext
 argglobal
 if bufexists(fnamemodify("term://~/Repos/newspipe//125731:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//125731:/usr/bin/fish | else | edit term://~/Repos/newspipe//125731:/usr/bin/fish | endif
@@ -397,7 +378,7 @@ keepjumps exe s:l
 normal! zt
 keepjumps 32
 normal! 0
-tabnext 1
+tabnext 2
 set stal=1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
   silent exe 'bwipe ' . s:wipebuf

@@ -1,0 +1,56 @@
+[I 2026-02-05 10:41:06.822 ServerApp] jupyter_lsp | extension was successfully linked.
+[I 2026-02-05 10:41:06.826 ServerApp] jupyter_server_terminals | extension was successfully linked.
+[I 2026-02-05 10:41:06.829 ServerApp] jupyterlab | extension was successfully linked.
+[I 2026-02-05 10:41:06.829 ServerApp] jupyterlab_jupytext | extension was successfully linked.
+[I 2026-02-05 10:41:06.978 ServerApp] notebook_shim | extension was successfully linked.
+[I 2026-02-05 10:41:06.990 ServerApp] notebook_shim | extension was successfully loaded.
+[I 2026-02-05 10:41:06.991 ServerApp] jupyter_lsp | extension was successfully loaded.
+[I 2026-02-05 10:41:06.992 ServerApp] jupyter_server_terminals | extension was successfully loaded.
+[I 2026-02-05 10:41:06.993 LabApp] JupyterLab extension loaded from /home/kcat/Repos/newspipe/.venv/lib/python3.12/site-packages/jupyterlab
+[I 2026-02-05 10:41:06.993 LabApp] JupyterLab application directory is /home/kcat/Repos/newspipe/.venv/share/jupyter/lab
+[I 2026-02-05 10:41:06.993 LabApp] Extension Manager is 'pypi'.
+[I 2026-02-05 10:41:07.016 ServerApp] jupyterlab | extension was successfully loaded.
+[I 2026-02-05 10:41:07.016 ServerApp] [Jupytext Server Extension] Deriving an AsyncTextFileContentsManager from AsyncLargeFileManager
+[I 2026-02-05 10:41:07.016 ServerApp] jupyterlab_jupytext | extension was successfully loaded.
+[I 2026-02-05 10:41:07.017 ServerApp] Serving notebooks from local directory: /home/kcat/Repos/newspipe
+[I 2026-02-05 10:41:07.017 ServerApp] Jupyter Server 2.17.0 is running at:
+[I 2026-02-05 10:41:07.017 ServerApp] http://localhost:6789/lab?token=315c08a6d6d3c531dd13649aae0b98111c32d4d464759170
+[I 2026-02-05 10:41:07.017 ServerApp]     http://127.0.0.1:6789/lab?token=315c08a6d6d3c531dd13649aae0b98111c32d4d464759170
+[I 2026-02-05 10:41:07.017 ServerApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[C 2026-02-05 10:41:07.018 ServerApp] 
+    
+    To access the server, open this file in a browser:
+        file:///home/kcat/.local/share/jupyter/runtime/jpserver-205002-open.html
+    Or copy and paste one of these URLs:
+        http://localhost:6789/lab?token=315c08a6d6d3c531dd13649aae0b98111c32d4d464759170
+        http://127.0.0.1:6789/lab?token=315c08a6d6d3c531dd13649aae0b98111c32d4d464759170
+[I 2026-02-05 10:41:07.092 ServerApp] Skipped non-installed server(s): basedpyright, bash-language-server, dockerfile-language-server-nodejs, javascript-typescript-langserver, jedi-language-server, julia-language-server, pyrefly, python-language-server, python-lsp-server, r-languageserver, sql-language-server, texlab, typescript-language-server, unified-language-server, vscode-css-languageserver-bin, vscode-html-languageserver-bin, vscode-json-languageserver-bin, yaml-language-server
+[C 2026-02-05 11:48:52.649 ServerApp] received signal 15, stopping
+[I 2026-02-05 11:48:52.650 ServerApp] Shutting down 5 extensions
+[I 2026-02-05 13:17:31.686 ServerApp] jupyter_lsp | extension was successfully linked.
+[I 2026-02-05 13:17:31.689 ServerApp] jupyter_server_terminals | extension was successfully linked.
+[I 2026-02-05 13:17:31.691 ServerApp] jupyterlab | extension was successfully linked.
+[I 2026-02-05 13:17:31.691 ServerApp] jupyterlab_jupytext | extension was successfully linked.
+[I 2026-02-05 13:17:31.836 ServerApp] notebook_shim | extension was successfully linked.
+[I 2026-02-05 13:17:31.848 ServerApp] notebook_shim | extension was successfully loaded.
+[I 2026-02-05 13:17:31.850 ServerApp] jupyter_lsp | extension was successfully loaded.
+[I 2026-02-05 13:17:31.851 ServerApp] jupyter_server_terminals | extension was successfully loaded.
+[I 2026-02-05 13:17:31.852 LabApp] JupyterLab extension loaded from /home/kcat/Repos/newspipe/.venv/lib/python3.12/site-packages/jupyterlab
+[I 2026-02-05 13:17:31.852 LabApp] JupyterLab application directory is /home/kcat/Repos/newspipe/.venv/share/jupyter/lab
+[I 2026-02-05 13:17:31.852 LabApp] Extension Manager is 'pypi'.
+[I 2026-02-05 13:17:31.876 ServerApp] jupyterlab | extension was successfully loaded.
+[I 2026-02-05 13:17:31.876 ServerApp] [Jupytext Server Extension] Deriving an AsyncTextFileContentsManager from AsyncLargeFileManager
+[I 2026-02-05 13:17:31.877 ServerApp] jupyterlab_jupytext | extension was successfully loaded.
+[I 2026-02-05 13:17:31.877 ServerApp] Serving notebooks from local directory: /home/kcat/Repos/newspipe
+[I 2026-02-05 13:17:31.877 ServerApp] Jupyter Server 2.17.0 is running at:
+[I 2026-02-05 13:17:31.877 ServerApp] http://localhost:6789/lab?token=31c279e226f444cebe40959f4256dd8933c87b05650c9a10
+[I 2026-02-05 13:17:31.877 ServerApp]     http://127.0.0.1:6789/lab?token=31c279e226f444cebe40959f4256dd8933c87b05650c9a10
+[I 2026-02-05 13:17:31.877 ServerApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[C 2026-02-05 13:17:31.879 ServerApp] 
+    
+    To access the server, open this file in a browser:
+        file:///home/kcat/.local/share/jupyter/runtime/jpserver-13616-open.html
+    Or copy and paste one of these URLs:
+        http://localhost:6789/lab?token=31c279e226f444cebe40959f4256dd8933c87b05650c9a10
+        http://127.0.0.1:6789/lab?token=31c279e226f444cebe40959f4256dd8933c87b05650c9a10
+[I 2026-02-05 13:17:31.945 ServerApp] Skipped non-installed server(s): basedpyright, bash-language-server, dockerfile-language-server-nodejs, javascript-typescript-langserver, jedi-language-server, julia-language-server, pyrefly, python-language-server, python-lsp-server, r-languageserver, sql-language-server, texlab, typescript-language-server, unified-language-server, vscode-css-languageserver-bin, vscode-html-languageserver-bin, vscode-json-languageserver-bin, yaml-language-server

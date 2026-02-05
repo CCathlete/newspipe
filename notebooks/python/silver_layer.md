@@ -1,4 +1,4 @@
-# %%
+```python
 import os
 import sys
 from pathlib import Path
@@ -21,8 +21,9 @@ from pyspark.sql import functions as F
 from returns.result import ResultE, Success, Failure, safe
 
 ConfigType: TypeAlias = dict[str, dict[str, str] | str]
+```
 
-# %%
+```python
 @safe
 def initialize_platform() -> tuple[SparkSession, ConfigType]:
     config: ConfigType = {
@@ -47,8 +48,9 @@ match setup_result:
         lake_config: dict[str, str] | str = config["lakehouse"]
     case Failure(err):
         print(f"Setup Failed: {err}")
+```
 
-# %%
+```python
 @safe
 def load_bronze(spark: SparkSession, path: str) -> DataFrame:
     df: DataFrame = spark.read.json(path)
@@ -73,8 +75,9 @@ match setup_result:
                 bronze_df: DataFrame = df
             case Failure(err):
                 print(f"Load Failed: {err}")
+```
 
-# %%
+```python
 @safe
 def inspect_data(df: DataFrame) -> int:
     df.show(5, truncate=False)
@@ -88,3 +91,4 @@ match bronze_result:
                 print(f"Total records in Bronze: {count}")
             case Failure(err):
                 print(f"Inspection Error: {err}")
+```
