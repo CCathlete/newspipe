@@ -36,7 +36,7 @@ target
 **/logs/**
 
 **/*.egg*
-**/_quarto*
+
 **/.quarto*
 
 /.quarto/

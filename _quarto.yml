@@ -1,0 +1,17 @@
+project:
+  type: website
+  output-dir: build      # All HTML/PDFs go here to reduce clutter
+
+website:
+  title: "NewsPipe Data Platform"
+  sidebar:
+    style: "docked"
+    contents:
+      - section: "Pipelines"
+        contents: "notebooks/*/*.qmd"
+
+execute:
+  enabled: false
+  freeze: true
+
+
