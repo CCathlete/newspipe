@@ -54,3 +54,3172 @@
         http://localhost:6789/lab?token=31c279e226f444cebe40959f4256dd8933c87b05650c9a10
         http://127.0.0.1:6789/lab?token=31c279e226f444cebe40959f4256dd8933c87b05650c9a10
 [I 2026-02-05 13:17:31.945 ServerApp] Skipped non-installed server(s): basedpyright, bash-language-server, dockerfile-language-server-nodejs, javascript-typescript-langserver, jedi-language-server, julia-language-server, pyrefly, python-language-server, python-lsp-server, r-languageserver, sql-language-server, texlab, typescript-language-server, unified-language-server, vscode-css-languageserver-bin, vscode-html-languageserver-bin, vscode-json-languageserver-bin, yaml-language-server
+[1m[34mPreparing to preview[39m[22m
+
+[32mWatching files for changes[39m
+[32mBrowse at [39m[4m[32mhttp://0.0.0.0:6790/[39m[24m
+Listening on http://0.0.0.0:6790/ (http://localhost:6790/)
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  title-prefix: NewsPipe Data Platform
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  title: Bronze to silver
+  
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[1m[34mTerminating existing preview server....[39m[22m[1m[34mDONE
+[39m[22m
+[1m[34mPreparing to preview[39m[22m
+
+[32mWatching files for changes[39m
+[32mBrowse at [39m[4m[32mhttp://0.0.0.0:6790/[39m[24m
+Listening on http://0.0.0.0:6790/ (http://localhost:6790/)
+[32mGET: /notebooks/python/silver_layer.html[39m
+
+
+An error occurred while executing the following cell:
+------------------
+
+import os
+import sys
+from pathlib import Path
+from typing import TypeAlias
+from dotenv import load_dotenv
+
+try:
+    root_path: Path = Path(__file__).parents[2]
+except NameError:
+    root_path: Path = Path.cwd()
+
+if str(root_path) not in sys.path:
+    sys.path.append(str(root_path))
+
+load_dotenv(root_path / ".env")
+
+from pyspark.sql import SparkSession, DataFrame
+from src.control.dependency_layers import DataPlatformContainer
+from pyspark.sql import functions as F
+from returns.result import ResultE, Success, Failure, safe
+
+ConfigType: TypeAlias = dict[str, dict[str, str] | str]
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mModuleNotFoundError[39m                       Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 18[39m
+[32m     15[39m load_dotenv(root_path / [33m"[39m[33m.env[39m[33m"[39m)
+[32m     17[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m SparkSession, DataFrame
+[32m---> [39m[32m18[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01msrc[39;00m[34;01m.[39;00m[34;01mcontrol[39;00m[34;01m.[39;00m[34;01mdependency_layers[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m DataPlatformContainer
+[32m     19[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m functions [38;5;28;01mas[39;00m F
+[32m     20[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mreturns[39;00m[34;01m.[39;00m[34;01mresult[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m ResultE, Success, Failure, safe
+
+[31mModuleNotFoundError[39m: No module named 'src'
+
+[33mWARN: Error encountered when rendering files[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/4: ''...
+
+An error occurred while executing the following cell:
+------------------
+
+import os
+import sys
+from pathlib import Path
+from typing import TypeAlias
+from dotenv import load_dotenv
+
+try:
+    root_path: Path = Path(__file__).parents[2]
+except NameError:
+    root_path: Path = Path.cwd()
+
+if str(root_path) not in sys.path:
+    sys.path.append(str(root_path))
+
+load_dotenv(root_path / ".env")
+
+from pyspark.sql import SparkSession, DataFrame
+from src.control.dependency_layers import DataPlatformContainer
+from pyspark.sql import functions as F
+from returns.result import ResultE, Success, Failure, safe
+
+ConfigType: TypeAlias = dict[str, dict[str, str] | str]
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mModuleNotFoundError[39m                       Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 18[39m
+[32m     15[39m load_dotenv(root_path / [33m"[39m[33m.env[39m[33m"[39m)
+[32m     17[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m SparkSession, DataFrame
+[32m---> [39m[32m18[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01msrc[39;00m[34;01m.[39;00m[34;01mcontrol[39;00m[34;01m.[39;00m[34;01mdependency_layers[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m DataPlatformContainer
+[32m     19[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m functions [38;5;28;01mas[39;00m F
+[32m     20[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mreturns[39;00m[34;01m.[39;00m[34;01mresult[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m ResultE, Success, Failure, safe
+
+[31mModuleNotFoundError[39m: No module named 'src'
+
+[33mWARN: Error encountered when rendering files[39m
+
+
+An error occurred while executing the following cell:
+------------------
+
+import os
+import sys
+from pathlib import Path
+from typing import TypeAlias
+from dotenv import load_dotenv
+
+try:
+    root_path: Path = Path(__file__).parents[2]
+except NameError:
+    root_path: Path = Path.cwd()
+
+if str(root_path) not in sys.path:
+    sys.path.append(str(root_path))
+
+load_dotenv(root_path / ".env")
+
+from pyspark.sql import SparkSession, DataFrame
+from src.control.dependency_layers import DataPlatformContainer
+from pyspark.sql import functions as F
+from returns.result import ResultE, Success, Failure, safe
+
+ConfigType: TypeAlias = dict[str, dict[str, str] | str]
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mModuleNotFoundError[39m                       Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 18[39m
+[32m     15[39m load_dotenv(root_path / [33m"[39m[33m.env[39m[33m"[39m)
+[32m     17[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m SparkSession, DataFrame
+[32m---> [39m[32m18[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01msrc[39;00m[34;01m.[39;00m[34;01mcontrol[39;00m[34;01m.[39;00m[34;01mdependency_layers[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m DataPlatformContainer
+[32m     19[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m functions [38;5;28;01mas[39;00m F
+[32m     20[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mreturns[39;00m[34;01m.[39;00m[34;01mresult[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m ResultE, Success, Failure, safe
+
+[31mModuleNotFoundError[39m: No module named 'src'
+
+[33mWARN: Error encountered when rendering files[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/4: ''...
+
+An error occurred while executing the following cell:
+------------------
+
+import os
+import sys
+from pathlib import Path
+from typing import TypeAlias
+from dotenv import load_dotenv
+
+try:
+    root_path: Path = Path(__file__).parents[2]
+except NameError:
+    root_path: Path = Path.cwd()
+
+if str(root_path) not in sys.path:
+    sys.path.append(str(root_path))
+
+load_dotenv(root_path / ".env")
+
+from pyspark.sql import SparkSession, DataFrame
+from src.control.dependency_layers import DataPlatformContainer
+from pyspark.sql import functions as F
+from returns.result import ResultE, Success, Failure, safe
+
+ConfigType: TypeAlias = dict[str, dict[str, str] | str]
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mModuleNotFoundError[39m                       Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 18[39m
+[32m     15[39m load_dotenv(root_path / [33m"[39m[33m.env[39m[33m"[39m)
+[32m     17[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m SparkSession, DataFrame
+[32m---> [39m[32m18[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01msrc[39;00m[34;01m.[39;00m[34;01mcontrol[39;00m[34;01m.[39;00m[34;01mdependency_layers[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m DataPlatformContainer
+[32m     19[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m functions [38;5;28;01mas[39;00m F
+[32m     20[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mreturns[39;00m[34;01m.[39;00m[34;01mresult[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m ResultE, Success, Failure, safe
+
+[31mModuleNotFoundError[39m: No module named 'src'
+
+[33mWARN: Error encountered when rendering files[39m
+
+
+An error occurred while executing the following cell:
+------------------
+
+import os
+import sys
+from pathlib import Path
+from typing import TypeAlias
+from dotenv import load_dotenv
+
+try:
+    root_path: Path = Path(__file__).parents[2]
+except NameError:
+    root_path: Path = Path.cwd()
+
+if str(root_path) not in sys.path:
+    sys.path.append(str(root_path))
+
+load_dotenv(root_path / ".env")
+
+from pyspark.sql import SparkSession, DataFrame
+from src.control.dependency_layers import DataPlatformContainer
+from pyspark.sql import functions as F
+from returns.result import ResultE, Success, Failure, safe
+
+ConfigType: TypeAlias = dict[str, dict[str, str] | str]
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mModuleNotFoundError[39m                       Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 18[39m
+[32m     15[39m load_dotenv(root_path / [33m"[39m[33m.env[39m[33m"[39m)
+[32m     17[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m SparkSession, DataFrame
+[32m---> [39m[32m18[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01msrc[39;00m[34;01m.[39;00m[34;01mcontrol[39;00m[34;01m.[39;00m[34;01mdependency_layers[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m DataPlatformContainer
+[32m     19[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m functions [38;5;28;01mas[39;00m F
+[32m     20[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mreturns[39;00m[34;01m.[39;00m[34;01mresult[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m ResultE, Success, Failure, safe
+
+[31mModuleNotFoundError[39m: No module named 'src'
+
+[33mWARN: Error encountered when rendering files[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: Requested port 6790 is already in use.
+
+Stack trace:
+    at _Command.actionHandler (file:///opt/quarto/bin/quarto.js:150164:13)
+    at eventLoopTick (ext:core/01_core.js:217:9)
+    at async _Command.execute (file:///opt/quarto/bin/quarto.js:10978:7)
+    at async _Command.parseCommand (file:///opt/quarto/bin/quarto.js:10855:14)
+    at async quarto (file:///opt/quarto/bin/quarto.js:176680:5)
+    at async file:///opt/quarto/bin/quarto.js:176708:5
+    at async file:///opt/quarto/bin/quarto.js:176563:14
+    at async mainRunner (file:///opt/quarto/bin/quarto.js:176565:5)
+    at async file:///opt/quarto/bin/quarto.js:176701:3[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/4: ''...
+
+An error occurred while executing the following cell:
+------------------
+
+import os
+import sys
+from pathlib import Path
+from typing import TypeAlias
+from dotenv import load_dotenv
+
+try:
+    root_path: Path = Path(__file__).parents[2]
+except NameError:
+    root_path: Path = Path.cwd()
+
+if str(root_path) not in sys.path:
+    sys.path.append(str(root_path))
+
+load_dotenv(root_path / ".env")
+
+from pyspark.sql import SparkSession, DataFrame
+from src.control.dependency_layers import DataPlatformContainer
+from pyspark.sql import functions as F
+from returns.result import ResultE, Success, Failure, safe
+
+ConfigType: TypeAlias = dict[str, dict[str, str] | str]
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mModuleNotFoundError[39m                       Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 18[39m
+[32m     15[39m load_dotenv(root_path / [33m"[39m[33m.env[39m[33m"[39m)
+[32m     17[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m SparkSession, DataFrame
+[32m---> [39m[32m18[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01msrc[39;00m[34;01m.[39;00m[34;01mcontrol[39;00m[34;01m.[39;00m[34;01mdependency_layers[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m DataPlatformContainer
+[32m     19[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m functions [38;5;28;01mas[39;00m F
+[32m     20[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mreturns[39;00m[34;01m.[39;00m[34;01mresult[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m ResultE, Success, Failure, safe
+
+[31mModuleNotFoundError[39m: No module named 'src'
+
+[33mWARN: Error encountered when rendering files[39m
+[91mERROR: Project /home/kcat/Repos/newspipe/_quarto.yml validation failed.
+
+In file _quarto.yml
+(line 4, columns 3--8) property name [34mwatch[91m is invalid
+3: [34m  output-dir: build      # All HTML/PDFs go here to reduce clutter[91m
+4: [34m  watch:[91m
+    ~~~~~~
+5: [34m    - src[91m
+[34mℹ[91m The error happened in location [34mproject[91m:[34mwatch[91m.
+
+
+Stack trace:
+    at readAndValidateYamlFromFile (file:///opt/quarto/bin/quarto.js:23771:11)
+    at eventLoopTick (ext:core/01_core.js:217:9)
+    at async file:///opt/quarto/bin/quarto.js:120027:21
+    at async projectContext (file:///opt/quarto/bin/quarto.js:119709:22)
+    at async refreshProjectConfig (file:///opt/quarto/bin/quarto.js:148923:15)
+    at async file:///opt/quarto/bin/quarto.js:149088:9[39m
+[91mERROR: Project /home/kcat/Repos/newspipe/_quarto.yml validation failed.
+
+In file _quarto.yml
+(line 4, columns 3--8) property name [34mwatch[91m is invalid
+3: [34m  output-dir: build      # All HTML/PDFs go here to reduce clutter[91m
+4: [34m  watch:[91m
+    ~~~~~~
+5: [34m    - src[91m
+[34mℹ[91m The error happened in location [34mproject[91m:[34mwatch[91m.
+
+
+Stack trace:
+    at readAndValidateYamlFromFile (file:///opt/quarto/bin/quarto.js:23771:11)
+    at eventLoopTick (ext:core/01_core.js:217:9)
+    at async file:///opt/quarto/bin/quarto.js:120027:21
+    at async projectContext (file:///opt/quarto/bin/quarto.js:119709:22)
+    at async render (file:///opt/quarto/bin/quarto.js:130609:17)[39m
+/usr/local/bin/quarto: line 199: 87548 Killed                  "${QUARTO_DENO}" ${QUARTO_ACTION} ${QUARTO_DENO_OPTIONS} ${QUARTO_DENO_EXTRA_OPTIONS} "${QUARTO_TARGET}" "$@"
+[91mERROR: Project /home/kcat/Repos/newspipe/_quarto.yml validation failed.
+
+In file _quarto.yml
+(line 4, columns 3--8) property name [34mwatch[91m is invalid
+3: [34m  output-dir: build      # All HTML/PDFs go here to reduce clutter[91m
+4: [34m  watch:[91m
+    ~~~~~~
+5: [34m    - src[91m
+[34mℹ[91m The error happened in location [34mproject[91m:[34mwatch[91m.
+
+
+Stack trace:
+    at readAndValidateYamlFromFile (file:///opt/quarto/bin/quarto.js:23771:11)
+    at async file:///opt/quarto/bin/quarto.js:120027:21
+    at async projectContext (file:///opt/quarto/bin/quarto.js:119709:22)
+    at async serveProject (file:///opt/quarto/bin/quarto.js:149278:15)
+    at async _Command.actionHandler (file:///opt/quarto/bin/quarto.js:150276:5)
+    at async _Command.execute (file:///opt/quarto/bin/quarto.js:10978:7)
+    at async _Command.parseCommand (file:///opt/quarto/bin/quarto.js:10855:14)
+    at async quarto (file:///opt/quarto/bin/quarto.js:176680:5)
+    at async file:///opt/quarto/bin/quarto.js:176708:5
+    at async file:///opt/quarto/bin/quarto.js:176563:14[39m
+[1m[34mTerminating existing preview server....[39m[22m[1m[34mDONE
+[39m[22m
+[1m[34mPreparing to preview[39m[22m
+[1m[34m[1/1] notebooks/python/silver_layer.qmd[39m[22m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/4: ''...
+
+An error occurred while executing the following cell:
+------------------
+
+import os
+import sys
+from pathlib import Path
+from typing import TypeAlias
+from dotenv import load_dotenv
+
+try:
+    root_path: Path = Path(__file__).parents[2]
+except NameError:
+    root_path: Path = Path.cwd()
+
+if str(root_path) not in sys.path:
+    sys.path.append(str(root_path))
+
+load_dotenv(root_path / ".env")
+
+from pyspark.sql import SparkSession, DataFrame
+from src.control.dependency_layers import DataPlatformContainer
+from pyspark.sql import functions as F
+from returns.result import ResultE, Success, Failure, safe
+
+ConfigType: TypeAlias = dict[str, dict[str, str] | str]
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mModuleNotFoundError[39m                       Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 18[39m
+[32m     15[39m load_dotenv(root_path / [33m"[39m[33m.env[39m[33m"[39m)
+[32m     17[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m SparkSession, DataFrame
+[32m---> [39m[32m18[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01msrc[39;00m[34;01m.[39;00m[34;01mcontrol[39;00m[34;01m.[39;00m[34;01mdependency_layers[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m DataPlatformContainer
+[32m     19[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m functions [38;5;28;01mas[39;00m F
+[32m     20[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mreturns[39;00m[34;01m.[39;00m[34;01mresult[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m ResultE, Success, Failure, safe
+
+[31mModuleNotFoundError[39m: No module named 'src'
+
+[33mWARN: Error encountered when rendering files[39m
+[91mERROR: Error
+    at renderFiles (file:///opt/quarto/bin/quarto.js:124863:49)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async renderProject (file:///opt/quarto/bin/quarto.js:125362:23)
+    at async serveProject (file:///opt/quarto/bin/quarto.js:149361:20)
+    at async _Command.actionHandler (file:///opt/quarto/bin/quarto.js:150276:5)
+    at async _Command.execute (file:///opt/quarto/bin/quarto.js:10978:7)
+    at async _Command.parseCommand (file:///opt/quarto/bin/quarto.js:10855:14)
+    at async quarto (file:///opt/quarto/bin/quarto.js:176680:5)
+    at async file:///opt/quarto/bin/quarto.js:176708:5
+    at async file:///opt/quarto/bin/quarto.js:176563:14[39m
+[1m[34mPreparing to preview[39m[22m
+[1m[34m[1/1] notebooks/python/silver_layer.qmd[39m[22m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/4: ''...
+
+An error occurred while executing the following cell:
+------------------
+
+import os
+import sys
+from pathlib import Path
+from typing import TypeAlias
+from dotenv import load_dotenv
+
+try:
+    root_path: Path = Path(__file__).parents[2]
+except NameError:
+    root_path: Path = Path.cwd()
+
+if str(root_path) not in sys.path:
+    sys.path.append(str(root_path))
+
+load_dotenv(root_path / ".env")
+
+from pyspark.sql import SparkSession, DataFrame
+from src.control.dependency_layers import DataPlatformContainer
+from pyspark.sql import functions as F
+from returns.result import ResultE, Success, Failure, safe
+
+ConfigType: TypeAlias = dict[str, dict[str, str] | str]
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mModuleNotFoundError[39m                       Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 18[39m
+[32m     15[39m load_dotenv(root_path / [33m"[39m[33m.env[39m[33m"[39m)
+[32m     17[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m SparkSession, DataFrame
+[32m---> [39m[32m18[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01msrc[39;00m[34;01m.[39;00m[34;01mcontrol[39;00m[34;01m.[39;00m[34;01mdependency_layers[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m DataPlatformContainer
+[32m     19[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m functions [38;5;28;01mas[39;00m F
+[32m     20[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mreturns[39;00m[34;01m.[39;00m[34;01mresult[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m ResultE, Success, Failure, safe
+
+[31mModuleNotFoundError[39m: No module named 'src'
+
+[33mWARN: Error encountered when rendering files[39m
+[91mERROR: Error
+    at renderFiles (file:///opt/quarto/bin/quarto.js:124863:49)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async renderProject (file:///opt/quarto/bin/quarto.js:125362:23)
+    at async serveProject (file:///opt/quarto/bin/quarto.js:149361:20)
+    at async _Command.actionHandler (file:///opt/quarto/bin/quarto.js:150276:5)
+    at async _Command.execute (file:///opt/quarto/bin/quarto.js:10978:7)
+    at async _Command.parseCommand (file:///opt/quarto/bin/quarto.js:10855:14)
+    at async quarto (file:///opt/quarto/bin/quarto.js:176680:5)
+    at async file:///opt/quarto/bin/quarto.js:176708:5
+    at async file:///opt/quarto/bin/quarto.js:176563:14[39m
+[1m[34mPreparing to preview[39m[22m
+[1m[34m[1/1] notebooks/python/silver_layer.qmd[39m[22m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/4: ''...
+
+An error occurred while executing the following cell:
+------------------
+
+import os
+import sys
+from pathlib import Path
+from typing import TypeAlias
+from dotenv import load_dotenv
+
+try:
+    root_path: Path = Path(__file__).parents[2]
+except NameError:
+    root_path: Path = Path.cwd()
+
+if str(root_path) not in sys.path:
+    sys.path.append(str(root_path))
+
+load_dotenv(root_path / ".env")
+
+from pyspark.sql import SparkSession, DataFrame
+from src.control.dependency_layers import DataPlatformContainer
+from pyspark.sql import functions as F
+from returns.result import ResultE, Success, Failure, safe
+
+ConfigType: TypeAlias = dict[str, dict[str, str] | str]
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mModuleNotFoundError[39m                       Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 18[39m
+[32m     15[39m load_dotenv(root_path / [33m"[39m[33m.env[39m[33m"[39m)
+[32m     17[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m SparkSession, DataFrame
+[32m---> [39m[32m18[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01msrc[39;00m[34;01m.[39;00m[34;01mcontrol[39;00m[34;01m.[39;00m[34;01mdependency_layers[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m DataPlatformContainer
+[32m     19[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m functions [38;5;28;01mas[39;00m F
+[32m     20[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mreturns[39;00m[34;01m.[39;00m[34;01mresult[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m ResultE, Success, Failure, safe
+
+[31mModuleNotFoundError[39m: No module named 'src'
+
+[33mWARN: Error encountered when rendering files[39m
+[91mERROR: Error
+    at renderFiles (file:///opt/quarto/bin/quarto.js:124863:49)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async renderProject (file:///opt/quarto/bin/quarto.js:125362:23)
+    at async serveProject (file:///opt/quarto/bin/quarto.js:149361:20)
+    at async _Command.actionHandler (file:///opt/quarto/bin/quarto.js:150276:5)
+    at async _Command.execute (file:///opt/quarto/bin/quarto.js:10978:7)
+    at async _Command.parseCommand (file:///opt/quarto/bin/quarto.js:10855:14)
+    at async quarto (file:///opt/quarto/bin/quarto.js:176680:5)
+    at async file:///opt/quarto/bin/quarto.js:176708:5
+    at async file:///opt/quarto/bin/quarto.js:176563:14[39m
+[1m[34mPreparing to preview[39m[22m
+[1m[34m[1/2] index.qmd[39m[22m
+[1m[34m[2/2] notebooks/python/silver_layer.qmd[39m[22m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/4: ''...
+
+An error occurred while executing the following cell:
+------------------
+
+import os
+import sys
+from pathlib import Path
+from typing import TypeAlias
+from dotenv import load_dotenv
+
+try:
+    root_path: Path = Path(__file__).parents[2]
+except NameError:
+    root_path: Path = Path.cwd()
+
+if str(root_path) not in sys.path:
+    sys.path.append(str(root_path))
+
+load_dotenv(root_path / ".env")
+
+from pyspark.sql import SparkSession, DataFrame
+from src.control.dependency_layers import DataPlatformContainer
+from pyspark.sql import functions as F
+from returns.result import ResultE, Success, Failure, safe
+
+ConfigType: TypeAlias = dict[str, dict[str, str] | str]
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mModuleNotFoundError[39m                       Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 18[39m
+[32m     15[39m load_dotenv(root_path / [33m"[39m[33m.env[39m[33m"[39m)
+[32m     17[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m SparkSession, DataFrame
+[32m---> [39m[32m18[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01msrc[39;00m[34;01m.[39;00m[34;01mcontrol[39;00m[34;01m.[39;00m[34;01mdependency_layers[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m DataPlatformContainer
+[32m     19[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mpyspark[39;00m[34;01m.[39;00m[34;01msql[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m functions [38;5;28;01mas[39;00m F
+[32m     20[39m [38;5;28;01mfrom[39;00m[38;5;250m [39m[34;01mreturns[39;00m[34;01m.[39;00m[34;01mresult[39;00m[38;5;250m [39m[38;5;28;01mimport[39;00m ResultE, Success, Failure, safe
+
+[31mModuleNotFoundError[39m: No module named 'src'
+
+[33mWARN: Error encountered when rendering files[39m
+[91mERROR: Error
+    at renderFiles (file:///opt/quarto/bin/quarto.js:124863:49)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async renderProject (file:///opt/quarto/bin/quarto.js:125362:23)
+    at async serveProject (file:///opt/quarto/bin/quarto.js:149361:20)
+    at async _Command.actionHandler (file:///opt/quarto/bin/quarto.js:150276:5)
+    at async _Command.execute (file:///opt/quarto/bin/quarto.js:10978:7)
+    at async _Command.parseCommand (file:///opt/quarto/bin/quarto.js:10855:14)
+    at async quarto (file:///opt/quarto/bin/quarto.js:176680:5)
+    at async file:///opt/quarto/bin/quarto.js:176708:5
+    at async file:///opt/quarto/bin/quarto.js:176563:14[39m
+[1m[34mPreparing to preview[39m[22m
+[1m[34m[1/1] notebooks/python/silver_layer.qmd[39m[22m
+
+[32mWatching files for changes[39m
+[32mBrowse at [39m[4m[32mhttp://0.0.0.0:6790/notebooks/python/silver_layer.html[39m[24m
+Listening on http://0.0.0.0:6790/ (http://localhost:6790/)
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  title-prefix: NewsPipe Data Platform
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  title: Bronze to silver
+  
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: Project /home/kcat/Repos/newspipe/_quarto.yml validation failed.
+
+In file _quarto.yml
+(line 4, columns 3--14) property name [34mexecute_dir[91m is invalid
+3: [34m  output-dir: build      # All HTML/PDFs go here to reduce clutter[91m
+4: [34m  execute_dir: project[91m
+    ~~~~~~~~~~~~
+[34mℹ[91m The error happened in location [34mproject[91m:[34mexecute_dir[91m.
+[34mℹ[91m Did you mean [34mexecute-dir[91m?
+
+
+Stack trace:
+    at readAndValidateYamlFromFile (file:///opt/quarto/bin/quarto.js:23771:11)
+    at eventLoopTick (ext:core/01_core.js:217:9)
+    at async file:///opt/quarto/bin/quarto.js:120027:21
+    at async projectContext (file:///opt/quarto/bin/quarto.js:119709:22)
+    at async refreshProjectConfig (file:///opt/quarto/bin/quarto.js:148923:15)
+    at async file:///opt/quarto/bin/quarto.js:149088:9[39m
+[91mERROR: BadResource: Bad resource ID
+
+Stack trace:
+    at Kv.get (ext:deno_kv/01_db.ts:57:34)
+    at SassCache.getFromHash (file:///opt/quarto/bin/quarto.js:81782:35)
+    at SassCache.getOrSet (file:///opt/quarto/bin/quarto.js:81846:33)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async compileSass (file:///opt/quarto/bin/quarto.js:89106:19)
+    at async resolveSassBundles (file:///opt/quarto/bin/quarto.js:110483:17)
+    at async resolveExtras (file:///opt/quarto/bin/quarto.js:115312:14)
+    at async runPandoc (file:///opt/quarto/bin/quarto.js:114755:20)
+    at async renderPandoc (file:///opt/quarto/bin/quarto.js:116431:24)
+    at async Object.onRender (file:///opt/quarto/bin/quarto.js:125129:30)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: BadResource: Bad resource ID
+
+Stack trace:
+    at Kv.get (ext:deno_kv/01_db.ts:57:34)
+    at SassCache.getFromHash (file:///opt/quarto/bin/quarto.js:81782:35)
+    at SassCache.getOrSet (file:///opt/quarto/bin/quarto.js:81846:33)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async compileSass (file:///opt/quarto/bin/quarto.js:89106:19)
+    at async resolveSassBundles (file:///opt/quarto/bin/quarto.js:110483:17)
+    at async resolveExtras (file:///opt/quarto/bin/quarto.js:115312:14)
+    at async runPandoc (file:///opt/quarto/bin/quarto.js:114755:20)
+    at async renderPandoc (file:///opt/quarto/bin/quarto.js:116431:24)
+    at async Object.onRender (file:///opt/quarto/bin/quarto.js:125129:30)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: Requested port 6790 is already in use.
+
+Stack trace:
+    at _Command.actionHandler (file:///opt/quarto/bin/quarto.js:150164:13)
+    at eventLoopTick (ext:core/01_core.js:217:9)
+    at async _Command.execute (file:///opt/quarto/bin/quarto.js:10978:7)
+    at async _Command.parseCommand (file:///opt/quarto/bin/quarto.js:10855:14)
+    at async quarto (file:///opt/quarto/bin/quarto.js:176680:5)
+    at async file:///opt/quarto/bin/quarto.js:176708:5
+    at async file:///opt/quarto/bin/quarto.js:176563:14
+    at async mainRunner (file:///opt/quarto/bin/quarto.js:176565:5)
+    at async file:///opt/quarto/bin/quarto.js:176701:3[39m
+[91mERROR: BadResource: Bad resource ID
+
+Stack trace:
+    at Kv.get (ext:deno_kv/01_db.ts:57:34)
+    at SassCache.getFromHash (file:///opt/quarto/bin/quarto.js:81782:35)
+    at SassCache.getOrSet (file:///opt/quarto/bin/quarto.js:81846:33)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async compileSass (file:///opt/quarto/bin/quarto.js:89106:19)
+    at async resolveSassBundles (file:///opt/quarto/bin/quarto.js:110483:17)
+    at async resolveExtras (file:///opt/quarto/bin/quarto.js:115312:14)
+    at async runPandoc (file:///opt/quarto/bin/quarto.js:114755:20)
+    at async renderPandoc (file:///opt/quarto/bin/quarto.js:116431:24)
+    at async Object.onRender (file:///opt/quarto/bin/quarto.js:125129:30)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: BadResource: Bad resource ID
+
+Stack trace:
+    at Kv.get (ext:deno_kv/01_db.ts:57:34)
+    at SassCache.getFromHash (file:///opt/quarto/bin/quarto.js:81782:35)
+    at SassCache.getOrSet (file:///opt/quarto/bin/quarto.js:81846:33)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async compileSass (file:///opt/quarto/bin/quarto.js:89106:19)
+    at async resolveSassBundles (file:///opt/quarto/bin/quarto.js:110483:17)
+    at async resolveExtras (file:///opt/quarto/bin/quarto.js:115312:14)
+    at async runPandoc (file:///opt/quarto/bin/quarto.js:114755:20)
+    at async renderPandoc (file:///opt/quarto/bin/quarto.js:116431:24)
+    at async Object.onRender (file:///opt/quarto/bin/quarto.js:125129:30)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: BadResource: Bad resource ID
+
+Stack trace:
+    at Kv.get (ext:deno_kv/01_db.ts:57:34)
+    at SassCache.getFromHash (file:///opt/quarto/bin/quarto.js:81782:35)
+    at SassCache.getOrSet (file:///opt/quarto/bin/quarto.js:81846:33)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async compileSass (file:///opt/quarto/bin/quarto.js:89106:19)
+    at async resolveSassBundles (file:///opt/quarto/bin/quarto.js:110483:17)
+    at async resolveExtras (file:///opt/quarto/bin/quarto.js:115312:14)
+    at async runPandoc (file:///opt/quarto/bin/quarto.js:114755:20)
+    at async renderPandoc (file:///opt/quarto/bin/quarto.js:116431:24)
+    at async Object.onRender (file:///opt/quarto/bin/quarto.js:125129:30)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: BadResource: Bad resource ID
+
+Stack trace:
+    at Kv.get (ext:deno_kv/01_db.ts:57:34)
+    at SassCache.getFromHash (file:///opt/quarto/bin/quarto.js:81782:35)
+    at SassCache.getOrSet (file:///opt/quarto/bin/quarto.js:81846:33)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async compileSass (file:///opt/quarto/bin/quarto.js:89106:19)
+    at async resolveSassBundles (file:///opt/quarto/bin/quarto.js:110483:17)
+    at async resolveExtras (file:///opt/quarto/bin/quarto.js:115312:14)
+    at async runPandoc (file:///opt/quarto/bin/quarto.js:114755:20)
+    at async renderPandoc (file:///opt/quarto/bin/quarto.js:116431:24)
+    at async Object.onRender (file:///opt/quarto/bin/quarto.js:125129:30)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: BadResource: Bad resource ID
+
+Stack trace:
+    at Kv.get (ext:deno_kv/01_db.ts:57:34)
+    at SassCache.getFromHash (file:///opt/quarto/bin/quarto.js:81782:35)
+    at SassCache.getOrSet (file:///opt/quarto/bin/quarto.js:81846:33)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async compileSass (file:///opt/quarto/bin/quarto.js:89106:19)
+    at async resolveSassBundles (file:///opt/quarto/bin/quarto.js:110483:17)
+    at async resolveExtras (file:///opt/quarto/bin/quarto.js:115312:14)
+    at async runPandoc (file:///opt/quarto/bin/quarto.js:114755:20)
+    at async renderPandoc (file:///opt/quarto/bin/quarto.js:116431:24)
+    at async Object.onRender (file:///opt/quarto/bin/quarto.js:125129:30)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: BadResource: Bad resource ID
+
+Stack trace:
+    at Kv.get (ext:deno_kv/01_db.ts:57:34)
+    at SassCache.getFromHash (file:///opt/quarto/bin/quarto.js:81782:35)
+    at SassCache.getOrSet (file:///opt/quarto/bin/quarto.js:81846:33)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async compileSass (file:///opt/quarto/bin/quarto.js:89106:19)
+    at async resolveSassBundles (file:///opt/quarto/bin/quarto.js:110483:17)
+    at async resolveExtras (file:///opt/quarto/bin/quarto.js:115312:14)
+    at async runPandoc (file:///opt/quarto/bin/quarto.js:114755:20)
+    at async renderPandoc (file:///opt/quarto/bin/quarto.js:116431:24)
+    at async Object.onRender (file:///opt/quarto/bin/quarto.js:125129:30)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: BadResource: Bad resource ID
+
+Stack trace:
+    at Kv.get (ext:deno_kv/01_db.ts:57:34)
+    at SassCache.getFromHash (file:///opt/quarto/bin/quarto.js:81782:35)
+    at SassCache.getOrSet (file:///opt/quarto/bin/quarto.js:81846:33)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async compileSass (file:///opt/quarto/bin/quarto.js:89106:19)
+    at async resolveSassBundles (file:///opt/quarto/bin/quarto.js:110483:17)
+    at async resolveExtras (file:///opt/quarto/bin/quarto.js:115312:14)
+    at async runPandoc (file:///opt/quarto/bin/quarto.js:114755:20)
+    at async renderPandoc (file:///opt/quarto/bin/quarto.js:116431:24)
+    at async Object.onRender (file:///opt/quarto/bin/quarto.js:125129:30)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: BadResource: Bad resource ID
+
+Stack trace:
+    at Kv.get (ext:deno_kv/01_db.ts:57:34)
+    at SassCache.getFromHash (file:///opt/quarto/bin/quarto.js:81782:35)
+    at SassCache.getOrSet (file:///opt/quarto/bin/quarto.js:81846:33)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async compileSass (file:///opt/quarto/bin/quarto.js:89106:19)
+    at async resolveSassBundles (file:///opt/quarto/bin/quarto.js:110483:17)
+    at async resolveExtras (file:///opt/quarto/bin/quarto.js:115312:14)
+    at async runPandoc (file:///opt/quarto/bin/quarto.js:114755:20)
+    at async renderPandoc (file:///opt/quarto/bin/quarto.js:116431:24)
+    at async Object.onRender (file:///opt/quarto/bin/quarto.js:125129:30)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+/usr/local/bin/quarto: line 199: 93991 Killed                  "${QUARTO_DENO}" ${QUARTO_ACTION} ${QUARTO_DENO_OPTIONS} ${QUARTO_DENO_EXTRA_OPTIONS} "${QUARTO_TARGET}" "$@"
+[91mERROR: Project /home/kcat/Repos/newspipe/_quarto.yml validation failed.
+
+In file _quarto.yml
+(line 4, columns 3--14) property name [34mexecute_dir[91m is invalid
+3: [34m  output-dir: build      # All HTML/PDFs go here to reduce clutter[91m
+4: [34m  execute_dir: project[91m
+    ~~~~~~~~~~~~
+[34mℹ[91m The error happened in location [34mproject[91m:[34mexecute_dir[91m.
+[34mℹ[91m Did you mean [34mexecute-dir[91m?
+
+
+Stack trace:
+    at readAndValidateYamlFromFile (file:///opt/quarto/bin/quarto.js:23771:11)
+    at async file:///opt/quarto/bin/quarto.js:120027:21
+    at async projectContext (file:///opt/quarto/bin/quarto.js:119709:22)
+    at async serveProject (file:///opt/quarto/bin/quarto.js:149278:15)
+    at async _Command.actionHandler (file:///opt/quarto/bin/quarto.js:150276:5)
+    at async _Command.execute (file:///opt/quarto/bin/quarto.js:10978:7)
+    at async _Command.parseCommand (file:///opt/quarto/bin/quarto.js:10855:14)
+    at async quarto (file:///opt/quarto/bin/quarto.js:176680:5)
+    at async file:///opt/quarto/bin/quarto.js:176708:5
+    at async file:///opt/quarto/bin/quarto.js:176563:14[39m
+[1m[34mTerminating existing preview server....[39m[22m[1m[34mDONE
+[39m[22m
+[1m[34mPreparing to preview[39m[22m
+[1m[34m[1/1] notebooks/python/silver_layer.qmd[39m[22m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/4: ''...Done
+  Cell 2/4: ''...26/02/06 15:37:19 WARN Utils: Your hostname, Loki resolves to a loopback address: 127.0.1.1; using 192.168.100.36 instead (on interface enp7s0)
+26/02/06 15:37:19 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
+Ivy Default Cache set to: /home/kcat/.ivy2/cache
+The jars for the packages stored in: /home/kcat/.ivy2/jars
+org.apache.hadoop#hadoop-aws added as a dependency
+org.apache.hadoop#hadoop-common added as a dependency
+com.amazonaws#aws-java-sdk-bundle added as a dependency
+org.apache.spark#spark-hadoop-cloud_2.12 added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-12c9e3e3-9736-4de0-9983-a1d8e6299e9e;1.0
+	confs: [default]
+	found org.apache.hadoop#hadoop-aws;3.3.4 in central
+	found com.amazonaws#aws-java-sdk-bundle;1.12.262 in central
+	found org.wildfly.openssl#wildfly-openssl;1.0.7.Final in central
+	found org.apache.hadoop#hadoop-common;3.3.4 in central
+	found org.apache.hadoop.thirdparty#hadoop-shaded-protobuf_3_7;1.1.1 in central
+	found org.apache.hadoop#hadoop-annotations;3.3.4 in central
+	found org.apache.hadoop.thirdparty#hadoop-shaded-guava;1.1.1 in central
+	found com.google.guava#guava;27.0-jre in central
+	found com.google.guava#failureaccess;1.0 in central
+	found com.google.guava#listenablefuture;9999.0-empty-to-avoid-conflict-with-guava in central
+	found com.google.code.findbugs#jsr305;3.0.2 in central
+	found org.checkerframework#checker-qual;2.5.2 in central
+	found com.google.j2objc#j2objc-annotations;1.1 in central
+	found org.codehaus.mojo#animal-sniffer-annotations;1.17 in central
+	found commons-cli#commons-cli;1.2 in central
+	found org.apache.commons#commons-math3;3.1.1 in central
+	found org.apache.httpcomponents#httpclient;4.5.13 in central
+	found org.apache.httpcomponents#httpcore;4.4.13 in central
+	found commons-logging#commons-logging;1.1.3 in central
+	found commons-codec#commons-codec;1.15 in central
+	found commons-io#commons-io;2.8.0 in central
+	found commons-net#commons-net;3.6 in central
+	found commons-collections#commons-collections;3.2.2 in central
+	found javax.servlet#javax.servlet-api;3.1.0 in central
+	found org.eclipse.jetty#jetty-server;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-http;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-util;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-io;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-servlet;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-security;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-util-ajax;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-webapp;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-xml;9.4.43.v20210629 in central
+	found com.sun.jersey#jersey-core;1.19 in central
+	found javax.ws.rs#jsr311-api;1.1.1 in central
+	found com.sun.jersey#jersey-servlet;1.19 in central
+	found com.sun.jersey#jersey-server;1.19 in central
+	found com.sun.jersey#jersey-json;1.19 in central
+	found org.codehaus.jettison#jettison;1.1 in central
+	found com.sun.xml.bind#jaxb-impl;2.2.3-1 in central
+	found javax.xml.bind#jaxb-api;2.2.11 in central
+	found org.codehaus.jackson#jackson-core-asl;1.9.13 in central
+	found org.codehaus.jackson#jackson-mapper-asl;1.9.13 in central
+	found org.codehaus.jackson#jackson-jaxrs;1.9.13 in central
+	found org.codehaus.jackson#jackson-xc;1.9.13 in central
+	found ch.qos.reload4j#reload4j;1.2.22 in central
+	found commons-beanutils#commons-beanutils;1.9.4 in central
+	found org.apache.commons#commons-configuration2;2.1.1 in central
+	found org.apache.commons#commons-lang3;3.12.0 in central
+	found org.apache.commons#commons-text;1.4 in central
+	found org.slf4j#slf4j-api;1.7.36 in central
+	found org.slf4j#slf4j-reload4j;1.7.36 in central
+	found org.apache.avro#avro;1.7.7 in central
+	found com.thoughtworks.paranamer#paranamer;2.3 in central
+	found org.xerial.snappy#snappy-java;1.1.8.2 in central
+	found org.apache.commons#commons-compress;1.21 in central
+	found com.google.re2j#re2j;1.1 in central
+	found com.google.protobuf#protobuf-java;2.5.0 in central
+	found com.google.code.gson#gson;2.8.9 in central
+	found org.apache.hadoop#hadoop-auth;3.3.4 in central
+	found com.nimbusds#nimbus-jose-jwt;9.8.1 in central
+	found com.github.stephenc.jcip#jcip-annotations;1.0-1 in central
+	found net.minidev#json-smart;2.4.7 in central
+	found net.minidev#accessors-smart;2.4.7 in central
+	found org.ow2.asm#asm;5.0.4 in central
+	found org.apache.zookeeper#zookeeper;3.5.6 in central
+	found org.apache.zookeeper#zookeeper-jute;3.5.6 in central
+	found org.apache.yetus#audience-annotations;0.5.0 in central
+	found org.apache.curator#curator-framework;4.2.0 in central
+	found org.apache.curator#curator-client;4.2.0 in central
+	found org.apache.kerby#kerb-simplekdc;1.0.1 in central
+	found org.apache.kerby#kerb-client;1.0.1 in central
+	found org.apache.kerby#kerby-config;1.0.1 in central
+	found org.apache.kerby#kerb-core;1.0.1 in central
+	found org.apache.kerby#kerby-pkix;1.0.1 in central
+	found org.apache.kerby#kerby-asn1;1.0.1 in central
+	found org.apache.kerby#kerby-util;1.0.1 in central
+	found org.apache.kerby#kerb-common;1.0.1 in central
+	found org.apache.kerby#kerb-crypto;1.0.1 in central
+	found org.apache.kerby#kerb-util;1.0.1 in central
+	found org.apache.kerby#token-provider;1.0.1 in central
+	found org.apache.kerby#kerb-admin;1.0.1 in central
+	found org.apache.kerby#kerb-server;1.0.1 in central
+	found org.apache.kerby#kerb-identity;1.0.1 in central
+	found org.apache.kerby#kerby-xdr;1.0.1 in central
+	found com.jcraft#jsch;0.1.55 in central
+	found org.apache.curator#curator-recipes;4.2.0 in central
+	found com.fasterxml.jackson.core#jackson-databind;2.12.7 in central
+	found com.fasterxml.jackson.core#jackson-annotations;2.12.7 in central
+	found com.fasterxml.jackson.core#jackson-core;2.12.7 in central
+	found org.codehaus.woodstox#stax2-api;4.2.1 in central
+	found com.fasterxml.woodstox#woodstox-core;5.3.0 in central
+	found dnsjava#dnsjava;2.1.7 in central
+	found jakarta.activation#jakarta.activation-api;1.2.1 in central
+	found javax.servlet.jsp#jsp-api;2.1 in central
+	found org.apache.spark#spark-hadoop-cloud_2.12;3.5.1 in central
+	found org.apache.hadoop#hadoop-client-runtime;3.3.4 in central
+	found org.apache.hadoop#hadoop-client-api;3.3.4 in central
+	found org.xerial.snappy#snappy-java;1.1.10.3 in central
+	found org.slf4j#slf4j-api;2.0.7 in central
+	found com.google.cloud.bigdataoss#gcs-connector;hadoop3-2.2.14 in central
+	found joda-time#joda-time;2.12.5 in central
+	found com.fasterxml.jackson.core#jackson-databind;2.15.2 in central
+	found com.fasterxml.jackson.core#jackson-annotations;2.15.2 in central
+	found com.fasterxml.jackson.core#jackson-core;2.15.2 in central
+	found com.fasterxml.jackson.dataformat#jackson-dataformat-cbor;2.15.2 in central
+	found org.apache.httpcomponents#httpclient;4.5.14 in central
+	found org.apache.httpcomponents#httpcore;4.4.16 in central
+	found commons-codec#commons-codec;1.16.0 in central
+	found org.apache.hadoop#hadoop-azure;3.3.4 in central
+	found com.microsoft.azure#azure-storage;7.0.1 in central
+	found com.microsoft.azure#azure-keyvault-core;1.0.0 in central
+	found org.apache.hadoop#hadoop-cloud-storage;3.3.4 in central
+	found org.apache.hadoop#hadoop-aliyun;3.3.4 in central
+	found com.aliyun.oss#aliyun-sdk-oss;3.13.0 in central
+	found org.jdom#jdom2;2.0.6 in central
+	found com.aliyun#aliyun-java-sdk-core;4.5.10 in central
+	found org.ini4j#ini4j;0.5.4 in central
+	found io.opentracing#opentracing-api;0.33.0 in central
+	found io.opentracing#opentracing-util;0.33.0 in central
+	found io.opentracing#opentracing-noop;0.33.0 in central
+	found com.aliyun#aliyun-java-sdk-ram;3.1.0 in central
+	found com.aliyun#aliyun-java-sdk-kms;2.11.0 in central
+	found org.apache.hadoop#hadoop-azure-datalake;3.3.4 in central
+	found com.microsoft.azure#azure-data-lake-store-sdk;2.3.9 in central
+	found org.apache.hadoop#hadoop-openstack;3.3.4 in central
+	found org.eclipse.jetty#jetty-util;9.4.52.v20230823 in central
+	found org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823 in central
+:: resolution report :: resolve 1060ms :: artifacts dl 29ms
+	:: modules in use:
+	ch.qos.reload4j#reload4j;1.2.22 from central in [default]
+	com.aliyun#aliyun-java-sdk-core;4.5.10 from central in [default]
+	com.aliyun#aliyun-java-sdk-kms;2.11.0 from central in [default]
+	com.aliyun#aliyun-java-sdk-ram;3.1.0 from central in [default]
+	com.aliyun.oss#aliyun-sdk-oss;3.13.0 from central in [default]
+	com.amazonaws#aws-java-sdk-bundle;1.12.262 from central in [default]
+	com.fasterxml.jackson.core#jackson-annotations;2.15.2 from central in [default]
+	com.fasterxml.jackson.core#jackson-core;2.15.2 from central in [default]
+	com.fasterxml.jackson.core#jackson-databind;2.15.2 from central in [default]
+	com.fasterxml.jackson.dataformat#jackson-dataformat-cbor;2.15.2 from central in [default]
+	com.fasterxml.woodstox#woodstox-core;5.3.0 from central in [default]
+	com.github.stephenc.jcip#jcip-annotations;1.0-1 from central in [default]
+	com.google.cloud.bigdataoss#gcs-connector;hadoop3-2.2.14 from central in [default]
+	com.google.code.findbugs#jsr305;3.0.2 from central in [default]
+	com.google.code.gson#gson;2.8.9 from central in [default]
+	com.google.guava#failureaccess;1.0 from central in [default]
+	com.google.guava#guava;27.0-jre from central in [default]
+	com.google.guava#listenablefuture;9999.0-empty-to-avoid-conflict-with-guava from central in [default]
+	com.google.j2objc#j2objc-annotations;1.1 from central in [default]
+	com.google.protobuf#protobuf-java;2.5.0 from central in [default]
+	com.google.re2j#re2j;1.1 from central in [default]
+	com.jcraft#jsch;0.1.55 from central in [default]
+	com.microsoft.azure#azure-data-lake-store-sdk;2.3.9 from central in [default]
+	com.microsoft.azure#azure-keyvault-core;1.0.0 from central in [default]
+	com.microsoft.azure#azure-storage;7.0.1 from central in [default]
+	com.nimbusds#nimbus-jose-jwt;9.8.1 from central in [default]
+	com.sun.jersey#jersey-core;1.19 from central in [default]
+	com.sun.jersey#jersey-json;1.19 from central in [default]
+	com.sun.jersey#jersey-server;1.19 from central in [default]
+	com.sun.jersey#jersey-servlet;1.19 from central in [default]
+	com.sun.xml.bind#jaxb-impl;2.2.3-1 from central in [default]
+	com.thoughtworks.paranamer#paranamer;2.3 from central in [default]
+	commons-beanutils#commons-beanutils;1.9.4 from central in [default]
+	commons-cli#commons-cli;1.2 from central in [default]
+	commons-codec#commons-codec;1.16.0 from central in [default]
+	commons-collections#commons-collections;3.2.2 from central in [default]
+	commons-io#commons-io;2.8.0 from central in [default]
+	commons-logging#commons-logging;1.1.3 from central in [default]
+	commons-net#commons-net;3.6 from central in [default]
+	dnsjava#dnsjava;2.1.7 from central in [default]
+	io.opentracing#opentracing-api;0.33.0 from central in [default]
+	io.opentracing#opentracing-noop;0.33.0 from central in [default]
+	io.opentracing#opentracing-util;0.33.0 from central in [default]
+	jakarta.activation#jakarta.activation-api;1.2.1 from central in [default]
+	javax.servlet#javax.servlet-api;3.1.0 from central in [default]
+	javax.servlet.jsp#jsp-api;2.1 from central in [default]
+	javax.ws.rs#jsr311-api;1.1.1 from central in [default]
+	javax.xml.bind#jaxb-api;2.2.11 from central in [default]
+	joda-time#joda-time;2.12.5 from central in [default]
+	net.minidev#accessors-smart;2.4.7 from central in [default]
+	net.minidev#json-smart;2.4.7 from central in [default]
+	org.apache.avro#avro;1.7.7 from central in [default]
+	org.apache.commons#commons-compress;1.21 from central in [default]
+	org.apache.commons#commons-configuration2;2.1.1 from central in [default]
+	org.apache.commons#commons-lang3;3.12.0 from central in [default]
+	org.apache.commons#commons-math3;3.1.1 from central in [default]
+	org.apache.commons#commons-text;1.4 from central in [default]
+	org.apache.curator#curator-client;4.2.0 from central in [default]
+	org.apache.curator#curator-framework;4.2.0 from central in [default]
+	org.apache.curator#curator-recipes;4.2.0 from central in [default]
+	org.apache.hadoop#hadoop-aliyun;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-annotations;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-auth;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-aws;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-azure;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-azure-datalake;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-client-api;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-client-runtime;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-cloud-storage;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-common;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-openstack;3.3.4 from central in [default]
+	org.apache.hadoop.thirdparty#hadoop-shaded-guava;1.1.1 from central in [default]
+	org.apache.hadoop.thirdparty#hadoop-shaded-protobuf_3_7;1.1.1 from central in [default]
+	org.apache.httpcomponents#httpclient;4.5.14 from central in [default]
+	org.apache.httpcomponents#httpcore;4.4.16 from central in [default]
+	org.apache.kerby#kerb-admin;1.0.1 from central in [default]
+	org.apache.kerby#kerb-client;1.0.1 from central in [default]
+	org.apache.kerby#kerb-common;1.0.1 from central in [default]
+	org.apache.kerby#kerb-core;1.0.1 from central in [default]
+	org.apache.kerby#kerb-crypto;1.0.1 from central in [default]
+	org.apache.kerby#kerb-identity;1.0.1 from central in [default]
+	org.apache.kerby#kerb-server;1.0.1 from central in [default]
+	org.apache.kerby#kerb-simplekdc;1.0.1 from central in [default]
+	org.apache.kerby#kerb-util;1.0.1 from central in [default]
+	org.apache.kerby#kerby-asn1;1.0.1 from central in [default]
+	org.apache.kerby#kerby-config;1.0.1 from central in [default]
+	org.apache.kerby#kerby-pkix;1.0.1 from central in [default]
+	org.apache.kerby#kerby-util;1.0.1 from central in [default]
+	org.apache.kerby#kerby-xdr;1.0.1 from central in [default]
+	org.apache.kerby#token-provider;1.0.1 from central in [default]
+	org.apache.spark#spark-hadoop-cloud_2.12;3.5.1 from central in [default]
+	org.apache.yetus#audience-annotations;0.5.0 from central in [default]
+	org.apache.zookeeper#zookeeper;3.5.6 from central in [default]
+	org.apache.zookeeper#zookeeper-jute;3.5.6 from central in [default]
+	org.checkerframework#checker-qual;2.5.2 from central in [default]
+	org.codehaus.jackson#jackson-core-asl;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-jaxrs;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-mapper-asl;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-xc;1.9.13 from central in [default]
+	org.codehaus.jettison#jettison;1.1 from central in [default]
+	org.codehaus.mojo#animal-sniffer-annotations;1.17 from central in [default]
+	org.codehaus.woodstox#stax2-api;4.2.1 from central in [default]
+	org.eclipse.jetty#jetty-http;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-io;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-security;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-server;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-servlet;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-util;9.4.52.v20230823 from central in [default]
+	org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823 from central in [default]
+	org.eclipse.jetty#jetty-webapp;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-xml;9.4.43.v20210629 from central in [default]
+	org.ini4j#ini4j;0.5.4 from central in [default]
+	org.jdom#jdom2;2.0.6 from central in [default]
+	org.ow2.asm#asm;5.0.4 from central in [default]
+	org.slf4j#slf4j-api;2.0.7 from central in [default]
+	org.slf4j#slf4j-reload4j;1.7.36 from central in [default]
+	org.wildfly.openssl#wildfly-openssl;1.0.7.Final from central in [default]
+	org.xerial.snappy#snappy-java;1.1.10.3 from central in [default]
+	:: evicted modules:
+	org.apache.httpcomponents#httpclient;4.5.13 by [org.apache.httpcomponents#httpclient;4.5.14] in [default]
+	org.apache.httpcomponents#httpcore;4.4.13 by [org.apache.httpcomponents#httpcore;4.4.16] in [default]
+	commons-codec#commons-codec;1.15 by [commons-codec#commons-codec;1.16.0] in [default]
+	org.eclipse.jetty#jetty-util;9.4.43.v20210629 by [org.eclipse.jetty#jetty-util;9.4.52.v20230823] in [default]
+	org.eclipse.jetty#jetty-util-ajax;9.4.43.v20210629 by [org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823] in [default]
+	org.slf4j#slf4j-api;1.7.36 by [org.slf4j#slf4j-api;2.0.7] in [default]
+	org.xerial.snappy#snappy-java;1.1.8.2 by [org.xerial.snappy#snappy-java;1.1.10.3] in [default]
+	com.fasterxml.jackson.core#jackson-databind;2.12.7 by [com.fasterxml.jackson.core#jackson-databind;2.15.2] in [default]
+	com.fasterxml.jackson.core#jackson-annotations;2.12.7 by [com.fasterxml.jackson.core#jackson-annotations;2.15.2] in [default]
+	com.fasterxml.jackson.core#jackson-core;2.12.7 by [com.fasterxml.jackson.core#jackson-core;2.15.2] in [default]
+	com.google.code.findbugs#jsr305;3.0.0 by [com.google.code.findbugs#jsr305;3.0.2] in [default]
+	com.google.guava#guava;14.0.1 by [com.google.guava#guava;27.0-jre] in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |  130  |   0   |   0   |   12  ||  118  |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-12c9e3e3-9736-4de0-9983-a1d8e6299e9e
+	confs: [default]
+	0 artifacts copied, 118 already retrieved (0kB/13ms)
+26/02/06 15:37:20 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+Done
+  Cell 3/4: ''...26/02/06 15:37:24 WARN MetricsConfig: Cannot locate configuration: tried hadoop-metrics2-s3a-file-system.properties,hadoop-metrics2.properties
+26/02/06 15:37:25 WARN FileStreamSink: Assume no metadata directory. Error while looking for metadata directory in the path: s3a://lakehouse/bronze.
+org.apache.hadoop.fs.s3a.AWSBadRequestException: getFileStatus on s3a://lakehouse/bronze: com.amazonaws.services.s3.model.AmazonS3Exception: S3 API Requests must be made to API port. (Service: Amazon S3; Status Code: 400; Error Code: InvalidArgument; Request ID: 0; S3 Extended Request ID: null; Proxy: null), S3 Extended Request ID: null:InvalidArgument: S3 API Requests must be made to API port. (Service: Amazon S3; Status Code: 400; Error Code: InvalidArgument; Request ID: 0; S3 Extended Request ID: null; Proxy: null)
+	at org.apache.hadoop.fs.s3a.S3AUtils.translateException(S3AUtils.java:249)
+	at org.apache.hadoop.fs.s3a.S3AUtils.translateException(S3AUtils.java:175)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.s3GetFileStatus(S3AFileSystem.java:3858)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.innerGetFileStatus(S3AFileSystem.java:3688)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.lambda$isDirectory$35(S3AFileSystem.java:4724)
+	at org.apache.hadoop.fs.statistics.impl.IOStatisticsBinding.lambda$trackDurationOfOperation$5(IOStatisticsBinding.java:499)
+	at org.apache.hadoop.fs.statistics.impl.IOStatisticsBinding.trackDuration(IOStatisticsBinding.java:444)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.trackDurationAndSpan(S3AFileSystem.java:2337)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.trackDurationAndSpan(S3AFileSystem.java:2356)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.isDirectory(S3AFileSystem.java:4722)
+	at org.apache.spark.sql.execution.streaming.FileStreamSink$.hasMetadata(FileStreamSink.scala:54)
+	at org.apache.spark.sql.execution.datasources.DataSource.resolveRelation(DataSource.scala:366)
+	at org.apache.spark.sql.DataFrameReader.loadV1Source(DataFrameReader.scala:229)
+	at org.apache.spark.sql.DataFrameReader.$anonfun$load$2(DataFrameReader.scala:211)
+	at scala.Option.getOrElse(Option.scala:189)
+	at org.apache.spark.sql.DataFrameReader.load(DataFrameReader.scala:211)
+	at org.apache.spark.sql.DataFrameReader.json(DataFrameReader.scala:362)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:75)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:52)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at py4j.reflection.MethodInvoker.invoke(MethodInvoker.java:244)
+	at py4j.reflection.ReflectionEngine.invoke(ReflectionEngine.java:374)
+	at py4j.Gateway.invoke(Gateway.java:282)
+	at py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:132)
+	at py4j.commands.CallCommand.execute(CallCommand.java:79)
+	at py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)
+	at py4j.ClientServerConnection.run(ClientServerConnection.java:106)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: com.amazonaws.services.s3.model.AmazonS3Exception: S3 API Requests must be made to API port. (Service: Amazon S3; Status Code: 400; Error Code: InvalidArgument; Request ID: 0; S3 Extended Request ID: null; Proxy: null), S3 Extended Request ID: null
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleErrorResponse(AmazonHttpClient.java:1879)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleServiceErrorResponse(AmazonHttpClient.java:1418)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeOneRequest(AmazonHttpClient.java:1387)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeHelper(AmazonHttpClient.java:1157)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.doExecute(AmazonHttpClient.java:814)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeWithTimer(AmazonHttpClient.java:781)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.execute(AmazonHttpClient.java:755)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.access$500(AmazonHttpClient.java:715)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutionBuilderImpl.execute(AmazonHttpClient.java:697)
+	at com.amazonaws.http.AmazonHttpClient.execute(AmazonHttpClient.java:561)
+	at com.amazonaws.http.AmazonHttpClient.execute(AmazonHttpClient.java:541)
+	at com.amazonaws.services.s3.AmazonS3Client.invoke(AmazonS3Client.java:5456)
+	at com.amazonaws.services.s3.AmazonS3Client.invoke(AmazonS3Client.java:5403)
+	at com.amazonaws.services.s3.AmazonS3Client.invoke(AmazonS3Client.java:5397)
+	at com.amazonaws.services.s3.AmazonS3Client.listObjectsV2(AmazonS3Client.java:971)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.lambda$listObjects$11(S3AFileSystem.java:2595)
+	at org.apache.hadoop.fs.statistics.impl.IOStatisticsBinding.lambda$trackDurationOfOperation$5(IOStatisticsBinding.java:499)
+	at org.apache.hadoop.fs.s3a.Invoker.retryUntranslated(Invoker.java:414)
+	at org.apache.hadoop.fs.s3a.Invoker.retryUntranslated(Invoker.java:377)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.listObjects(S3AFileSystem.java:2586)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.s3GetFileStatus(S3AFileSystem.java:3832)
+	... 26 more
+Done
+  Cell 4/4: ''...Done
+
+
+[32mWatching files for changes[39m
+[32mBrowse at [39m[4m[32mhttp://0.0.0.0:6790/notebooks/python/silver_layer.html[39m[24m
+Listening on http://0.0.0.0:6790/ (http://localhost:6790/)
+[32mGET: /notebooks/python/silver_layer.html[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/4: ''...Done
+  Cell 2/4: ''...26/02/06 15:38:28 WARN Utils: Your hostname, Loki resolves to a loopback address: 127.0.1.1; using 192.168.100.36 instead (on interface enp7s0)
+26/02/06 15:38:28 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
+Ivy Default Cache set to: /home/kcat/.ivy2/cache
+The jars for the packages stored in: /home/kcat/.ivy2/jars
+org.apache.hadoop#hadoop-aws added as a dependency
+org.apache.hadoop#hadoop-common added as a dependency
+com.amazonaws#aws-java-sdk-bundle added as a dependency
+org.apache.spark#spark-hadoop-cloud_2.12 added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-6fcba781-85c4-4ffc-b79d-522db3e3f741;1.0
+	confs: [default]
+	found org.apache.hadoop#hadoop-aws;3.3.4 in central
+	found com.amazonaws#aws-java-sdk-bundle;1.12.262 in central
+	found org.wildfly.openssl#wildfly-openssl;1.0.7.Final in central
+	found org.apache.hadoop#hadoop-common;3.3.4 in central
+	found org.apache.hadoop.thirdparty#hadoop-shaded-protobuf_3_7;1.1.1 in central
+	found org.apache.hadoop#hadoop-annotations;3.3.4 in central
+	found org.apache.hadoop.thirdparty#hadoop-shaded-guava;1.1.1 in central
+	found com.google.guava#guava;27.0-jre in central
+	found com.google.guava#failureaccess;1.0 in central
+	found com.google.guava#listenablefuture;9999.0-empty-to-avoid-conflict-with-guava in central
+	found com.google.code.findbugs#jsr305;3.0.2 in central
+	found org.checkerframework#checker-qual;2.5.2 in central
+	found com.google.j2objc#j2objc-annotations;1.1 in central
+	found org.codehaus.mojo#animal-sniffer-annotations;1.17 in central
+	found commons-cli#commons-cli;1.2 in central
+	found org.apache.commons#commons-math3;3.1.1 in central
+	found org.apache.httpcomponents#httpclient;4.5.13 in central
+	found org.apache.httpcomponents#httpcore;4.4.13 in central
+	found commons-logging#commons-logging;1.1.3 in central
+	found commons-codec#commons-codec;1.15 in central
+	found commons-io#commons-io;2.8.0 in central
+	found commons-net#commons-net;3.6 in central
+	found commons-collections#commons-collections;3.2.2 in central
+	found javax.servlet#javax.servlet-api;3.1.0 in central
+	found org.eclipse.jetty#jetty-server;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-http;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-util;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-io;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-servlet;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-security;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-util-ajax;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-webapp;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-xml;9.4.43.v20210629 in central
+	found com.sun.jersey#jersey-core;1.19 in central
+	found javax.ws.rs#jsr311-api;1.1.1 in central
+	found com.sun.jersey#jersey-servlet;1.19 in central
+	found com.sun.jersey#jersey-server;1.19 in central
+	found com.sun.jersey#jersey-json;1.19 in central
+	found org.codehaus.jettison#jettison;1.1 in central
+	found com.sun.xml.bind#jaxb-impl;2.2.3-1 in central
+	found javax.xml.bind#jaxb-api;2.2.11 in central
+	found org.codehaus.jackson#jackson-core-asl;1.9.13 in central
+	found org.codehaus.jackson#jackson-mapper-asl;1.9.13 in central
+	found org.codehaus.jackson#jackson-jaxrs;1.9.13 in central
+	found org.codehaus.jackson#jackson-xc;1.9.13 in central
+	found ch.qos.reload4j#reload4j;1.2.22 in central
+	found commons-beanutils#commons-beanutils;1.9.4 in central
+	found org.apache.commons#commons-configuration2;2.1.1 in central
+	found org.apache.commons#commons-lang3;3.12.0 in central
+	found org.apache.commons#commons-text;1.4 in central
+	found org.slf4j#slf4j-api;1.7.36 in central
+	found org.slf4j#slf4j-reload4j;1.7.36 in central
+	found org.apache.avro#avro;1.7.7 in central
+	found com.thoughtworks.paranamer#paranamer;2.3 in central
+	found org.xerial.snappy#snappy-java;1.1.8.2 in central
+	found org.apache.commons#commons-compress;1.21 in central
+	found com.google.re2j#re2j;1.1 in central
+	found com.google.protobuf#protobuf-java;2.5.0 in central
+	found com.google.code.gson#gson;2.8.9 in central
+	found org.apache.hadoop#hadoop-auth;3.3.4 in central
+	found com.nimbusds#nimbus-jose-jwt;9.8.1 in central
+	found com.github.stephenc.jcip#jcip-annotations;1.0-1 in central
+	found net.minidev#json-smart;2.4.7 in central
+	found net.minidev#accessors-smart;2.4.7 in central
+	found org.ow2.asm#asm;5.0.4 in central
+	found org.apache.zookeeper#zookeeper;3.5.6 in central
+	found org.apache.zookeeper#zookeeper-jute;3.5.6 in central
+	found org.apache.yetus#audience-annotations;0.5.0 in central
+	found org.apache.curator#curator-framework;4.2.0 in central
+	found org.apache.curator#curator-client;4.2.0 in central
+	found org.apache.kerby#kerb-simplekdc;1.0.1 in central
+	found org.apache.kerby#kerb-client;1.0.1 in central
+	found org.apache.kerby#kerby-config;1.0.1 in central
+	found org.apache.kerby#kerb-core;1.0.1 in central
+	found org.apache.kerby#kerby-pkix;1.0.1 in central
+	found org.apache.kerby#kerby-asn1;1.0.1 in central
+	found org.apache.kerby#kerby-util;1.0.1 in central
+	found org.apache.kerby#kerb-common;1.0.1 in central
+	found org.apache.kerby#kerb-crypto;1.0.1 in central
+	found org.apache.kerby#kerb-util;1.0.1 in central
+	found org.apache.kerby#token-provider;1.0.1 in central
+	found org.apache.kerby#kerb-admin;1.0.1 in central
+	found org.apache.kerby#kerb-server;1.0.1 in central
+	found org.apache.kerby#kerb-identity;1.0.1 in central
+	found org.apache.kerby#kerby-xdr;1.0.1 in central
+	found com.jcraft#jsch;0.1.55 in central
+	found org.apache.curator#curator-recipes;4.2.0 in central
+	found com.fasterxml.jackson.core#jackson-databind;2.12.7 in central
+	found com.fasterxml.jackson.core#jackson-annotations;2.12.7 in central
+	found com.fasterxml.jackson.core#jackson-core;2.12.7 in central
+	found org.codehaus.woodstox#stax2-api;4.2.1 in central
+	found com.fasterxml.woodstox#woodstox-core;5.3.0 in central
+	found dnsjava#dnsjava;2.1.7 in central
+	found jakarta.activation#jakarta.activation-api;1.2.1 in central
+	found javax.servlet.jsp#jsp-api;2.1 in central
+	found org.apache.spark#spark-hadoop-cloud_2.12;3.5.1 in central
+	found org.apache.hadoop#hadoop-client-runtime;3.3.4 in central
+	found org.apache.hadoop#hadoop-client-api;3.3.4 in central
+	found org.xerial.snappy#snappy-java;1.1.10.3 in central
+	found org.slf4j#slf4j-api;2.0.7 in central
+	found com.google.cloud.bigdataoss#gcs-connector;hadoop3-2.2.14 in central
+	found joda-time#joda-time;2.12.5 in central
+	found com.fasterxml.jackson.core#jackson-databind;2.15.2 in central
+	found com.fasterxml.jackson.core#jackson-annotations;2.15.2 in central
+	found com.fasterxml.jackson.core#jackson-core;2.15.2 in central
+	found com.fasterxml.jackson.dataformat#jackson-dataformat-cbor;2.15.2 in central
+	found org.apache.httpcomponents#httpclient;4.5.14 in central
+	found org.apache.httpcomponents#httpcore;4.4.16 in central
+	found commons-codec#commons-codec;1.16.0 in central
+	found org.apache.hadoop#hadoop-azure;3.3.4 in central
+	found com.microsoft.azure#azure-storage;7.0.1 in central
+	found com.microsoft.azure#azure-keyvault-core;1.0.0 in central
+	found org.apache.hadoop#hadoop-cloud-storage;3.3.4 in central
+	found org.apache.hadoop#hadoop-aliyun;3.3.4 in central
+	found com.aliyun.oss#aliyun-sdk-oss;3.13.0 in central
+	found org.jdom#jdom2;2.0.6 in central
+	found com.aliyun#aliyun-java-sdk-core;4.5.10 in central
+	found org.ini4j#ini4j;0.5.4 in central
+	found io.opentracing#opentracing-api;0.33.0 in central
+	found io.opentracing#opentracing-util;0.33.0 in central
+	found io.opentracing#opentracing-noop;0.33.0 in central
+	found com.aliyun#aliyun-java-sdk-ram;3.1.0 in central
+	found com.aliyun#aliyun-java-sdk-kms;2.11.0 in central
+	found org.apache.hadoop#hadoop-azure-datalake;3.3.4 in central
+	found com.microsoft.azure#azure-data-lake-store-sdk;2.3.9 in central
+	found org.apache.hadoop#hadoop-openstack;3.3.4 in central
+	found org.eclipse.jetty#jetty-util;9.4.52.v20230823 in central
+	found org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823 in central
+:: resolution report :: resolve 977ms :: artifacts dl 28ms
+	:: modules in use:
+	ch.qos.reload4j#reload4j;1.2.22 from central in [default]
+	com.aliyun#aliyun-java-sdk-core;4.5.10 from central in [default]
+	com.aliyun#aliyun-java-sdk-kms;2.11.0 from central in [default]
+	com.aliyun#aliyun-java-sdk-ram;3.1.0 from central in [default]
+	com.aliyun.oss#aliyun-sdk-oss;3.13.0 from central in [default]
+	com.amazonaws#aws-java-sdk-bundle;1.12.262 from central in [default]
+	com.fasterxml.jackson.core#jackson-annotations;2.15.2 from central in [default]
+	com.fasterxml.jackson.core#jackson-core;2.15.2 from central in [default]
+	com.fasterxml.jackson.core#jackson-databind;2.15.2 from central in [default]
+	com.fasterxml.jackson.dataformat#jackson-dataformat-cbor;2.15.2 from central in [default]
+	com.fasterxml.woodstox#woodstox-core;5.3.0 from central in [default]
+	com.github.stephenc.jcip#jcip-annotations;1.0-1 from central in [default]
+	com.google.cloud.bigdataoss#gcs-connector;hadoop3-2.2.14 from central in [default]
+	com.google.code.findbugs#jsr305;3.0.2 from central in [default]
+	com.google.code.gson#gson;2.8.9 from central in [default]
+	com.google.guava#failureaccess;1.0 from central in [default]
+	com.google.guava#guava;27.0-jre from central in [default]
+	com.google.guava#listenablefuture;9999.0-empty-to-avoid-conflict-with-guava from central in [default]
+	com.google.j2objc#j2objc-annotations;1.1 from central in [default]
+	com.google.protobuf#protobuf-java;2.5.0 from central in [default]
+	com.google.re2j#re2j;1.1 from central in [default]
+	com.jcraft#jsch;0.1.55 from central in [default]
+	com.microsoft.azure#azure-data-lake-store-sdk;2.3.9 from central in [default]
+	com.microsoft.azure#azure-keyvault-core;1.0.0 from central in [default]
+	com.microsoft.azure#azure-storage;7.0.1 from central in [default]
+	com.nimbusds#nimbus-jose-jwt;9.8.1 from central in [default]
+	com.sun.jersey#jersey-core;1.19 from central in [default]
+	com.sun.jersey#jersey-json;1.19 from central in [default]
+	com.sun.jersey#jersey-server;1.19 from central in [default]
+	com.sun.jersey#jersey-servlet;1.19 from central in [default]
+	com.sun.xml.bind#jaxb-impl;2.2.3-1 from central in [default]
+	com.thoughtworks.paranamer#paranamer;2.3 from central in [default]
+	commons-beanutils#commons-beanutils;1.9.4 from central in [default]
+	commons-cli#commons-cli;1.2 from central in [default]
+	commons-codec#commons-codec;1.16.0 from central in [default]
+	commons-collections#commons-collections;3.2.2 from central in [default]
+	commons-io#commons-io;2.8.0 from central in [default]
+	commons-logging#commons-logging;1.1.3 from central in [default]
+	commons-net#commons-net;3.6 from central in [default]
+	dnsjava#dnsjava;2.1.7 from central in [default]
+	io.opentracing#opentracing-api;0.33.0 from central in [default]
+	io.opentracing#opentracing-noop;0.33.0 from central in [default]
+	io.opentracing#opentracing-util;0.33.0 from central in [default]
+	jakarta.activation#jakarta.activation-api;1.2.1 from central in [default]
+	javax.servlet#javax.servlet-api;3.1.0 from central in [default]
+	javax.servlet.jsp#jsp-api;2.1 from central in [default]
+	javax.ws.rs#jsr311-api;1.1.1 from central in [default]
+	javax.xml.bind#jaxb-api;2.2.11 from central in [default]
+	joda-time#joda-time;2.12.5 from central in [default]
+	net.minidev#accessors-smart;2.4.7 from central in [default]
+	net.minidev#json-smart;2.4.7 from central in [default]
+	org.apache.avro#avro;1.7.7 from central in [default]
+	org.apache.commons#commons-compress;1.21 from central in [default]
+	org.apache.commons#commons-configuration2;2.1.1 from central in [default]
+	org.apache.commons#commons-lang3;3.12.0 from central in [default]
+	org.apache.commons#commons-math3;3.1.1 from central in [default]
+	org.apache.commons#commons-text;1.4 from central in [default]
+	org.apache.curator#curator-client;4.2.0 from central in [default]
+	org.apache.curator#curator-framework;4.2.0 from central in [default]
+	org.apache.curator#curator-recipes;4.2.0 from central in [default]
+	org.apache.hadoop#hadoop-aliyun;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-annotations;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-auth;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-aws;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-azure;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-azure-datalake;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-client-api;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-client-runtime;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-cloud-storage;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-common;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-openstack;3.3.4 from central in [default]
+	org.apache.hadoop.thirdparty#hadoop-shaded-guava;1.1.1 from central in [default]
+	org.apache.hadoop.thirdparty#hadoop-shaded-protobuf_3_7;1.1.1 from central in [default]
+	org.apache.httpcomponents#httpclient;4.5.14 from central in [default]
+	org.apache.httpcomponents#httpcore;4.4.16 from central in [default]
+	org.apache.kerby#kerb-admin;1.0.1 from central in [default]
+	org.apache.kerby#kerb-client;1.0.1 from central in [default]
+	org.apache.kerby#kerb-common;1.0.1 from central in [default]
+	org.apache.kerby#kerb-core;1.0.1 from central in [default]
+	org.apache.kerby#kerb-crypto;1.0.1 from central in [default]
+	org.apache.kerby#kerb-identity;1.0.1 from central in [default]
+	org.apache.kerby#kerb-server;1.0.1 from central in [default]
+	org.apache.kerby#kerb-simplekdc;1.0.1 from central in [default]
+	org.apache.kerby#kerb-util;1.0.1 from central in [default]
+	org.apache.kerby#kerby-asn1;1.0.1 from central in [default]
+	org.apache.kerby#kerby-config;1.0.1 from central in [default]
+	org.apache.kerby#kerby-pkix;1.0.1 from central in [default]
+	org.apache.kerby#kerby-util;1.0.1 from central in [default]
+	org.apache.kerby#kerby-xdr;1.0.1 from central in [default]
+	org.apache.kerby#token-provider;1.0.1 from central in [default]
+	org.apache.spark#spark-hadoop-cloud_2.12;3.5.1 from central in [default]
+	org.apache.yetus#audience-annotations;0.5.0 from central in [default]
+	org.apache.zookeeper#zookeeper;3.5.6 from central in [default]
+	org.apache.zookeeper#zookeeper-jute;3.5.6 from central in [default]
+	org.checkerframework#checker-qual;2.5.2 from central in [default]
+	org.codehaus.jackson#jackson-core-asl;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-jaxrs;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-mapper-asl;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-xc;1.9.13 from central in [default]
+	org.codehaus.jettison#jettison;1.1 from central in [default]
+	org.codehaus.mojo#animal-sniffer-annotations;1.17 from central in [default]
+	org.codehaus.woodstox#stax2-api;4.2.1 from central in [default]
+	org.eclipse.jetty#jetty-http;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-io;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-security;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-server;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-servlet;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-util;9.4.52.v20230823 from central in [default]
+	org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823 from central in [default]
+	org.eclipse.jetty#jetty-webapp;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-xml;9.4.43.v20210629 from central in [default]
+	org.ini4j#ini4j;0.5.4 from central in [default]
+	org.jdom#jdom2;2.0.6 from central in [default]
+	org.ow2.asm#asm;5.0.4 from central in [default]
+	org.slf4j#slf4j-api;2.0.7 from central in [default]
+	org.slf4j#slf4j-reload4j;1.7.36 from central in [default]
+	org.wildfly.openssl#wildfly-openssl;1.0.7.Final from central in [default]
+	org.xerial.snappy#snappy-java;1.1.10.3 from central in [default]
+	:: evicted modules:
+	org.apache.httpcomponents#httpclient;4.5.13 by [org.apache.httpcomponents#httpclient;4.5.14] in [default]
+	org.apache.httpcomponents#httpcore;4.4.13 by [org.apache.httpcomponents#httpcore;4.4.16] in [default]
+	commons-codec#commons-codec;1.15 by [commons-codec#commons-codec;1.16.0] in [default]
+	org.eclipse.jetty#jetty-util;9.4.43.v20210629 by [org.eclipse.jetty#jetty-util;9.4.52.v20230823] in [default]
+	org.eclipse.jetty#jetty-util-ajax;9.4.43.v20210629 by [org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823] in [default]
+	org.slf4j#slf4j-api;1.7.36 by [org.slf4j#slf4j-api;2.0.7] in [default]
+	org.xerial.snappy#snappy-java;1.1.8.2 by [org.xerial.snappy#snappy-java;1.1.10.3] in [default]
+	com.fasterxml.jackson.core#jackson-databind;2.12.7 by [com.fasterxml.jackson.core#jackson-databind;2.15.2] in [default]
+	com.fasterxml.jackson.core#jackson-annotations;2.12.7 by [com.fasterxml.jackson.core#jackson-annotations;2.15.2] in [default]
+	com.fasterxml.jackson.core#jackson-core;2.12.7 by [com.fasterxml.jackson.core#jackson-core;2.15.2] in [default]
+	com.google.code.findbugs#jsr305;3.0.0 by [com.google.code.findbugs#jsr305;3.0.2] in [default]
+	com.google.guava#guava;14.0.1 by [com.google.guava#guava;27.0-jre] in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |  130  |   0   |   0   |   12  ||  118  |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-6fcba781-85c4-4ffc-b79d-522db3e3f741
+	confs: [default]
+	0 artifacts copied, 118 already retrieved (0kB/18ms)
+26/02/06 15:38:29 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+Done
+  Cell 3/4: ''...26/02/06 15:38:33 WARN MetricsConfig: Cannot locate configuration: tried hadoop-metrics2-s3a-file-system.properties,hadoop-metrics2.properties
+26/02/06 15:38:33 WARN FileStreamSink: Assume no metadata directory. Error while looking for metadata directory in the path: s3a://lakehouse/bronze.
+org.apache.hadoop.fs.s3a.AWSBadRequestException: getFileStatus on s3a://lakehouse/bronze: com.amazonaws.services.s3.model.AmazonS3Exception: S3 API Requests must be made to API port. (Service: Amazon S3; Status Code: 400; Error Code: InvalidArgument; Request ID: 0; S3 Extended Request ID: null; Proxy: null), S3 Extended Request ID: null:InvalidArgument: S3 API Requests must be made to API port. (Service: Amazon S3; Status Code: 400; Error Code: InvalidArgument; Request ID: 0; S3 Extended Request ID: null; Proxy: null)
+	at org.apache.hadoop.fs.s3a.S3AUtils.translateException(S3AUtils.java:249)
+	at org.apache.hadoop.fs.s3a.S3AUtils.translateException(S3AUtils.java:175)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.s3GetFileStatus(S3AFileSystem.java:3858)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.innerGetFileStatus(S3AFileSystem.java:3688)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.lambda$isDirectory$35(S3AFileSystem.java:4724)
+	at org.apache.hadoop.fs.statistics.impl.IOStatisticsBinding.lambda$trackDurationOfOperation$5(IOStatisticsBinding.java:499)
+	at org.apache.hadoop.fs.statistics.impl.IOStatisticsBinding.trackDuration(IOStatisticsBinding.java:444)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.trackDurationAndSpan(S3AFileSystem.java:2337)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.trackDurationAndSpan(S3AFileSystem.java:2356)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.isDirectory(S3AFileSystem.java:4722)
+	at org.apache.spark.sql.execution.streaming.FileStreamSink$.hasMetadata(FileStreamSink.scala:54)
+	at org.apache.spark.sql.execution.datasources.DataSource.resolveRelation(DataSource.scala:366)
+	at org.apache.spark.sql.DataFrameReader.loadV1Source(DataFrameReader.scala:229)
+	at org.apache.spark.sql.DataFrameReader.$anonfun$load$2(DataFrameReader.scala:211)
+	at scala.Option.getOrElse(Option.scala:189)
+	at org.apache.spark.sql.DataFrameReader.load(DataFrameReader.scala:211)
+	at org.apache.spark.sql.DataFrameReader.json(DataFrameReader.scala:362)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:75)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:52)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at py4j.reflection.MethodInvoker.invoke(MethodInvoker.java:244)
+	at py4j.reflection.ReflectionEngine.invoke(ReflectionEngine.java:374)
+	at py4j.Gateway.invoke(Gateway.java:282)
+	at py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:132)
+	at py4j.commands.CallCommand.execute(CallCommand.java:79)
+	at py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)
+	at py4j.ClientServerConnection.run(ClientServerConnection.java:106)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: com.amazonaws.services.s3.model.AmazonS3Exception: S3 API Requests must be made to API port. (Service: Amazon S3; Status Code: 400; Error Code: InvalidArgument; Request ID: 0; S3 Extended Request ID: null; Proxy: null), S3 Extended Request ID: null
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleErrorResponse(AmazonHttpClient.java:1879)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleServiceErrorResponse(AmazonHttpClient.java:1418)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeOneRequest(AmazonHttpClient.java:1387)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeHelper(AmazonHttpClient.java:1157)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.doExecute(AmazonHttpClient.java:814)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeWithTimer(AmazonHttpClient.java:781)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.execute(AmazonHttpClient.java:755)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.access$500(AmazonHttpClient.java:715)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutionBuilderImpl.execute(AmazonHttpClient.java:697)
+	at com.amazonaws.http.AmazonHttpClient.execute(AmazonHttpClient.java:561)
+	at com.amazonaws.http.AmazonHttpClient.execute(AmazonHttpClient.java:541)
+	at com.amazonaws.services.s3.AmazonS3Client.invoke(AmazonS3Client.java:5456)
+	at com.amazonaws.services.s3.AmazonS3Client.invoke(AmazonS3Client.java:5403)
+	at com.amazonaws.services.s3.AmazonS3Client.invoke(AmazonS3Client.java:5397)
+	at com.amazonaws.services.s3.AmazonS3Client.listObjectsV2(AmazonS3Client.java:971)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.lambda$listObjects$11(S3AFileSystem.java:2595)
+	at org.apache.hadoop.fs.statistics.impl.IOStatisticsBinding.lambda$trackDurationOfOperation$5(IOStatisticsBinding.java:499)
+	at org.apache.hadoop.fs.s3a.Invoker.retryUntranslated(Invoker.java:414)
+	at org.apache.hadoop.fs.s3a.Invoker.retryUntranslated(Invoker.java:377)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.listObjects(S3AFileSystem.java:2586)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.s3GetFileStatus(S3AFileSystem.java:3832)
+	... 26 more
+Done
+  Cell 4/4: ''...Done
+
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  title-prefix: NewsPipe Data Platform
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  title: Bronze to silver
+  
+[32mGET: /notebooks/python/silver_layer.html[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/4: ''...Done
+  Cell 2/4: ''...26/02/06 15:40:09 WARN Utils: Your hostname, Loki resolves to a loopback address: 127.0.1.1; using 192.168.100.36 instead (on interface enp7s0)
+26/02/06 15:40:09 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
+Ivy Default Cache set to: /home/kcat/.ivy2/cache
+The jars for the packages stored in: /home/kcat/.ivy2/jars
+org.apache.hadoop#hadoop-aws added as a dependency
+org.apache.hadoop#hadoop-common added as a dependency
+com.amazonaws#aws-java-sdk-bundle added as a dependency
+org.apache.spark#spark-hadoop-cloud_2.12 added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-5c24e9d1-0f6e-4ada-922c-ee3c27698674;1.0
+	confs: [default]
+	found org.apache.hadoop#hadoop-aws;3.3.4 in central
+	found com.amazonaws#aws-java-sdk-bundle;1.12.262 in central
+	found org.wildfly.openssl#wildfly-openssl;1.0.7.Final in central
+	found org.apache.hadoop#hadoop-common;3.3.4 in central
+	found org.apache.hadoop.thirdparty#hadoop-shaded-protobuf_3_7;1.1.1 in central
+	found org.apache.hadoop#hadoop-annotations;3.3.4 in central
+	found org.apache.hadoop.thirdparty#hadoop-shaded-guava;1.1.1 in central
+	found com.google.guava#guava;27.0-jre in central
+	found com.google.guava#failureaccess;1.0 in central
+	found com.google.guava#listenablefuture;9999.0-empty-to-avoid-conflict-with-guava in central
+	found com.google.code.findbugs#jsr305;3.0.2 in central
+	found org.checkerframework#checker-qual;2.5.2 in central
+	found com.google.j2objc#j2objc-annotations;1.1 in central
+	found org.codehaus.mojo#animal-sniffer-annotations;1.17 in central
+	found commons-cli#commons-cli;1.2 in central
+	found org.apache.commons#commons-math3;3.1.1 in central
+	found org.apache.httpcomponents#httpclient;4.5.13 in central
+	found org.apache.httpcomponents#httpcore;4.4.13 in central
+	found commons-logging#commons-logging;1.1.3 in central
+	found commons-codec#commons-codec;1.15 in central
+	found commons-io#commons-io;2.8.0 in central
+	found commons-net#commons-net;3.6 in central
+	found commons-collections#commons-collections;3.2.2 in central
+	found javax.servlet#javax.servlet-api;3.1.0 in central
+	found org.eclipse.jetty#jetty-server;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-http;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-util;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-io;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-servlet;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-security;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-util-ajax;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-webapp;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-xml;9.4.43.v20210629 in central
+	found com.sun.jersey#jersey-core;1.19 in central
+	found javax.ws.rs#jsr311-api;1.1.1 in central
+	found com.sun.jersey#jersey-servlet;1.19 in central
+	found com.sun.jersey#jersey-server;1.19 in central
+	found com.sun.jersey#jersey-json;1.19 in central
+	found org.codehaus.jettison#jettison;1.1 in central
+	found com.sun.xml.bind#jaxb-impl;2.2.3-1 in central
+	found javax.xml.bind#jaxb-api;2.2.11 in central
+	found org.codehaus.jackson#jackson-core-asl;1.9.13 in central
+	found org.codehaus.jackson#jackson-mapper-asl;1.9.13 in central
+	found org.codehaus.jackson#jackson-jaxrs;1.9.13 in central
+	found org.codehaus.jackson#jackson-xc;1.9.13 in central
+	found ch.qos.reload4j#reload4j;1.2.22 in central
+	found commons-beanutils#commons-beanutils;1.9.4 in central
+	found org.apache.commons#commons-configuration2;2.1.1 in central
+	found org.apache.commons#commons-lang3;3.12.0 in central
+	found org.apache.commons#commons-text;1.4 in central
+	found org.slf4j#slf4j-api;1.7.36 in central
+	found org.slf4j#slf4j-reload4j;1.7.36 in central
+	found org.apache.avro#avro;1.7.7 in central
+	found com.thoughtworks.paranamer#paranamer;2.3 in central
+	found org.xerial.snappy#snappy-java;1.1.8.2 in central
+	found org.apache.commons#commons-compress;1.21 in central
+	found com.google.re2j#re2j;1.1 in central
+	found com.google.protobuf#protobuf-java;2.5.0 in central
+	found com.google.code.gson#gson;2.8.9 in central
+	found org.apache.hadoop#hadoop-auth;3.3.4 in central
+	found com.nimbusds#nimbus-jose-jwt;9.8.1 in central
+	found com.github.stephenc.jcip#jcip-annotations;1.0-1 in central
+	found net.minidev#json-smart;2.4.7 in central
+	found net.minidev#accessors-smart;2.4.7 in central
+	found org.ow2.asm#asm;5.0.4 in central
+	found org.apache.zookeeper#zookeeper;3.5.6 in central
+	found org.apache.zookeeper#zookeeper-jute;3.5.6 in central
+	found org.apache.yetus#audience-annotations;0.5.0 in central
+	found org.apache.curator#curator-framework;4.2.0 in central
+	found org.apache.curator#curator-client;4.2.0 in central
+	found org.apache.kerby#kerb-simplekdc;1.0.1 in central
+	found org.apache.kerby#kerb-client;1.0.1 in central
+	found org.apache.kerby#kerby-config;1.0.1 in central
+	found org.apache.kerby#kerb-core;1.0.1 in central
+	found org.apache.kerby#kerby-pkix;1.0.1 in central
+	found org.apache.kerby#kerby-asn1;1.0.1 in central
+	found org.apache.kerby#kerby-util;1.0.1 in central
+	found org.apache.kerby#kerb-common;1.0.1 in central
+	found org.apache.kerby#kerb-crypto;1.0.1 in central
+	found org.apache.kerby#kerb-util;1.0.1 in central
+	found org.apache.kerby#token-provider;1.0.1 in central
+	found org.apache.kerby#kerb-admin;1.0.1 in central
+	found org.apache.kerby#kerb-server;1.0.1 in central
+	found org.apache.kerby#kerb-identity;1.0.1 in central
+	found org.apache.kerby#kerby-xdr;1.0.1 in central
+	found com.jcraft#jsch;0.1.55 in central
+	found org.apache.curator#curator-recipes;4.2.0 in central
+	found com.fasterxml.jackson.core#jackson-databind;2.12.7 in central
+	found com.fasterxml.jackson.core#jackson-annotations;2.12.7 in central
+	found com.fasterxml.jackson.core#jackson-core;2.12.7 in central
+	found org.codehaus.woodstox#stax2-api;4.2.1 in central
+	found com.fasterxml.woodstox#woodstox-core;5.3.0 in central
+	found dnsjava#dnsjava;2.1.7 in central
+	found jakarta.activation#jakarta.activation-api;1.2.1 in central
+	found javax.servlet.jsp#jsp-api;2.1 in central
+	found org.apache.spark#spark-hadoop-cloud_2.12;3.5.1 in central
+	found org.apache.hadoop#hadoop-client-runtime;3.3.4 in central
+	found org.apache.hadoop#hadoop-client-api;3.3.4 in central
+	found org.xerial.snappy#snappy-java;1.1.10.3 in central
+	found org.slf4j#slf4j-api;2.0.7 in central
+	found com.google.cloud.bigdataoss#gcs-connector;hadoop3-2.2.14 in central
+	found joda-time#joda-time;2.12.5 in central
+	found com.fasterxml.jackson.core#jackson-databind;2.15.2 in central
+	found com.fasterxml.jackson.core#jackson-annotations;2.15.2 in central
+	found com.fasterxml.jackson.core#jackson-core;2.15.2 in central
+	found com.fasterxml.jackson.dataformat#jackson-dataformat-cbor;2.15.2 in central
+	found org.apache.httpcomponents#httpclient;4.5.14 in central
+	found org.apache.httpcomponents#httpcore;4.4.16 in central
+	found commons-codec#commons-codec;1.16.0 in central
+	found org.apache.hadoop#hadoop-azure;3.3.4 in central
+	found com.microsoft.azure#azure-storage;7.0.1 in central
+	found com.microsoft.azure#azure-keyvault-core;1.0.0 in central
+	found org.apache.hadoop#hadoop-cloud-storage;3.3.4 in central
+	found org.apache.hadoop#hadoop-aliyun;3.3.4 in central
+	found com.aliyun.oss#aliyun-sdk-oss;3.13.0 in central
+	found org.jdom#jdom2;2.0.6 in central
+	found com.aliyun#aliyun-java-sdk-core;4.5.10 in central
+	found org.ini4j#ini4j;0.5.4 in central
+	found io.opentracing#opentracing-api;0.33.0 in central
+	found io.opentracing#opentracing-util;0.33.0 in central
+	found io.opentracing#opentracing-noop;0.33.0 in central
+	found com.aliyun#aliyun-java-sdk-ram;3.1.0 in central
+	found com.aliyun#aliyun-java-sdk-kms;2.11.0 in central
+	found org.apache.hadoop#hadoop-azure-datalake;3.3.4 in central
+	found com.microsoft.azure#azure-data-lake-store-sdk;2.3.9 in central
+	found org.apache.hadoop#hadoop-openstack;3.3.4 in central
+	found org.eclipse.jetty#jetty-util;9.4.52.v20230823 in central
+	found org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823 in central
+:: resolution report :: resolve 972ms :: artifacts dl 24ms
+	:: modules in use:
+	ch.qos.reload4j#reload4j;1.2.22 from central in [default]
+	com.aliyun#aliyun-java-sdk-core;4.5.10 from central in [default]
+	com.aliyun#aliyun-java-sdk-kms;2.11.0 from central in [default]
+	com.aliyun#aliyun-java-sdk-ram;3.1.0 from central in [default]
+	com.aliyun.oss#aliyun-sdk-oss;3.13.0 from central in [default]
+	com.amazonaws#aws-java-sdk-bundle;1.12.262 from central in [default]
+	com.fasterxml.jackson.core#jackson-annotations;2.15.2 from central in [default]
+	com.fasterxml.jackson.core#jackson-core;2.15.2 from central in [default]
+	com.fasterxml.jackson.core#jackson-databind;2.15.2 from central in [default]
+	com.fasterxml.jackson.dataformat#jackson-dataformat-cbor;2.15.2 from central in [default]
+	com.fasterxml.woodstox#woodstox-core;5.3.0 from central in [default]
+	com.github.stephenc.jcip#jcip-annotations;1.0-1 from central in [default]
+	com.google.cloud.bigdataoss#gcs-connector;hadoop3-2.2.14 from central in [default]
+	com.google.code.findbugs#jsr305;3.0.2 from central in [default]
+	com.google.code.gson#gson;2.8.9 from central in [default]
+	com.google.guava#failureaccess;1.0 from central in [default]
+	com.google.guava#guava;27.0-jre from central in [default]
+	com.google.guava#listenablefuture;9999.0-empty-to-avoid-conflict-with-guava from central in [default]
+	com.google.j2objc#j2objc-annotations;1.1 from central in [default]
+	com.google.protobuf#protobuf-java;2.5.0 from central in [default]
+	com.google.re2j#re2j;1.1 from central in [default]
+	com.jcraft#jsch;0.1.55 from central in [default]
+	com.microsoft.azure#azure-data-lake-store-sdk;2.3.9 from central in [default]
+	com.microsoft.azure#azure-keyvault-core;1.0.0 from central in [default]
+	com.microsoft.azure#azure-storage;7.0.1 from central in [default]
+	com.nimbusds#nimbus-jose-jwt;9.8.1 from central in [default]
+	com.sun.jersey#jersey-core;1.19 from central in [default]
+	com.sun.jersey#jersey-json;1.19 from central in [default]
+	com.sun.jersey#jersey-server;1.19 from central in [default]
+	com.sun.jersey#jersey-servlet;1.19 from central in [default]
+	com.sun.xml.bind#jaxb-impl;2.2.3-1 from central in [default]
+	com.thoughtworks.paranamer#paranamer;2.3 from central in [default]
+	commons-beanutils#commons-beanutils;1.9.4 from central in [default]
+	commons-cli#commons-cli;1.2 from central in [default]
+	commons-codec#commons-codec;1.16.0 from central in [default]
+	commons-collections#commons-collections;3.2.2 from central in [default]
+	commons-io#commons-io;2.8.0 from central in [default]
+	commons-logging#commons-logging;1.1.3 from central in [default]
+	commons-net#commons-net;3.6 from central in [default]
+	dnsjava#dnsjava;2.1.7 from central in [default]
+	io.opentracing#opentracing-api;0.33.0 from central in [default]
+	io.opentracing#opentracing-noop;0.33.0 from central in [default]
+	io.opentracing#opentracing-util;0.33.0 from central in [default]
+	jakarta.activation#jakarta.activation-api;1.2.1 from central in [default]
+	javax.servlet#javax.servlet-api;3.1.0 from central in [default]
+	javax.servlet.jsp#jsp-api;2.1 from central in [default]
+	javax.ws.rs#jsr311-api;1.1.1 from central in [default]
+	javax.xml.bind#jaxb-api;2.2.11 from central in [default]
+	joda-time#joda-time;2.12.5 from central in [default]
+	net.minidev#accessors-smart;2.4.7 from central in [default]
+	net.minidev#json-smart;2.4.7 from central in [default]
+	org.apache.avro#avro;1.7.7 from central in [default]
+	org.apache.commons#commons-compress;1.21 from central in [default]
+	org.apache.commons#commons-configuration2;2.1.1 from central in [default]
+	org.apache.commons#commons-lang3;3.12.0 from central in [default]
+	org.apache.commons#commons-math3;3.1.1 from central in [default]
+	org.apache.commons#commons-text;1.4 from central in [default]
+	org.apache.curator#curator-client;4.2.0 from central in [default]
+	org.apache.curator#curator-framework;4.2.0 from central in [default]
+	org.apache.curator#curator-recipes;4.2.0 from central in [default]
+	org.apache.hadoop#hadoop-aliyun;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-annotations;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-auth;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-aws;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-azure;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-azure-datalake;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-client-api;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-client-runtime;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-cloud-storage;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-common;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-openstack;3.3.4 from central in [default]
+	org.apache.hadoop.thirdparty#hadoop-shaded-guava;1.1.1 from central in [default]
+	org.apache.hadoop.thirdparty#hadoop-shaded-protobuf_3_7;1.1.1 from central in [default]
+	org.apache.httpcomponents#httpclient;4.5.14 from central in [default]
+	org.apache.httpcomponents#httpcore;4.4.16 from central in [default]
+	org.apache.kerby#kerb-admin;1.0.1 from central in [default]
+	org.apache.kerby#kerb-client;1.0.1 from central in [default]
+	org.apache.kerby#kerb-common;1.0.1 from central in [default]
+	org.apache.kerby#kerb-core;1.0.1 from central in [default]
+	org.apache.kerby#kerb-crypto;1.0.1 from central in [default]
+	org.apache.kerby#kerb-identity;1.0.1 from central in [default]
+	org.apache.kerby#kerb-server;1.0.1 from central in [default]
+	org.apache.kerby#kerb-simplekdc;1.0.1 from central in [default]
+	org.apache.kerby#kerb-util;1.0.1 from central in [default]
+	org.apache.kerby#kerby-asn1;1.0.1 from central in [default]
+	org.apache.kerby#kerby-config;1.0.1 from central in [default]
+	org.apache.kerby#kerby-pkix;1.0.1 from central in [default]
+	org.apache.kerby#kerby-util;1.0.1 from central in [default]
+	org.apache.kerby#kerby-xdr;1.0.1 from central in [default]
+	org.apache.kerby#token-provider;1.0.1 from central in [default]
+	org.apache.spark#spark-hadoop-cloud_2.12;3.5.1 from central in [default]
+	org.apache.yetus#audience-annotations;0.5.0 from central in [default]
+	org.apache.zookeeper#zookeeper;3.5.6 from central in [default]
+	org.apache.zookeeper#zookeeper-jute;3.5.6 from central in [default]
+	org.checkerframework#checker-qual;2.5.2 from central in [default]
+	org.codehaus.jackson#jackson-core-asl;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-jaxrs;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-mapper-asl;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-xc;1.9.13 from central in [default]
+	org.codehaus.jettison#jettison;1.1 from central in [default]
+	org.codehaus.mojo#animal-sniffer-annotations;1.17 from central in [default]
+	org.codehaus.woodstox#stax2-api;4.2.1 from central in [default]
+	org.eclipse.jetty#jetty-http;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-io;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-security;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-server;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-servlet;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-util;9.4.52.v20230823 from central in [default]
+	org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823 from central in [default]
+	org.eclipse.jetty#jetty-webapp;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-xml;9.4.43.v20210629 from central in [default]
+	org.ini4j#ini4j;0.5.4 from central in [default]
+	org.jdom#jdom2;2.0.6 from central in [default]
+	org.ow2.asm#asm;5.0.4 from central in [default]
+	org.slf4j#slf4j-api;2.0.7 from central in [default]
+	org.slf4j#slf4j-reload4j;1.7.36 from central in [default]
+	org.wildfly.openssl#wildfly-openssl;1.0.7.Final from central in [default]
+	org.xerial.snappy#snappy-java;1.1.10.3 from central in [default]
+	:: evicted modules:
+	org.apache.httpcomponents#httpclient;4.5.13 by [org.apache.httpcomponents#httpclient;4.5.14] in [default]
+	org.apache.httpcomponents#httpcore;4.4.13 by [org.apache.httpcomponents#httpcore;4.4.16] in [default]
+	commons-codec#commons-codec;1.15 by [commons-codec#commons-codec;1.16.0] in [default]
+	org.eclipse.jetty#jetty-util;9.4.43.v20210629 by [org.eclipse.jetty#jetty-util;9.4.52.v20230823] in [default]
+	org.eclipse.jetty#jetty-util-ajax;9.4.43.v20210629 by [org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823] in [default]
+	org.slf4j#slf4j-api;1.7.36 by [org.slf4j#slf4j-api;2.0.7] in [default]
+	org.xerial.snappy#snappy-java;1.1.8.2 by [org.xerial.snappy#snappy-java;1.1.10.3] in [default]
+	com.fasterxml.jackson.core#jackson-databind;2.12.7 by [com.fasterxml.jackson.core#jackson-databind;2.15.2] in [default]
+	com.fasterxml.jackson.core#jackson-annotations;2.12.7 by [com.fasterxml.jackson.core#jackson-annotations;2.15.2] in [default]
+	com.fasterxml.jackson.core#jackson-core;2.12.7 by [com.fasterxml.jackson.core#jackson-core;2.15.2] in [default]
+	com.google.code.findbugs#jsr305;3.0.0 by [com.google.code.findbugs#jsr305;3.0.2] in [default]
+	com.google.guava#guava;14.0.1 by [com.google.guava#guava;27.0-jre] in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |  130  |   0   |   0   |   12  ||  118  |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-5c24e9d1-0f6e-4ada-922c-ee3c27698674
+	confs: [default]
+	0 artifacts copied, 118 already retrieved (0kB/13ms)
+26/02/06 15:40:10 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+Done
+  Cell 3/4: ''...26/02/06 15:40:14 WARN MetricsConfig: Cannot locate configuration: tried hadoop-metrics2-s3a-file-system.properties,hadoop-metrics2.properties
+26/02/06 15:40:14 WARN FileStreamSink: Assume no metadata directory. Error while looking for metadata directory in the path: s3a://lakehouse/bronze.
+org.apache.hadoop.fs.s3a.AWSBadRequestException: getFileStatus on s3a://lakehouse/bronze: com.amazonaws.services.s3.model.AmazonS3Exception: S3 API Requests must be made to API port. (Service: Amazon S3; Status Code: 400; Error Code: InvalidArgument; Request ID: 0; S3 Extended Request ID: null; Proxy: null), S3 Extended Request ID: null:InvalidArgument: S3 API Requests must be made to API port. (Service: Amazon S3; Status Code: 400; Error Code: InvalidArgument; Request ID: 0; S3 Extended Request ID: null; Proxy: null)
+	at org.apache.hadoop.fs.s3a.S3AUtils.translateException(S3AUtils.java:249)
+	at org.apache.hadoop.fs.s3a.S3AUtils.translateException(S3AUtils.java:175)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.s3GetFileStatus(S3AFileSystem.java:3858)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.innerGetFileStatus(S3AFileSystem.java:3688)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.lambda$isDirectory$35(S3AFileSystem.java:4724)
+	at org.apache.hadoop.fs.statistics.impl.IOStatisticsBinding.lambda$trackDurationOfOperation$5(IOStatisticsBinding.java:499)
+	at org.apache.hadoop.fs.statistics.impl.IOStatisticsBinding.trackDuration(IOStatisticsBinding.java:444)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.trackDurationAndSpan(S3AFileSystem.java:2337)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.trackDurationAndSpan(S3AFileSystem.java:2356)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.isDirectory(S3AFileSystem.java:4722)
+	at org.apache.spark.sql.execution.streaming.FileStreamSink$.hasMetadata(FileStreamSink.scala:54)
+	at org.apache.spark.sql.execution.datasources.DataSource.resolveRelation(DataSource.scala:366)
+	at org.apache.spark.sql.DataFrameReader.loadV1Source(DataFrameReader.scala:229)
+	at org.apache.spark.sql.DataFrameReader.$anonfun$load$2(DataFrameReader.scala:211)
+	at scala.Option.getOrElse(Option.scala:189)
+	at org.apache.spark.sql.DataFrameReader.load(DataFrameReader.scala:211)
+	at org.apache.spark.sql.DataFrameReader.json(DataFrameReader.scala:362)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:75)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:52)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at py4j.reflection.MethodInvoker.invoke(MethodInvoker.java:244)
+	at py4j.reflection.ReflectionEngine.invoke(ReflectionEngine.java:374)
+	at py4j.Gateway.invoke(Gateway.java:282)
+	at py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:132)
+	at py4j.commands.CallCommand.execute(CallCommand.java:79)
+	at py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)
+	at py4j.ClientServerConnection.run(ClientServerConnection.java:106)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: com.amazonaws.services.s3.model.AmazonS3Exception: S3 API Requests must be made to API port. (Service: Amazon S3; Status Code: 400; Error Code: InvalidArgument; Request ID: 0; S3 Extended Request ID: null; Proxy: null), S3 Extended Request ID: null
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleErrorResponse(AmazonHttpClient.java:1879)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleServiceErrorResponse(AmazonHttpClient.java:1418)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeOneRequest(AmazonHttpClient.java:1387)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeHelper(AmazonHttpClient.java:1157)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.doExecute(AmazonHttpClient.java:814)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeWithTimer(AmazonHttpClient.java:781)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.execute(AmazonHttpClient.java:755)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutor.access$500(AmazonHttpClient.java:715)
+	at com.amazonaws.http.AmazonHttpClient$RequestExecutionBuilderImpl.execute(AmazonHttpClient.java:697)
+	at com.amazonaws.http.AmazonHttpClient.execute(AmazonHttpClient.java:561)
+	at com.amazonaws.http.AmazonHttpClient.execute(AmazonHttpClient.java:541)
+	at com.amazonaws.services.s3.AmazonS3Client.invoke(AmazonS3Client.java:5456)
+	at com.amazonaws.services.s3.AmazonS3Client.invoke(AmazonS3Client.java:5403)
+	at com.amazonaws.services.s3.AmazonS3Client.invoke(AmazonS3Client.java:5397)
+	at com.amazonaws.services.s3.AmazonS3Client.listObjectsV2(AmazonS3Client.java:971)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.lambda$listObjects$11(S3AFileSystem.java:2595)
+	at org.apache.hadoop.fs.statistics.impl.IOStatisticsBinding.lambda$trackDurationOfOperation$5(IOStatisticsBinding.java:499)
+	at org.apache.hadoop.fs.s3a.Invoker.retryUntranslated(Invoker.java:414)
+	at org.apache.hadoop.fs.s3a.Invoker.retryUntranslated(Invoker.java:377)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.listObjects(S3AFileSystem.java:2586)
+	at org.apache.hadoop.fs.s3a.S3AFileSystem.s3GetFileStatus(S3AFileSystem.java:3832)
+	... 26 more
+Done
+  Cell 4/4: ''...Done
+
+26/02/06 15:40:14 WARN JavaUtils: Attempt to delete using native Unix OS command failed for path = /tmp/spark-98b69e6e-6d59-4d8d-a59c-ca1295c84031/userFiles-a8cc7a04-d784-4102-9710-1cf65593339f. Falling back to Java IO way
+java.io.IOException: Failed to delete: /tmp/spark-98b69e6e-6d59-4d8d-a59c-ca1295c84031/userFiles-a8cc7a04-d784-4102-9710-1cf65593339f
+	at org.apache.spark.network.util.JavaUtils.deleteRecursivelyUsingUnixNative(JavaUtils.java:173)
+	at org.apache.spark.network.util.JavaUtils.deleteRecursively(JavaUtils.java:109)
+	at org.apache.spark.network.util.JavaUtils.deleteRecursively(JavaUtils.java:90)
+	at org.apache.spark.util.SparkFileUtils.deleteRecursively(SparkFileUtils.scala:121)
+	at org.apache.spark.util.SparkFileUtils.deleteRecursively$(SparkFileUtils.scala:120)
+	at org.apache.spark.util.Utils$.deleteRecursively(Utils.scala:1126)
+	at org.apache.spark.SparkEnv.stop(SparkEnv.scala:108)
+	at org.apache.spark.SparkContext.$anonfun$stop$25(SparkContext.scala:2310)
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1375)
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2310)
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2216)
+	at org.apache.spark.SparkContext.$anonfun$new$34(SparkContext.scala:686)
+	at org.apache.spark.util.SparkShutdownHook.run(ShutdownHookManager.scala:214)
+	at org.apache.spark.util.SparkShutdownHookManager.$anonfun$runAll$2(ShutdownHookManager.scala:188)
+	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+	at org.apache.spark.util.Utils$.logUncaughtExceptions(Utils.scala:1928)
+	at org.apache.spark.util.SparkShutdownHookManager.$anonfun$runAll$1(ShutdownHookManager.scala:188)
+	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+	at scala.util.Try$.apply(Try.scala:213)
+	at org.apache.spark.util.SparkShutdownHookManager.runAll(ShutdownHookManager.scala:188)
+	at org.apache.spark.util.SparkShutdownHookManager$$anon$2.run(ShutdownHookManager.scala:178)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  title-prefix: NewsPipe Data Platform
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  title: Bronze to silver
+  
+[32mGET: /notebooks/python/silver_layer.html[39m
+
+Starting python3 kernel...
+
+The jupyter-cache package is required for cached execution
+[33mWARN: Error encountered when rendering files[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/4: ''...Done
+  Cell 2/4: ''...26/02/06 15:42:21 WARN Utils: Your hostname, Loki resolves to a loopback address: 127.0.1.1; using 192.168.100.36 instead (on interface enp7s0)
+26/02/06 15:42:21 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
+Ivy Default Cache set to: /home/kcat/.ivy2/cache
+The jars for the packages stored in: /home/kcat/.ivy2/jars
+org.apache.hadoop#hadoop-aws added as a dependency
+org.apache.hadoop#hadoop-common added as a dependency
+com.amazonaws#aws-java-sdk-bundle added as a dependency
+org.apache.spark#spark-hadoop-cloud_2.12 added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-9be0e221-fe09-42cc-97f7-48684101580d;1.0
+	confs: [default]
+	found org.apache.hadoop#hadoop-aws;3.3.4 in central
+	found com.amazonaws#aws-java-sdk-bundle;1.12.262 in central
+	found org.wildfly.openssl#wildfly-openssl;1.0.7.Final in central
+	found org.apache.hadoop#hadoop-common;3.3.4 in central
+	found org.apache.hadoop.thirdparty#hadoop-shaded-protobuf_3_7;1.1.1 in central
+	found org.apache.hadoop#hadoop-annotations;3.3.4 in central
+	found org.apache.hadoop.thirdparty#hadoop-shaded-guava;1.1.1 in central
+	found com.google.guava#guava;27.0-jre in central
+	found com.google.guava#failureaccess;1.0 in central
+	found com.google.guava#listenablefuture;9999.0-empty-to-avoid-conflict-with-guava in central
+	found com.google.code.findbugs#jsr305;3.0.2 in central
+	found org.checkerframework#checker-qual;2.5.2 in central
+	found com.google.j2objc#j2objc-annotations;1.1 in central
+	found org.codehaus.mojo#animal-sniffer-annotations;1.17 in central
+	found commons-cli#commons-cli;1.2 in central
+	found org.apache.commons#commons-math3;3.1.1 in central
+	found org.apache.httpcomponents#httpclient;4.5.13 in central
+	found org.apache.httpcomponents#httpcore;4.4.13 in central
+	found commons-logging#commons-logging;1.1.3 in central
+	found commons-codec#commons-codec;1.15 in central
+	found commons-io#commons-io;2.8.0 in central
+	found commons-net#commons-net;3.6 in central
+	found commons-collections#commons-collections;3.2.2 in central
+	found javax.servlet#javax.servlet-api;3.1.0 in central
+	found org.eclipse.jetty#jetty-server;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-http;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-util;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-io;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-servlet;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-security;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-util-ajax;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-webapp;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-xml;9.4.43.v20210629 in central
+	found com.sun.jersey#jersey-core;1.19 in central
+	found javax.ws.rs#jsr311-api;1.1.1 in central
+	found com.sun.jersey#jersey-servlet;1.19 in central
+	found com.sun.jersey#jersey-server;1.19 in central
+	found com.sun.jersey#jersey-json;1.19 in central
+	found org.codehaus.jettison#jettison;1.1 in central
+	found com.sun.xml.bind#jaxb-impl;2.2.3-1 in central
+	found javax.xml.bind#jaxb-api;2.2.11 in central
+	found org.codehaus.jackson#jackson-core-asl;1.9.13 in central
+	found org.codehaus.jackson#jackson-mapper-asl;1.9.13 in central
+	found org.codehaus.jackson#jackson-jaxrs;1.9.13 in central
+	found org.codehaus.jackson#jackson-xc;1.9.13 in central
+	found ch.qos.reload4j#reload4j;1.2.22 in central
+	found commons-beanutils#commons-beanutils;1.9.4 in central
+	found org.apache.commons#commons-configuration2;2.1.1 in central
+	found org.apache.commons#commons-lang3;3.12.0 in central
+	found org.apache.commons#commons-text;1.4 in central
+	found org.slf4j#slf4j-api;1.7.36 in central
+	found org.slf4j#slf4j-reload4j;1.7.36 in central
+	found org.apache.avro#avro;1.7.7 in central
+	found com.thoughtworks.paranamer#paranamer;2.3 in central
+	found org.xerial.snappy#snappy-java;1.1.8.2 in central
+	found org.apache.commons#commons-compress;1.21 in central
+	found com.google.re2j#re2j;1.1 in central
+	found com.google.protobuf#protobuf-java;2.5.0 in central
+	found com.google.code.gson#gson;2.8.9 in central
+	found org.apache.hadoop#hadoop-auth;3.3.4 in central
+	found com.nimbusds#nimbus-jose-jwt;9.8.1 in central
+	found com.github.stephenc.jcip#jcip-annotations;1.0-1 in central
+	found net.minidev#json-smart;2.4.7 in central
+	found net.minidev#accessors-smart;2.4.7 in central
+	found org.ow2.asm#asm;5.0.4 in central
+	found org.apache.zookeeper#zookeeper;3.5.6 in central
+	found org.apache.zookeeper#zookeeper-jute;3.5.6 in central
+	found org.apache.yetus#audience-annotations;0.5.0 in central
+	found org.apache.curator#curator-framework;4.2.0 in central
+	found org.apache.curator#curator-client;4.2.0 in central
+	found org.apache.kerby#kerb-simplekdc;1.0.1 in central
+	found org.apache.kerby#kerb-client;1.0.1 in central
+	found org.apache.kerby#kerby-config;1.0.1 in central
+	found org.apache.kerby#kerb-core;1.0.1 in central
+	found org.apache.kerby#kerby-pkix;1.0.1 in central
+	found org.apache.kerby#kerby-asn1;1.0.1 in central
+	found org.apache.kerby#kerby-util;1.0.1 in central
+	found org.apache.kerby#kerb-common;1.0.1 in central
+	found org.apache.kerby#kerb-crypto;1.0.1 in central
+	found org.apache.kerby#kerb-util;1.0.1 in central
+	found org.apache.kerby#token-provider;1.0.1 in central
+	found org.apache.kerby#kerb-admin;1.0.1 in central
+	found org.apache.kerby#kerb-server;1.0.1 in central
+	found org.apache.kerby#kerb-identity;1.0.1 in central
+	found org.apache.kerby#kerby-xdr;1.0.1 in central
+	found com.jcraft#jsch;0.1.55 in central
+	found org.apache.curator#curator-recipes;4.2.0 in central
+	found com.fasterxml.jackson.core#jackson-databind;2.12.7 in central
+	found com.fasterxml.jackson.core#jackson-annotations;2.12.7 in central
+	found com.fasterxml.jackson.core#jackson-core;2.12.7 in central
+	found org.codehaus.woodstox#stax2-api;4.2.1 in central
+	found com.fasterxml.woodstox#woodstox-core;5.3.0 in central
+	found dnsjava#dnsjava;2.1.7 in central
+	found jakarta.activation#jakarta.activation-api;1.2.1 in central
+	found javax.servlet.jsp#jsp-api;2.1 in central
+	found org.apache.spark#spark-hadoop-cloud_2.12;3.5.1 in central
+	found org.apache.hadoop#hadoop-client-runtime;3.3.4 in central
+	found org.apache.hadoop#hadoop-client-api;3.3.4 in central
+	found org.xerial.snappy#snappy-java;1.1.10.3 in central
+	found org.slf4j#slf4j-api;2.0.7 in central
+	found com.google.cloud.bigdataoss#gcs-connector;hadoop3-2.2.14 in central
+	found joda-time#joda-time;2.12.5 in central
+	found com.fasterxml.jackson.core#jackson-databind;2.15.2 in central
+	found com.fasterxml.jackson.core#jackson-annotations;2.15.2 in central
+	found com.fasterxml.jackson.core#jackson-core;2.15.2 in central
+	found com.fasterxml.jackson.dataformat#jackson-dataformat-cbor;2.15.2 in central
+	found org.apache.httpcomponents#httpclient;4.5.14 in central
+	found org.apache.httpcomponents#httpcore;4.4.16 in central
+	found commons-codec#commons-codec;1.16.0 in central
+	found org.apache.hadoop#hadoop-azure;3.3.4 in central
+	found com.microsoft.azure#azure-storage;7.0.1 in central
+	found com.microsoft.azure#azure-keyvault-core;1.0.0 in central
+	found org.apache.hadoop#hadoop-cloud-storage;3.3.4 in central
+	found org.apache.hadoop#hadoop-aliyun;3.3.4 in central
+	found com.aliyun.oss#aliyun-sdk-oss;3.13.0 in central
+	found org.jdom#jdom2;2.0.6 in central
+	found com.aliyun#aliyun-java-sdk-core;4.5.10 in central
+	found org.ini4j#ini4j;0.5.4 in central
+	found io.opentracing#opentracing-api;0.33.0 in central
+	found io.opentracing#opentracing-util;0.33.0 in central
+	found io.opentracing#opentracing-noop;0.33.0 in central
+	found com.aliyun#aliyun-java-sdk-ram;3.1.0 in central
+	found com.aliyun#aliyun-java-sdk-kms;2.11.0 in central
+	found org.apache.hadoop#hadoop-azure-datalake;3.3.4 in central
+	found com.microsoft.azure#azure-data-lake-store-sdk;2.3.9 in central
+	found org.apache.hadoop#hadoop-openstack;3.3.4 in central
+	found org.eclipse.jetty#jetty-util;9.4.52.v20230823 in central
+	found org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823 in central
+:: resolution report :: resolve 966ms :: artifacts dl 24ms
+	:: modules in use:
+	ch.qos.reload4j#reload4j;1.2.22 from central in [default]
+	com.aliyun#aliyun-java-sdk-core;4.5.10 from central in [default]
+	com.aliyun#aliyun-java-sdk-kms;2.11.0 from central in [default]
+	com.aliyun#aliyun-java-sdk-ram;3.1.0 from central in [default]
+	com.aliyun.oss#aliyun-sdk-oss;3.13.0 from central in [default]
+	com.amazonaws#aws-java-sdk-bundle;1.12.262 from central in [default]
+	com.fasterxml.jackson.core#jackson-annotations;2.15.2 from central in [default]
+	com.fasterxml.jackson.core#jackson-core;2.15.2 from central in [default]
+	com.fasterxml.jackson.core#jackson-databind;2.15.2 from central in [default]
+	com.fasterxml.jackson.dataformat#jackson-dataformat-cbor;2.15.2 from central in [default]
+	com.fasterxml.woodstox#woodstox-core;5.3.0 from central in [default]
+	com.github.stephenc.jcip#jcip-annotations;1.0-1 from central in [default]
+	com.google.cloud.bigdataoss#gcs-connector;hadoop3-2.2.14 from central in [default]
+	com.google.code.findbugs#jsr305;3.0.2 from central in [default]
+	com.google.code.gson#gson;2.8.9 from central in [default]
+	com.google.guava#failureaccess;1.0 from central in [default]
+	com.google.guava#guava;27.0-jre from central in [default]
+	com.google.guava#listenablefuture;9999.0-empty-to-avoid-conflict-with-guava from central in [default]
+	com.google.j2objc#j2objc-annotations;1.1 from central in [default]
+	com.google.protobuf#protobuf-java;2.5.0 from central in [default]
+	com.google.re2j#re2j;1.1 from central in [default]
+	com.jcraft#jsch;0.1.55 from central in [default]
+	com.microsoft.azure#azure-data-lake-store-sdk;2.3.9 from central in [default]
+	com.microsoft.azure#azure-keyvault-core;1.0.0 from central in [default]
+	com.microsoft.azure#azure-storage;7.0.1 from central in [default]
+	com.nimbusds#nimbus-jose-jwt;9.8.1 from central in [default]
+	com.sun.jersey#jersey-core;1.19 from central in [default]
+	com.sun.jersey#jersey-json;1.19 from central in [default]
+	com.sun.jersey#jersey-server;1.19 from central in [default]
+	com.sun.jersey#jersey-servlet;1.19 from central in [default]
+	com.sun.xml.bind#jaxb-impl;2.2.3-1 from central in [default]
+	com.thoughtworks.paranamer#paranamer;2.3 from central in [default]
+	commons-beanutils#commons-beanutils;1.9.4 from central in [default]
+	commons-cli#commons-cli;1.2 from central in [default]
+	commons-codec#commons-codec;1.16.0 from central in [default]
+	commons-collections#commons-collections;3.2.2 from central in [default]
+	commons-io#commons-io;2.8.0 from central in [default]
+	commons-logging#commons-logging;1.1.3 from central in [default]
+	commons-net#commons-net;3.6 from central in [default]
+	dnsjava#dnsjava;2.1.7 from central in [default]
+	io.opentracing#opentracing-api;0.33.0 from central in [default]
+	io.opentracing#opentracing-noop;0.33.0 from central in [default]
+	io.opentracing#opentracing-util;0.33.0 from central in [default]
+	jakarta.activation#jakarta.activation-api;1.2.1 from central in [default]
+	javax.servlet#javax.servlet-api;3.1.0 from central in [default]
+	javax.servlet.jsp#jsp-api;2.1 from central in [default]
+	javax.ws.rs#jsr311-api;1.1.1 from central in [default]
+	javax.xml.bind#jaxb-api;2.2.11 from central in [default]
+	joda-time#joda-time;2.12.5 from central in [default]
+	net.minidev#accessors-smart;2.4.7 from central in [default]
+	net.minidev#json-smart;2.4.7 from central in [default]
+	org.apache.avro#avro;1.7.7 from central in [default]
+	org.apache.commons#commons-compress;1.21 from central in [default]
+	org.apache.commons#commons-configuration2;2.1.1 from central in [default]
+	org.apache.commons#commons-lang3;3.12.0 from central in [default]
+	org.apache.commons#commons-math3;3.1.1 from central in [default]
+	org.apache.commons#commons-text;1.4 from central in [default]
+	org.apache.curator#curator-client;4.2.0 from central in [default]
+	org.apache.curator#curator-framework;4.2.0 from central in [default]
+	org.apache.curator#curator-recipes;4.2.0 from central in [default]
+	org.apache.hadoop#hadoop-aliyun;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-annotations;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-auth;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-aws;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-azure;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-azure-datalake;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-client-api;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-client-runtime;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-cloud-storage;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-common;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-openstack;3.3.4 from central in [default]
+	org.apache.hadoop.thirdparty#hadoop-shaded-guava;1.1.1 from central in [default]
+	org.apache.hadoop.thirdparty#hadoop-shaded-protobuf_3_7;1.1.1 from central in [default]
+	org.apache.httpcomponents#httpclient;4.5.14 from central in [default]
+	org.apache.httpcomponents#httpcore;4.4.16 from central in [default]
+	org.apache.kerby#kerb-admin;1.0.1 from central in [default]
+	org.apache.kerby#kerb-client;1.0.1 from central in [default]
+	org.apache.kerby#kerb-common;1.0.1 from central in [default]
+	org.apache.kerby#kerb-core;1.0.1 from central in [default]
+	org.apache.kerby#kerb-crypto;1.0.1 from central in [default]
+	org.apache.kerby#kerb-identity;1.0.1 from central in [default]
+	org.apache.kerby#kerb-server;1.0.1 from central in [default]
+	org.apache.kerby#kerb-simplekdc;1.0.1 from central in [default]
+	org.apache.kerby#kerb-util;1.0.1 from central in [default]
+	org.apache.kerby#kerby-asn1;1.0.1 from central in [default]
+	org.apache.kerby#kerby-config;1.0.1 from central in [default]
+	org.apache.kerby#kerby-pkix;1.0.1 from central in [default]
+	org.apache.kerby#kerby-util;1.0.1 from central in [default]
+	org.apache.kerby#kerby-xdr;1.0.1 from central in [default]
+	org.apache.kerby#token-provider;1.0.1 from central in [default]
+	org.apache.spark#spark-hadoop-cloud_2.12;3.5.1 from central in [default]
+	org.apache.yetus#audience-annotations;0.5.0 from central in [default]
+	org.apache.zookeeper#zookeeper;3.5.6 from central in [default]
+	org.apache.zookeeper#zookeeper-jute;3.5.6 from central in [default]
+	org.checkerframework#checker-qual;2.5.2 from central in [default]
+	org.codehaus.jackson#jackson-core-asl;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-jaxrs;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-mapper-asl;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-xc;1.9.13 from central in [default]
+	org.codehaus.jettison#jettison;1.1 from central in [default]
+	org.codehaus.mojo#animal-sniffer-annotations;1.17 from central in [default]
+	org.codehaus.woodstox#stax2-api;4.2.1 from central in [default]
+	org.eclipse.jetty#jetty-http;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-io;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-security;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-server;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-servlet;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-util;9.4.52.v20230823 from central in [default]
+	org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823 from central in [default]
+	org.eclipse.jetty#jetty-webapp;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-xml;9.4.43.v20210629 from central in [default]
+	org.ini4j#ini4j;0.5.4 from central in [default]
+	org.jdom#jdom2;2.0.6 from central in [default]
+	org.ow2.asm#asm;5.0.4 from central in [default]
+	org.slf4j#slf4j-api;2.0.7 from central in [default]
+	org.slf4j#slf4j-reload4j;1.7.36 from central in [default]
+	org.wildfly.openssl#wildfly-openssl;1.0.7.Final from central in [default]
+	org.xerial.snappy#snappy-java;1.1.10.3 from central in [default]
+	:: evicted modules:
+	org.apache.httpcomponents#httpclient;4.5.13 by [org.apache.httpcomponents#httpclient;4.5.14] in [default]
+	org.apache.httpcomponents#httpcore;4.4.13 by [org.apache.httpcomponents#httpcore;4.4.16] in [default]
+	commons-codec#commons-codec;1.15 by [commons-codec#commons-codec;1.16.0] in [default]
+	org.eclipse.jetty#jetty-util;9.4.43.v20210629 by [org.eclipse.jetty#jetty-util;9.4.52.v20230823] in [default]
+	org.eclipse.jetty#jetty-util-ajax;9.4.43.v20210629 by [org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823] in [default]
+	org.slf4j#slf4j-api;1.7.36 by [org.slf4j#slf4j-api;2.0.7] in [default]
+	org.xerial.snappy#snappy-java;1.1.8.2 by [org.xerial.snappy#snappy-java;1.1.10.3] in [default]
+	com.fasterxml.jackson.core#jackson-databind;2.12.7 by [com.fasterxml.jackson.core#jackson-databind;2.15.2] in [default]
+	com.fasterxml.jackson.core#jackson-annotations;2.12.7 by [com.fasterxml.jackson.core#jackson-annotations;2.15.2] in [default]
+	com.fasterxml.jackson.core#jackson-core;2.12.7 by [com.fasterxml.jackson.core#jackson-core;2.15.2] in [default]
+	com.google.code.findbugs#jsr305;3.0.0 by [com.google.code.findbugs#jsr305;3.0.2] in [default]
+	com.google.guava#guava;14.0.1 by [com.google.guava#guava;27.0-jre] in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |  130  |   0   |   0   |   12  ||  118  |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-9be0e221-fe09-42cc-97f7-48684101580d
+	confs: [default]
+	0 artifacts copied, 118 already retrieved (0kB/15ms)
+26/02/06 15:42:22 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+Done
+  Cell 3/4: ''...Done
+  Cell 4/4: ''...Done
+
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  title-prefix: NewsPipe Data Platform
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  title: Bronze to silver
+  
+[32mGET: /notebooks/python/silver_layer.html[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/4: ''...Done
+  Cell 2/4: ''...26/02/06 15:44:12 WARN Utils: Your hostname, Loki resolves to a loopback address: 127.0.1.1; using 192.168.100.36 instead (on interface enp7s0)
+26/02/06 15:44:12 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
+Ivy Default Cache set to: /home/kcat/.ivy2/cache
+The jars for the packages stored in: /home/kcat/.ivy2/jars
+org.apache.hadoop#hadoop-aws added as a dependency
+org.apache.hadoop#hadoop-common added as a dependency
+com.amazonaws#aws-java-sdk-bundle added as a dependency
+org.apache.spark#spark-hadoop-cloud_2.12 added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-b9e86f27-384d-443b-969b-6a66b384637f;1.0
+	confs: [default]
+	found org.apache.hadoop#hadoop-aws;3.3.4 in central
+	found com.amazonaws#aws-java-sdk-bundle;1.12.262 in central
+	found org.wildfly.openssl#wildfly-openssl;1.0.7.Final in central
+	found org.apache.hadoop#hadoop-common;3.3.4 in central
+	found org.apache.hadoop.thirdparty#hadoop-shaded-protobuf_3_7;1.1.1 in central
+	found org.apache.hadoop#hadoop-annotations;3.3.4 in central
+	found org.apache.hadoop.thirdparty#hadoop-shaded-guava;1.1.1 in central
+	found com.google.guava#guava;27.0-jre in central
+	found com.google.guava#failureaccess;1.0 in central
+	found com.google.guava#listenablefuture;9999.0-empty-to-avoid-conflict-with-guava in central
+	found com.google.code.findbugs#jsr305;3.0.2 in central
+	found org.checkerframework#checker-qual;2.5.2 in central
+	found com.google.j2objc#j2objc-annotations;1.1 in central
+	found org.codehaus.mojo#animal-sniffer-annotations;1.17 in central
+	found commons-cli#commons-cli;1.2 in central
+	found org.apache.commons#commons-math3;3.1.1 in central
+	found org.apache.httpcomponents#httpclient;4.5.13 in central
+	found org.apache.httpcomponents#httpcore;4.4.13 in central
+	found commons-logging#commons-logging;1.1.3 in central
+	found commons-codec#commons-codec;1.15 in central
+	found commons-io#commons-io;2.8.0 in central
+	found commons-net#commons-net;3.6 in central
+	found commons-collections#commons-collections;3.2.2 in central
+	found javax.servlet#javax.servlet-api;3.1.0 in central
+	found org.eclipse.jetty#jetty-server;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-http;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-util;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-io;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-servlet;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-security;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-util-ajax;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-webapp;9.4.43.v20210629 in central
+	found org.eclipse.jetty#jetty-xml;9.4.43.v20210629 in central
+	found com.sun.jersey#jersey-core;1.19 in central
+	found javax.ws.rs#jsr311-api;1.1.1 in central
+	found com.sun.jersey#jersey-servlet;1.19 in central
+	found com.sun.jersey#jersey-server;1.19 in central
+	found com.sun.jersey#jersey-json;1.19 in central
+	found org.codehaus.jettison#jettison;1.1 in central
+	found com.sun.xml.bind#jaxb-impl;2.2.3-1 in central
+	found javax.xml.bind#jaxb-api;2.2.11 in central
+	found org.codehaus.jackson#jackson-core-asl;1.9.13 in central
+	found org.codehaus.jackson#jackson-mapper-asl;1.9.13 in central
+	found org.codehaus.jackson#jackson-jaxrs;1.9.13 in central
+	found org.codehaus.jackson#jackson-xc;1.9.13 in central
+	found ch.qos.reload4j#reload4j;1.2.22 in central
+	found commons-beanutils#commons-beanutils;1.9.4 in central
+	found org.apache.commons#commons-configuration2;2.1.1 in central
+	found org.apache.commons#commons-lang3;3.12.0 in central
+	found org.apache.commons#commons-text;1.4 in central
+	found org.slf4j#slf4j-api;1.7.36 in central
+	found org.slf4j#slf4j-reload4j;1.7.36 in central
+	found org.apache.avro#avro;1.7.7 in central
+	found com.thoughtworks.paranamer#paranamer;2.3 in central
+	found org.xerial.snappy#snappy-java;1.1.8.2 in central
+	found org.apache.commons#commons-compress;1.21 in central
+	found com.google.re2j#re2j;1.1 in central
+	found com.google.protobuf#protobuf-java;2.5.0 in central
+	found com.google.code.gson#gson;2.8.9 in central
+	found org.apache.hadoop#hadoop-auth;3.3.4 in central
+	found com.nimbusds#nimbus-jose-jwt;9.8.1 in central
+	found com.github.stephenc.jcip#jcip-annotations;1.0-1 in central
+	found net.minidev#json-smart;2.4.7 in central
+	found net.minidev#accessors-smart;2.4.7 in central
+	found org.ow2.asm#asm;5.0.4 in central
+	found org.apache.zookeeper#zookeeper;3.5.6 in central
+	found org.apache.zookeeper#zookeeper-jute;3.5.6 in central
+	found org.apache.yetus#audience-annotations;0.5.0 in central
+	found org.apache.curator#curator-framework;4.2.0 in central
+	found org.apache.curator#curator-client;4.2.0 in central
+	found org.apache.kerby#kerb-simplekdc;1.0.1 in central
+	found org.apache.kerby#kerb-client;1.0.1 in central
+	found org.apache.kerby#kerby-config;1.0.1 in central
+	found org.apache.kerby#kerb-core;1.0.1 in central
+	found org.apache.kerby#kerby-pkix;1.0.1 in central
+	found org.apache.kerby#kerby-asn1;1.0.1 in central
+	found org.apache.kerby#kerby-util;1.0.1 in central
+	found org.apache.kerby#kerb-common;1.0.1 in central
+	found org.apache.kerby#kerb-crypto;1.0.1 in central
+	found org.apache.kerby#kerb-util;1.0.1 in central
+	found org.apache.kerby#token-provider;1.0.1 in central
+	found org.apache.kerby#kerb-admin;1.0.1 in central
+	found org.apache.kerby#kerb-server;1.0.1 in central
+	found org.apache.kerby#kerb-identity;1.0.1 in central
+	found org.apache.kerby#kerby-xdr;1.0.1 in central
+	found com.jcraft#jsch;0.1.55 in central
+	found org.apache.curator#curator-recipes;4.2.0 in central
+	found com.fasterxml.jackson.core#jackson-databind;2.12.7 in central
+	found com.fasterxml.jackson.core#jackson-annotations;2.12.7 in central
+	found com.fasterxml.jackson.core#jackson-core;2.12.7 in central
+	found org.codehaus.woodstox#stax2-api;4.2.1 in central
+	found com.fasterxml.woodstox#woodstox-core;5.3.0 in central
+	found dnsjava#dnsjava;2.1.7 in central
+	found jakarta.activation#jakarta.activation-api;1.2.1 in central
+	found javax.servlet.jsp#jsp-api;2.1 in central
+	found org.apache.spark#spark-hadoop-cloud_2.12;3.5.1 in central
+	found org.apache.hadoop#hadoop-client-runtime;3.3.4 in central
+	found org.apache.hadoop#hadoop-client-api;3.3.4 in central
+	found org.xerial.snappy#snappy-java;1.1.10.3 in central
+	found org.slf4j#slf4j-api;2.0.7 in central
+	found com.google.cloud.bigdataoss#gcs-connector;hadoop3-2.2.14 in central
+	found joda-time#joda-time;2.12.5 in central
+	found com.fasterxml.jackson.core#jackson-databind;2.15.2 in central
+	found com.fasterxml.jackson.core#jackson-annotations;2.15.2 in central
+	found com.fasterxml.jackson.core#jackson-core;2.15.2 in central
+	found com.fasterxml.jackson.dataformat#jackson-dataformat-cbor;2.15.2 in central
+	found org.apache.httpcomponents#httpclient;4.5.14 in central
+	found org.apache.httpcomponents#httpcore;4.4.16 in central
+	found commons-codec#commons-codec;1.16.0 in central
+	found org.apache.hadoop#hadoop-azure;3.3.4 in central
+	found com.microsoft.azure#azure-storage;7.0.1 in central
+	found com.microsoft.azure#azure-keyvault-core;1.0.0 in central
+	found org.apache.hadoop#hadoop-cloud-storage;3.3.4 in central
+	found org.apache.hadoop#hadoop-aliyun;3.3.4 in central
+	found com.aliyun.oss#aliyun-sdk-oss;3.13.0 in central
+	found org.jdom#jdom2;2.0.6 in central
+	found com.aliyun#aliyun-java-sdk-core;4.5.10 in central
+	found org.ini4j#ini4j;0.5.4 in central
+	found io.opentracing#opentracing-api;0.33.0 in central
+	found io.opentracing#opentracing-util;0.33.0 in central
+	found io.opentracing#opentracing-noop;0.33.0 in central
+	found com.aliyun#aliyun-java-sdk-ram;3.1.0 in central
+	found com.aliyun#aliyun-java-sdk-kms;2.11.0 in central
+	found org.apache.hadoop#hadoop-azure-datalake;3.3.4 in central
+	found com.microsoft.azure#azure-data-lake-store-sdk;2.3.9 in central
+	found org.apache.hadoop#hadoop-openstack;3.3.4 in central
+	found org.eclipse.jetty#jetty-util;9.4.52.v20230823 in central
+	found org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823 in central
+:: resolution report :: resolve 945ms :: artifacts dl 19ms
+	:: modules in use:
+	ch.qos.reload4j#reload4j;1.2.22 from central in [default]
+	com.aliyun#aliyun-java-sdk-core;4.5.10 from central in [default]
+	com.aliyun#aliyun-java-sdk-kms;2.11.0 from central in [default]
+	com.aliyun#aliyun-java-sdk-ram;3.1.0 from central in [default]
+	com.aliyun.oss#aliyun-sdk-oss;3.13.0 from central in [default]
+	com.amazonaws#aws-java-sdk-bundle;1.12.262 from central in [default]
+	com.fasterxml.jackson.core#jackson-annotations;2.15.2 from central in [default]
+	com.fasterxml.jackson.core#jackson-core;2.15.2 from central in [default]
+	com.fasterxml.jackson.core#jackson-databind;2.15.2 from central in [default]
+	com.fasterxml.jackson.dataformat#jackson-dataformat-cbor;2.15.2 from central in [default]
+	com.fasterxml.woodstox#woodstox-core;5.3.0 from central in [default]
+	com.github.stephenc.jcip#jcip-annotations;1.0-1 from central in [default]
+	com.google.cloud.bigdataoss#gcs-connector;hadoop3-2.2.14 from central in [default]
+	com.google.code.findbugs#jsr305;3.0.2 from central in [default]
+	com.google.code.gson#gson;2.8.9 from central in [default]
+	com.google.guava#failureaccess;1.0 from central in [default]
+	com.google.guava#guava;27.0-jre from central in [default]
+	com.google.guava#listenablefuture;9999.0-empty-to-avoid-conflict-with-guava from central in [default]
+	com.google.j2objc#j2objc-annotations;1.1 from central in [default]
+	com.google.protobuf#protobuf-java;2.5.0 from central in [default]
+	com.google.re2j#re2j;1.1 from central in [default]
+	com.jcraft#jsch;0.1.55 from central in [default]
+	com.microsoft.azure#azure-data-lake-store-sdk;2.3.9 from central in [default]
+	com.microsoft.azure#azure-keyvault-core;1.0.0 from central in [default]
+	com.microsoft.azure#azure-storage;7.0.1 from central in [default]
+	com.nimbusds#nimbus-jose-jwt;9.8.1 from central in [default]
+	com.sun.jersey#jersey-core;1.19 from central in [default]
+	com.sun.jersey#jersey-json;1.19 from central in [default]
+	com.sun.jersey#jersey-server;1.19 from central in [default]
+	com.sun.jersey#jersey-servlet;1.19 from central in [default]
+	com.sun.xml.bind#jaxb-impl;2.2.3-1 from central in [default]
+	com.thoughtworks.paranamer#paranamer;2.3 from central in [default]
+	commons-beanutils#commons-beanutils;1.9.4 from central in [default]
+	commons-cli#commons-cli;1.2 from central in [default]
+	commons-codec#commons-codec;1.16.0 from central in [default]
+	commons-collections#commons-collections;3.2.2 from central in [default]
+	commons-io#commons-io;2.8.0 from central in [default]
+	commons-logging#commons-logging;1.1.3 from central in [default]
+	commons-net#commons-net;3.6 from central in [default]
+	dnsjava#dnsjava;2.1.7 from central in [default]
+	io.opentracing#opentracing-api;0.33.0 from central in [default]
+	io.opentracing#opentracing-noop;0.33.0 from central in [default]
+	io.opentracing#opentracing-util;0.33.0 from central in [default]
+	jakarta.activation#jakarta.activation-api;1.2.1 from central in [default]
+	javax.servlet#javax.servlet-api;3.1.0 from central in [default]
+	javax.servlet.jsp#jsp-api;2.1 from central in [default]
+	javax.ws.rs#jsr311-api;1.1.1 from central in [default]
+	javax.xml.bind#jaxb-api;2.2.11 from central in [default]
+	joda-time#joda-time;2.12.5 from central in [default]
+	net.minidev#accessors-smart;2.4.7 from central in [default]
+	net.minidev#json-smart;2.4.7 from central in [default]
+	org.apache.avro#avro;1.7.7 from central in [default]
+	org.apache.commons#commons-compress;1.21 from central in [default]
+	org.apache.commons#commons-configuration2;2.1.1 from central in [default]
+	org.apache.commons#commons-lang3;3.12.0 from central in [default]
+	org.apache.commons#commons-math3;3.1.1 from central in [default]
+	org.apache.commons#commons-text;1.4 from central in [default]
+	org.apache.curator#curator-client;4.2.0 from central in [default]
+	org.apache.curator#curator-framework;4.2.0 from central in [default]
+	org.apache.curator#curator-recipes;4.2.0 from central in [default]
+	org.apache.hadoop#hadoop-aliyun;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-annotations;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-auth;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-aws;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-azure;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-azure-datalake;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-client-api;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-client-runtime;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-cloud-storage;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-common;3.3.4 from central in [default]
+	org.apache.hadoop#hadoop-openstack;3.3.4 from central in [default]
+	org.apache.hadoop.thirdparty#hadoop-shaded-guava;1.1.1 from central in [default]
+	org.apache.hadoop.thirdparty#hadoop-shaded-protobuf_3_7;1.1.1 from central in [default]
+	org.apache.httpcomponents#httpclient;4.5.14 from central in [default]
+	org.apache.httpcomponents#httpcore;4.4.16 from central in [default]
+	org.apache.kerby#kerb-admin;1.0.1 from central in [default]
+	org.apache.kerby#kerb-client;1.0.1 from central in [default]
+	org.apache.kerby#kerb-common;1.0.1 from central in [default]
+	org.apache.kerby#kerb-core;1.0.1 from central in [default]
+	org.apache.kerby#kerb-crypto;1.0.1 from central in [default]
+	org.apache.kerby#kerb-identity;1.0.1 from central in [default]
+	org.apache.kerby#kerb-server;1.0.1 from central in [default]
+	org.apache.kerby#kerb-simplekdc;1.0.1 from central in [default]
+	org.apache.kerby#kerb-util;1.0.1 from central in [default]
+	org.apache.kerby#kerby-asn1;1.0.1 from central in [default]
+	org.apache.kerby#kerby-config;1.0.1 from central in [default]
+	org.apache.kerby#kerby-pkix;1.0.1 from central in [default]
+	org.apache.kerby#kerby-util;1.0.1 from central in [default]
+	org.apache.kerby#kerby-xdr;1.0.1 from central in [default]
+	org.apache.kerby#token-provider;1.0.1 from central in [default]
+	org.apache.spark#spark-hadoop-cloud_2.12;3.5.1 from central in [default]
+	org.apache.yetus#audience-annotations;0.5.0 from central in [default]
+	org.apache.zookeeper#zookeeper;3.5.6 from central in [default]
+	org.apache.zookeeper#zookeeper-jute;3.5.6 from central in [default]
+	org.checkerframework#checker-qual;2.5.2 from central in [default]
+	org.codehaus.jackson#jackson-core-asl;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-jaxrs;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-mapper-asl;1.9.13 from central in [default]
+	org.codehaus.jackson#jackson-xc;1.9.13 from central in [default]
+	org.codehaus.jettison#jettison;1.1 from central in [default]
+	org.codehaus.mojo#animal-sniffer-annotations;1.17 from central in [default]
+	org.codehaus.woodstox#stax2-api;4.2.1 from central in [default]
+	org.eclipse.jetty#jetty-http;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-io;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-security;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-server;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-servlet;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-util;9.4.52.v20230823 from central in [default]
+	org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823 from central in [default]
+	org.eclipse.jetty#jetty-webapp;9.4.43.v20210629 from central in [default]
+	org.eclipse.jetty#jetty-xml;9.4.43.v20210629 from central in [default]
+	org.ini4j#ini4j;0.5.4 from central in [default]
+	org.jdom#jdom2;2.0.6 from central in [default]
+	org.ow2.asm#asm;5.0.4 from central in [default]
+	org.slf4j#slf4j-api;2.0.7 from central in [default]
+	org.slf4j#slf4j-reload4j;1.7.36 from central in [default]
+	org.wildfly.openssl#wildfly-openssl;1.0.7.Final from central in [default]
+	org.xerial.snappy#snappy-java;1.1.10.3 from central in [default]
+	:: evicted modules:
+	org.apache.httpcomponents#httpclient;4.5.13 by [org.apache.httpcomponents#httpclient;4.5.14] in [default]
+	org.apache.httpcomponents#httpcore;4.4.13 by [org.apache.httpcomponents#httpcore;4.4.16] in [default]
+	commons-codec#commons-codec;1.15 by [commons-codec#commons-codec;1.16.0] in [default]
+	org.eclipse.jetty#jetty-util;9.4.43.v20210629 by [org.eclipse.jetty#jetty-util;9.4.52.v20230823] in [default]
+	org.eclipse.jetty#jetty-util-ajax;9.4.43.v20210629 by [org.eclipse.jetty#jetty-util-ajax;9.4.52.v20230823] in [default]
+	org.slf4j#slf4j-api;1.7.36 by [org.slf4j#slf4j-api;2.0.7] in [default]
+	org.xerial.snappy#snappy-java;1.1.8.2 by [org.xerial.snappy#snappy-java;1.1.10.3] in [default]
+	com.fasterxml.jackson.core#jackson-databind;2.12.7 by [com.fasterxml.jackson.core#jackson-databind;2.15.2] in [default]
+	com.fasterxml.jackson.core#jackson-annotations;2.12.7 by [com.fasterxml.jackson.core#jackson-annotations;2.15.2] in [default]
+	com.fasterxml.jackson.core#jackson-core;2.12.7 by [com.fasterxml.jackson.core#jackson-core;2.15.2] in [default]
+	com.google.code.findbugs#jsr305;3.0.0 by [com.google.code.findbugs#jsr305;3.0.2] in [default]
+	com.google.guava#guava;14.0.1 by [com.google.guava#guava;27.0-jre] in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |  130  |   0   |   0   |   12  ||  118  |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-b9e86f27-384d-443b-969b-6a66b384637f
+	confs: [default]
+	0 artifacts copied, 118 already retrieved (0kB/13ms)
+26/02/06 15:44:14 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+Done
+  Cell 3/4: ''...Done
+  Cell 4/4: ''...Done
+
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  title-prefix: NewsPipe Data Platform
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  title: Bronze to silver
+  
+[32mGET: /notebooks/python/silver_layer.html[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/5: ''...Done
+  Cell 2/5: ''...
+
+An error occurred while executing the following cell:
+------------------
+print(testval)
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mNameError[39m                                 Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 1[39m
+[32m----> [39m[32m1[39m [38;5;28mprint[39m([43mtestval[49m)
+
+[31mNameError[39m: name 'testval' is not defined
+
+[33mWARN: Error encountered when rendering files[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/5: ''...Done
+  Cell 2/5: ''...
+
+An error occurred while executing the following cell:
+------------------
+print(testval)
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mNameError[39m                                 Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 1[39m
+[32m----> [39m[32m1[39m [38;5;28mprint[39m([43mtestval[49m)
+
+[31mNameError[39m: name 'testval' is not defined
+
+[33mWARN: Error encountered when rendering files[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/5: ''...Done
+  Cell 2/5: ''...
+
+An error occurred while executing the following cell:
+------------------
+print(testval)
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mNameError[39m                                 Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 1[39m
+[32m----> [39m[32m1[39m [38;5;28mprint[39m([43mtestval[49m)
+
+[31mNameError[39m: name 'testval' is not defined
+
+[33mWARN: Error encountered when rendering files[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/5: ''...Done
+  Cell 2/5: ''...Done
+  Cell 3/5: ''...Done
+  Cell 4/5: ''...Done
+  Cell 5/5: ''...Done
+
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  title-prefix: NewsPipe Data Platform
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  title: Bronze to silver
+  
+[32mGET: /notebooks/python/silver_layer.html[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/5: ''...Done
+  Cell 2/5: ''...
+
+An error occurred while executing the following cell:
+------------------
+print(testval)
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mNameError[39m                                 Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 1[39m
+[32m----> [39m[32m1[39m [38;5;28mprint[39m([43mtestval[49m)
+
+[31mNameError[39m: name 'testval' is not defined
+
+[33mWARN: Error encountered when rendering files[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/5: ''...Done
+  Cell 2/5: ''...
+
+An error occurred while executing the following cell:
+------------------
+print(testval)
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mNameError[39m                                 Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 1[39m
+[32m----> [39m[32m1[39m [38;5;28mprint[39m([43mtestval[49m)
+
+[31mNameError[39m: name 'testval' is not defined
+
+[33mWARN: Error encountered when rendering files[39m
+[1m[34mPreparing to preview[39m[22m
+[1m[34m[1/1] notebooks/python/silver_layer.qmd[39m[22m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/5: ''...Done
+  Cell 2/5: ''...
+
+An error occurred while executing the following cell:
+------------------
+print(testval)
+------------------
+
+
+[31m---------------------------------------------------------------------------[39m
+[31mNameError[39m                                 Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[1][39m[32m, line 1[39m
+[32m----> [39m[32m1[39m [38;5;28mprint[39m([43mtestval[49m)
+
+[31mNameError[39m: name 'testval' is not defined
+
+[33mWARN: Error encountered when rendering files[39m
+[1m[34mTerminating existing preview server....[39m[22m[1m[34mDONE
+[39m[22m
+[1m[34mPreparing to preview[39m[22m
+[1m[34m[1/1] notebooks/python/silver_layer.qmd[39m[22m
+
+[32mWatching files for changes[39m
+[32mBrowse at [39m[4m[32mhttp://0.0.0.0:6790/notebooks/python/silver_layer.html[39m[24m
+Listening on http://0.0.0.0:6790/ (http://localhost:6790/)
+[1m[34mTerminating existing preview server....[39m[22m[1m[34mDONE
+[39m[22m
+[1m[34mPreparing to preview[39m[22m
+[1m[34m[1/2] index.qmd[39m[22m
+[1m[34m[2/2] notebooks/python/silver_layer.qmd[39m[22m
+
+[32mWatching files for changes[39m
+[32mBrowse at [39m[4m[32mhttp://0.0.0.0:6790/[39m[24m
+Listening on http://0.0.0.0:6790/ (http://localhost:6790/)
+[1m[34mPreparing to preview[39m[22m
+[1m[34m[1/1] notebooks/python/silver_layer.qmd[39m[22m
+
+[32mWatching files for changes[39m
+[32mBrowse at [39m[4m[32mhttp://0.0.0.0:6790/notebooks/python/silver_layer.html[39m[24m
+Listening on http://0.0.0.0:6790/ (http://localhost:6790/)
+
+Starting python3 kernel...(Notebook read from cache)
+
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  title-prefix: NewsPipe Data Platform
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  title: Bronze to silver
+  
+[32mGET: /notebooks/python/silver_layer.html[39m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.quarto_ipynb'
+  Cell 1/5: ''...Done
+  Cell 2/5: ''...Done
+  Cell 3/5: ''...Done
+  Cell 4/5: ''...Done
+  Cell 5/5: ''...Done
+
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  title-prefix: NewsPipe Data Platform
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  title: Bronze to silver
+  
+[32mGET: /notebooks/python/silver_layer.html[39m
+/usr/local/bin/quarto: line 199: 42481 Killed                  "${QUARTO_DENO}" ${QUARTO_ACTION} ${QUARTO_DENO_OPTIONS} ${QUARTO_DENO_EXTRA_OPTIONS} "${QUARTO_TARGET}" "$@"
+[1m[34mTerminating existing preview server....[39m[22m[1m[34mDONE
+[39m[22m
+[1m[34mPreparing to preview[39m[22m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m
+[1m[34mPreparing to preview[39m[22m
+[1m[34m[1/2] index.qmd[39m[22m
+[33mWARN: Unable to resolve link target: notebooks/python/silver_layer.qmd[39m
+[1m[34m[2/2] notebooks/python/silver_layer.ipynb[39m[22m
+
+Starting python3 kernel...Done
+
+Executing 'silver_layer.ipynb'
+  Cell 1/5: ''...Done
+  Cell 2/5: ''...Done
+  Cell 3/5: ''...Done
+  Cell 4/5: ''...Done
+  Cell 5/5: ''...Done
+
+
+[32mWatching files for changes[39m
+[32mBrowse at [39m[4m[32mhttp://0.0.0.0:6790/[39m[24m
+Listening on http://0.0.0.0:6790/ (http://localhost:6790/)
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  
+[91mERROR: NotFound: No such file or directory (os error 2): stat '/home/kcat/Repos/newspipe/build/silver_layer.html'
+
+Stack trace:
+    at Object.statSync (ext:deno_fs/30_fs.js:415:3)
+    at ServeRenderManager.fileRenderHash (file:///opt/quarto/bin/quarto.js:149246:26)
+    at file:///opt/quarto/bin/quarto.js:149219:14
+    at Array.forEach (<anonymous>)
+    at ServeRenderManager.onRenderResult (file:///opt/quarto/bin/quarto.js:149214:19)
+    at handleWatchEvent (file:///opt/quarto/bin/quarto.js:149003:29)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async watchForChanges (file:///opt/quarto/bin/quarto.js:149129:23)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  
+[91mERROR: NotFound: No such file or directory (os error 2): stat '/home/kcat/Repos/newspipe/build/silver_layer.html'
+
+Stack trace:
+    at Object.statSync (ext:deno_fs/30_fs.js:415:3)
+    at ServeRenderManager.fileRenderHash (file:///opt/quarto/bin/quarto.js:149246:26)
+    at file:///opt/quarto/bin/quarto.js:149219:14
+    at Array.forEach (<anonymous>)
+    at ServeRenderManager.onRenderResult (file:///opt/quarto/bin/quarto.js:149214:19)
+    at handleWatchEvent (file:///opt/quarto/bin/quarto.js:149003:29)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async watchForChanges (file:///opt/quarto/bin/quarto.js:149129:23)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  
+[91mERROR: NotFound: No such file or directory (os error 2): stat '/home/kcat/Repos/newspipe/build/silver_layer.html'
+
+Stack trace:
+    at Object.statSync (ext:deno_fs/30_fs.js:415:3)
+    at ServeRenderManager.fileRenderHash (file:///opt/quarto/bin/quarto.js:149246:26)
+    at file:///opt/quarto/bin/quarto.js:149219:14
+    at Array.forEach (<anonymous>)
+    at ServeRenderManager.onRenderResult (file:///opt/quarto/bin/quarto.js:149214:19)
+    at handleWatchEvent (file:///opt/quarto/bin/quarto.js:149003:29)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async watchForChanges (file:///opt/quarto/bin/quarto.js:149129:23)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  
+[91mERROR: NotFound: No such file or directory (os error 2): stat '/home/kcat/Repos/newspipe/build/silver_layer.html'
+
+Stack trace:
+    at Object.statSync (ext:deno_fs/30_fs.js:415:3)
+    at ServeRenderManager.fileRenderHash (file:///opt/quarto/bin/quarto.js:149246:26)
+    at file:///opt/quarto/bin/quarto.js:149219:14
+    at Array.forEach (<anonymous>)
+    at ServeRenderManager.onRenderResult (file:///opt/quarto/bin/quarto.js:149214:19)
+    at handleWatchEvent (file:///opt/quarto/bin/quarto.js:149003:29)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async watchForChanges (file:///opt/quarto/bin/quarto.js:149129:23)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[1mpandoc [22m
+  to: html
+  output-file: silver_layer.html
+  standalone: true
+  section-divs: true
+  html-math-method: mathjax
+  wrap: none
+  default-image-extension: png
+  variables: {}
+  
+[1mmetadata[22m
+  document-css: false
+  link-citations: true
+  date-format: long
+  lang: en
+  
+[91mERROR: NotFound: No such file or directory (os error 2): stat '/home/kcat/Repos/newspipe/build/silver_layer.html'
+
+Stack trace:
+    at Object.statSync (ext:deno_fs/30_fs.js:415:3)
+    at ServeRenderManager.fileRenderHash (file:///opt/quarto/bin/quarto.js:149246:26)
+    at file:///opt/quarto/bin/quarto.js:149219:14
+    at Array.forEach (<anonymous>)
+    at ServeRenderManager.onRenderResult (file:///opt/quarto/bin/quarto.js:149214:19)
+    at handleWatchEvent (file:///opt/quarto/bin/quarto.js:149003:29)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async watchForChanges (file:///opt/quarto/bin/quarto.js:149129:23)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m
+[32mGET: /notebooks/python/silver_layer.html[39m
+[91mERROR: Requested port 6790 is already in use.
+
+Stack trace:
+    at _Command.actionHandler (file:///opt/quarto/bin/quarto.js:150164:13)
+    at eventLoopTick (ext:core/01_core.js:217:9)
+    at async _Command.execute (file:///opt/quarto/bin/quarto.js:10978:7)
+    at async _Command.parseCommand (file:///opt/quarto/bin/quarto.js:10855:14)
+    at async quarto (file:///opt/quarto/bin/quarto.js:176680:5)
+    at async file:///opt/quarto/bin/quarto.js:176708:5
+    at async file:///opt/quarto/bin/quarto.js:176563:14
+    at async mainRunner (file:///opt/quarto/bin/quarto.js:176565:5)
+    at async file:///opt/quarto/bin/quarto.js:176701:3[39m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m
+[91mERROR: TypeError: Cannot convert undefined or null to object
+
+Stack trace:
+    at Object.keys (<anonymous>)
+    at findIndexFile (file:///opt/quarto/bin/quarto.js:134427:17)
+    at nodesToEntries (file:///opt/quarto/bin/quarto.js:134381:21)
+    at sidebarItemsFromAuto (file:///opt/quarto/bin/quarto.js:134309:16)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134236:31)
+    at expandAutoSidebarItems (file:///opt/quarto/bin/quarto.js:134259:31)
+    at resolveSidebarItems (file:///opt/quarto/bin/quarto.js:135629:30)
+    at sidebarEjsData (file:///opt/quarto/bin/quarto.js:135620:9)
+    at eventLoopTick (ext:core/01_core.js:178:7)
+    at async sidebarsEjsData (file:///opt/quarto/bin/quarto.js:135605:22)[39m

@@ -18,7 +18,7 @@
 *.zip
 *.tar.gz
 *.rar
-**/build/**
+/build/
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
@@ -39,5 +39,12 @@ target
 
 **/.quarto*
 
+/_freeze/
 /.quarto/
 **/*.quarto_ipynb
+
+/.jupyter_cache/
+nohup.out
+
+/silver_layer_files/
+

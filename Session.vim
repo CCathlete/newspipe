@@ -2,7 +2,7 @@ let SessionLoad = 1
 let s:so_save = &g:so | let s:siso_save = &g:siso | setg so=0 siso=0 | setl so=-1 siso=-1
 let v:this_session=expand("<sfile>:p")
 let NvimTreeSetup =  1 
-let TabbyTabNames = "{\"4\":\"ingestion\",\"5\":\"discovery\",\"6\":\"interfaces\",\"7\":\"litellm\",\"8\":\"debug\",\"9\":\"terraform\",\"1\":\"main\",\"11\":\"log\",\"10\":\"terminal\",\"3\":\"kafka\"}"
+let TabbyTabNames = "{\"1\":\"main\",\"2\":\"kafka\",\"3\":\"ingestion\",\"4\":\"discovery\",\"5\":\"interfaces\",\"6\":\"litellm\",\"7\":\"debug\",\"8\":\"terraform\",\"9\":\"terminal\",\"10\":\"log\"}"
 let NvimTreeRequired =  1 
 silent only
 silent tabonly
@@ -53,7 +53,7 @@ badd +200 ~/Repos/pipeline_infra/variables.tf
 badd +1 \[dap-repl-48]
 badd +8 src/application/services/discovery_consumer.py
 badd +1 src/domain/interfaces.py
-badd +169 src/infrastructure/kafka.py
+badd +5 src/infrastructure/kafka.py
 badd +1 src/domain/services/data_ingestion.py
 badd +1 term://~/Repos/newspipe//382906:/usr/bin/fish
 badd +1 \[dap-terminal]\ dap-1
@@ -81,9 +81,8 @@ tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
-tabnew +setlocal\ bufhidden=wipe
 tabrewind
-edit notebooks/python/silver_layer.qmd
+edit notebooks/python/silver_layer.ipynb
 wincmd t
 let s:save_winminheight = &winminheight
 let s:save_winminwidth = &winminwidth
@@ -92,7 +91,7 @@ set winheight=1
 set winminwidth=0
 set winwidth=1
 argglobal
-balt notebooks/python/silver_layer.md
+balt notebooks/python/silver_layer.qmd
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -103,27 +102,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 1 - ((0 * winheight(0) + 16) / 32)
-if s:l < 1 | let s:l = 1 | endif
-keepjumps exe s:l
-normal! zt
-keepjumps 1
-normal! 0
-tabnext
-argglobal
-if bufexists(fnamemodify("term://~/Repos/newspipe//35919:quarto\ preview\ \'/home/kcat/Repos/newspipe/notebooks/python/silver_layer.md\'\ ", ":p")) | buffer term://~/Repos/newspipe//35919:quarto\ preview\ \'/home/kcat/Repos/newspipe/notebooks/python/silver_layer.md\'\  | else | edit term://~/Repos/newspipe//35919:quarto\ preview\ \'/home/kcat/Repos/newspipe/notebooks/python/silver_layer.md\'\  | endif
-if &buftype ==# 'terminal'
-  silent file term://~/Repos/newspipe//35919:quarto\ preview\ \'/home/kcat/Repos/newspipe/notebooks/python/silver_layer.md\'\ 
-endif
-setlocal foldmethod=manual
-setlocal foldexpr=0
-setlocal foldmarker={{{,}}}
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldenable
-let s:l = 1 - ((0 * winheight(0) + 16) / 32)
+let s:l = 1 - ((0 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -143,7 +122,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 5 - ((4 * winheight(0) + 16) / 32)
+let s:l = 5 - ((4 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -163,7 +142,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 1 - ((0 * winheight(0) + 16) / 32)
+let s:l = 1 - ((0 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -183,7 +162,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 104 - ((27 * winheight(0) + 16) / 32)
+let s:l = 104 - ((25 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -203,7 +182,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 1 - ((0 * winheight(0) + 16) / 32)
+let s:l = 1 - ((0 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -223,7 +202,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 135 - ((27 * winheight(0) + 16) / 32)
+let s:l = 135 - ((25 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -286,7 +265,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 114 - ((2 * winheight(0) + 5) / 10)
+let s:l = 114 - ((2 * winheight(0) + 4) / 9)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -309,7 +288,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 1 - ((0 * winheight(0) + 5) / 10)
+let s:l = 1 - ((0 * winheight(0) + 4) / 9)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -331,7 +310,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 697 - ((0 * winheight(0) + 16) / 32)
+let s:l = 697 - ((0 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -352,7 +331,7 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 1 - ((0 * winheight(0) + 16) / 32)
+let s:l = 1 - ((0 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -373,11 +352,11 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 32 - ((31 * winheight(0) + 16) / 32)
+let s:l = 30 - ((29 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 32
+keepjumps 30
 normal! 0
 tabnext 1
 set stal=1

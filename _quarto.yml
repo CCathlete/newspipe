@@ -1,6 +1,7 @@
 project:
   type: website
   output-dir: build      # All HTML/PDFs go here to reduce clutter
+  execute-dir: project
 
 website:
   title: "NewsPipe Data Platform"
@@ -8,10 +9,10 @@ website:
     style: "docked"
     contents:
       - section: "Pipelines"
-        contents: "notebooks/*/*.qmd"
+        contents: "notebooks/*/*.ipynb"
 
 execute:
-  enabled: false
-  freeze: true
+  enabled: true
+  freeze: false
 
 
