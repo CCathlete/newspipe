@@ -1,0 +1,13 @@
+---
+title: "Data Platform Overview"
+---
+
+## Project Status
+This dashboard tracks the ELT pipelines for the NewsPipe project.
+
+### Pipeline Layers
+* **Bronze**: Initial crawling (LiteLLM tagging)
+* **Silver**: Spark transformations
+* **Gold**: Embedding and final data structures
+
+[Bronze to Silver Layer](notebooks/python/silver_layer.qmd)

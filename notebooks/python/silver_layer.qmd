@@ -1,4 +1,13 @@
-```python
+---
+title: Bronze to silver
+execute:
+    echo: true
+    output: true
+---
+
+```{python}
+#| eval: true
+
 import os
 import sys
 from pathlib import Path
@@ -23,7 +32,9 @@ from returns.result import ResultE, Success, Failure, safe
 ConfigType: TypeAlias = dict[str, dict[str, str] | str]
 ```
 
-```python
+```{python}
+#| eval: true
+
 @safe
 def initialize_platform() -> tuple[SparkSession, ConfigType]:
     config: ConfigType = {
@@ -50,7 +61,9 @@ match setup_result:
         print(f"Setup Failed: {err}")
 ```
 
-```python
+```{python}
+#| eval: true
+
 @safe
 def load_bronze(spark: SparkSession, path: str) -> DataFrame:
     df: DataFrame = spark.read.json(path)
@@ -77,7 +90,9 @@ match setup_result:
                 print(f"Load Failed: {err}")
 ```
 
-```python
+```{python}
+#| eval: false
+
 @safe
 def inspect_data(df: DataFrame) -> int:
     df.show(5, truncate=False)
