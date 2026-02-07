@@ -23,6 +23,9 @@ dependencies = [
     "openinference-instrumentation-litellm",
     "jupyterlab",
     "jupytext",
+    "pynvim",
+    "jupyter_client",
+    "jupyter-cache",
 ]
 
 [tool.setuptools.packages.find]

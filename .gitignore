@@ -46,5 +46,5 @@ target
 /.jupyter_cache/
 nohup.out
 
-/silver_layer_files/
+**/silver_layer_files/**
 
