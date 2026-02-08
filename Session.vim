@@ -31,7 +31,7 @@ badd +1 control/dependency_layers.py
 badd +89 ~/Repos/newspipe.vim
 badd +22 ../input_files/seed_urls.json
 badd +14 ~/Repos/infra-stuff/nvim/lua/core/debuggerconfig.lua
-badd +104 src/control/main.py
+badd +97 src/control/main.py
 badd +116 src/domain/services/scraper.py
 badd +13 input_files/traversal_policies.json
 badd +138 src/control/dependency_layers.py
@@ -62,19 +62,20 @@ badd +1 \[dap-terminal]\ Python:\ module\ src.control.main
 badd +1 \[dap-repl-66]
 badd +1 notebooks/python/silver_layer.py
 badd +32 term://~/Repos/newspipe//6787:/usr/bin/fish
-badd +1 .gitignore
+badd +49 .gitignore
 badd +1 src/infrastructure/lakehouse.py
-badd +99 notebooks/python/silver_layer.ipynb
+badd +90 notebooks/python/silver_layer.ipynb
 badd +1 notebooks/python/silver_layer.md
 badd +1 term://~/Repos/newspipe//35919:quarto\ preview\ \'/home/kcat/Repos/newspipe/notebooks/python/silver_layer.md\'\ 
 badd +1 notebooks/python/silver_layer.qmd
 badd +176 ~/Repos/infra-stuff/nvim/lua/plugins/molten.lua
 badd +79 ~/Repos/infra-stuff/nvim/lua/plugins/lsp.lua
-badd +1 term://~/Repos/newspipe//17173:/usr/bin/fish
+badd +429 term://~/Repos/newspipe//17173:/usr/bin/fish
 argglobal
 %argdel
 $argadd infrastructure/lakehouse.py
 set stal=2
+tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabrewind
@@ -95,8 +96,7 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe 'vert 1resize ' . ((&columns * 90 + 71) / 142)
-exe 'vert 2resize ' . ((&columns * 51 + 71) / 142)
+wincmd =
 argglobal
 balt notebooks/python/silver_layer.py
 setlocal foldmethod=manual
@@ -109,12 +109,12 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 99 - ((30 * winheight(0) + 16) / 32)
+let s:l = 100 - ((20 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 99
-normal! 0
+keepjumps 100
+normal! 041|
 wincmd w
 argglobal
 if bufexists(fnamemodify("term://~/Repos/newspipe//17173:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//17173:/usr/bin/fish | else | edit term://~/Repos/newspipe//17173:/usr/bin/fish | endif
@@ -130,26 +130,18 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 10 - ((9 * winheight(0) + 16) / 32)
+let s:l = 422 - ((24 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 10
-normal! 0
+keepjumps 422
+normal! 09|
 wincmd w
-exe 'vert 1resize ' . ((&columns * 90 + 71) / 142)
-exe 'vert 2resize ' . ((&columns * 51 + 71) / 142)
+wincmd =
 tabnext
-edit src/control/dependency_layers.py
-wincmd t
-let s:save_winminheight = &winminheight
-let s:save_winminwidth = &winminwidth
-set winminheight=0
-set winheight=1
-set winminwidth=0
-set winwidth=1
+edit src/control/main.py
 argglobal
-balt notebooks/python/silver_layer.ipynb
+balt src/control/dependency_layers.py
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -160,11 +152,11 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 138 - ((31 * winheight(0) + 16) / 32)
+let s:l = 97 - ((31 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 138
+keepjumps 97
 normal! 0
 tabnext
 argglobal
@@ -181,13 +173,33 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 1 - ((0 * winheight(0) + 16) / 32)
+let s:l = 451 - ((31 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 1
+keepjumps 451
 normal! 035|
-tabnext 2
+tabnext
+edit .gitignore
+argglobal
+balt term://~/Repos/newspipe//125731:/usr/bin/fish
+setlocal foldmethod=manual
+setlocal foldexpr=0
+setlocal foldmarker={{{,}}}
+setlocal foldignore=#
+setlocal foldlevel=0
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal foldenable
+silent! normal! zE
+let &fdl = &fdl
+let s:l = 49 - ((30 * winheight(0) + 16) / 32)
+if s:l < 1 | let s:l = 1 | endif
+keepjumps exe s:l
+normal! zt
+keepjumps 49
+normal! 02|
+tabnext 1
 set stal=1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
   silent exe 'bwipe ' . s:wipebuf
