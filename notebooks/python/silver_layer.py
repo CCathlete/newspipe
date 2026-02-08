@@ -198,6 +198,7 @@ match setup_result:
                 bronze_df.createOrReplaceTempView("bronze_df")
                 sorted_df: DataFrame = spark.sql("""
                     SELECT
+                        ingested_at,
                         source,
                         content,
                         CAST(FROM_UNIXTIME(CAST(ingested_at AS BIGINT)) AS TIMESTAMP) AS ingested_timestamp
@@ -210,6 +211,7 @@ match setup_result:
                 # We then take only the content from each tuple and concat.
                 reconstructed_df: DataFrame = spark.sql("""
                     SELECT
+                        ingested_at,
                         source,
                         concat_ws(
                             '',
@@ -221,10 +223,29 @@ match setup_result:
                             )
                         ) AS full_content
                     FROM sorted_by_ingested
-                    GROUP BY source
+                    GROUP BY source, ingested_at
                     ;
                 """)
                 reconstructed_df.createOrReplaceTempView("reconstructed_chunks")
+
+                truncated_content: DataFrame = spark.sql("""
+                SELECT
+                    --source,
+                    --explode(array(
+                    --    substring(full_content, 1, 500),
+                    --    substring(full_content, length(full_content) * 0.25, 300),
+                    --    substring(full_content, length(full_content) * 0.50, 300),
+                    --    substring(full_content, length(full_content) * 0.75, 300),
+                    --    substring(full_content, greatest(length(full_content) - 300, 1), 300)
+                    --)) AS sample
+
+                    substring(full_content, 1, 15000) as sample
+                FROM reconstructed_chunks
+                where source = 'www_bbc_com_news_world_asia_india'
+                order by source asc, ingested_at desc
+                    ;
+                """)
+                truncated_content.createOrReplaceTempView("truncated_content")
 
 
 
