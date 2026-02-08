@@ -186,14 +186,59 @@ match setup_result:
 # %%
 @safe
 def inspect_data(df: DataFrame) -> int:
-    df.show(5, truncate=False)
+    # df.show(5, truncate=False)
+    df.show(5, truncate=True)
     return df.count()
 
-match bronze_result:
-    case Success(df):
-        inspection: ResultE[int] = inspect_data(df)
-        match inspection:
-            case Success(count):
-                print(f"Total records in Bronze: {count}")
-            case Failure(err):
-                print(f"Inspection Error: {err}")
+match setup_result:
+    case Success((spark, container, config)):
+        match (bronze_result):
+            case Success(bronze_df):
+                inspection: ResultE[int] = inspect_data(bronze_df)
+                bronze_df.createOrReplaceTempView("bronze_df")
+                sorted_df: DataFrame = spark.sql("""
+                    SELECT
+                        source,
+                        content,
+                        CAST(FROM_UNIXTIME(CAST(ingested_at AS BIGINT)) AS TIMESTAMP) AS ingested_timestamp
+                    FROM bronze_df
+                    ORDER BY source ASC, ingested_at ASC
+                    ;
+                    """)
+                sorted_df.createOrReplaceTempView("sorted_by_ingested")
+                # We turn grouped chunks to list of tuples and sort them by ingested_timestamp.
+                # We then take only the content from each tuple and concat.
+                reconstructed_df: DataFrame = spark.sql("""
+                    SELECT
+                        source,
+                        concat_ws(
+                            '',
+                            transform(
+                                sort_array(
+                                    collect_list(struct(ingested_timestamp, content))
+                                ),
+                                x -> x.content
+                            )
+                        ) AS full_content
+                    FROM sorted_by_ingested
+                    GROUP BY source
+                    ;
+                """)
+                reconstructed_df.createOrReplaceTempView("reconstructed_chunks")
+
+
+
+
+                match inspection:
+                    case Success(count):
+                        print(f"Total records in Bronze: {count}")
+                    case Failure(err):
+                        print(f"Inspection Error: {err}")
+
+
+
+
+
+
+
+
