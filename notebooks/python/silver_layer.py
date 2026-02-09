@@ -196,59 +196,70 @@ match setup_result:
             case Success(bronze_df):
                 inspection: ResultE[int] = inspect_data(bronze_df)
                 bronze_df.createOrReplaceTempView("bronze_df")
-                sorted_df: DataFrame = spark.sql("""
-                    SELECT
-                        ingested_at,
-                        source,
-                        content,
-                        CAST(FROM_UNIXTIME(CAST(ingested_at AS BIGINT)) AS TIMESTAMP) AS ingested_timestamp
-                    FROM bronze_df
-                    ORDER BY source ASC, ingested_at ASC
-                    ;
-                    """)
-                sorted_df.createOrReplaceTempView("sorted_by_ingested")
-                # We turn grouped chunks to list of tuples and sort them by ingested_timestamp.
-                # We then take only the content from each tuple and concat.
-                reconstructed_df: DataFrame = spark.sql("""
-                    SELECT
-                        ingested_at,
-                        source,
-                        concat_ws(
-                            '',
-                            transform(
-                                sort_array(
-                                    collect_list(struct(ingested_timestamp, content))
-                                ),
-                                x -> x.content
-                            )
-                        ) AS full_content
-                    FROM sorted_by_ingested
-                    GROUP BY source, ingested_at
-                    ;
-                """)
-                reconstructed_df.createOrReplaceTempView("reconstructed_chunks")
 
-                truncated_content: DataFrame = spark.sql("""
+                # Deduplication
+                spark.sql("""
+                CREATE OR REPLACE TEMP VIEW bronze_hashed AS
                 SELECT
-                    --source,
-                    --explode(array(
-                    --    substring(full_content, 1, 500),
-                    --    substring(full_content, length(full_content) * 0.25, 300),
-                    --    substring(full_content, length(full_content) * 0.50, 300),
-                    --    substring(full_content, length(full_content) * 0.75, 300),
-                    --    substring(full_content, greatest(length(full_content) - 300, 1), 300)
-                    --)) AS sample
-
-                    substring(full_content, 1, 15000) as sample
-                FROM reconstructed_chunks
-                where source = 'www_bbc_com_news_world_asia_india'
-                order by source asc, ingested_at desc
-                    ;
+                    *,
+                    sha2(content, 256) AS content_hash
+                FROM bronze_df
+                ;
                 """)
-                truncated_content.createOrReplaceTempView("truncated_content")
+                spark.sql("""
+                CREATE OR REPLACE TEMP VIEW bronze_deduped AS
+                SELECT *
+                FROM (
+                    SELECT
+                        *,
+                        row_number() OVER (
+                            PARTITION BY source, content_hash
+                            ORDER BY ingested_at ASC
+                        ) AS rn
+                    FROM bronze_hashed
+                )
+                WHERE rn = 1
+                ;
+                """)
 
+                # Time partitioning of S1 sublayer.
+                spark.sql("""
+                CREATE OR REPLACE TEMP VIEW s1_time_partitioned AS
+                SELECT
+                    *,
+                    CAST(FROM_UNIXTIME(CAST(ingested_at AS BIGINT)) AS TIMESTAMP) AS ingested_ts,
+                    date_trunc('day',  CAST(FROM_UNIXTIME(CAST(ingested_at AS BIGINT)) AS TIMESTAMP)) AS ingest_day,
+                    date_trunc('hour', CAST(FROM_UNIXTIME(CAST(ingested_at AS BIGINT)) AS TIMESTAMP)) AS ingest_hour
+                FROM bronze_deduped
+                ;
+                """)
 
+                # Content type separation. 
+                # TODO: improve.
+                spark.sql("""
+                CREATE OR REPLACE TEMP VIEW s1_classified AS
+                SELECT
+                    *,
+                    CASE
+                        WHEN content LIKE '%Skip to content%' THEN 'listing'
+                        WHEN content LIKE '%By %' AND length(content) > 2000 THEN 'article_like'
+                        WHEN source LIKE '%github%' THEN 'code'
+                        WHEN length(content) < 1000 THEN 'short'
+                        ELSE 'unknown'
+                    END AS content_type
+                FROM s1_time_partitioned
+                ;
+                """)
 
+                # Pieces for reconstcrution.
+                spark.sql("""
+                CREATE OR REPLACE TEMP VIEW s1_pieces AS
+                SELECT
+                    *,
+                    sha2(substring(content, 1, 500), 256) AS prefix_hash
+                FROM s1_classified
+                ;
+                """)
 
                 match inspection:
                     case Success(count):
@@ -256,6 +267,60 @@ match setup_result:
                     case Failure(err):
                         print(f"Inspection Error: {err}")
 
+# %%
+match setup_result:
+    case Success((spark, container, config)):
+        match bronze_result:
+            case Success(bronze_df):
+                spark.sql("""
+                CREATE OR REPLACE TEMP VIEW inspect_s1 AS
+                    SELECT
+                        source,
+                        content_type,
+                        ingest_day,
+                        length(content) AS len,
+
+                        -- head / mid / tail sampling
+                        substring(content, 1, 300) AS head,
+                        substring(content, length(content) / 2, 300) AS mid,
+                        substring(content, greatest(length(content) - 300, 1), 300) AS tail
+                    FROM s1_pieces
+                ;
+                """)
+
+                spark.sql("""
+                CREATE OR REPLACE TEMP VIEW inspect_s1_clean AS
+                    SELECT
+                        source,
+                        content_type,
+                        ingest_day,
+                        len,
+                        regexp_replace(
+                            regexp_replace(head, '\\s+', ' '),
+                            '(.)\\1{10,}',
+                            '\\1\\1\\1'
+                        ) AS head,
+                        regexp_replace(
+                            regexp_replace(mid, '\\s+', ' '),
+                            '(.)\\1{10,}',
+                            '\\1\\1\\1'
+                        ) AS mid,
+                        regexp_replace(
+                            regexp_replace(tail, '\\s+', ' '),
+                            '(.)\\1{10,}',
+                            '\\1\\1\\1'
+                        ) AS tail
+                    FROM inspect_s1
+                ;
+                """)
+
+                spark.sql("""
+                SELECT * FROM inspect_s1_clean
+                    WHERE content_type = 'article_like'
+                    ORDER BY ingest_day DESC
+                    LIMIT 5
+                ;
+                """)
 
 
 
