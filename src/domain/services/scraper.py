@@ -116,6 +116,10 @@ class StreamScraper:
                 case IOFailure(Failure(e)):
                     self.logger.error("chunk_publish_failed", url=url, error=str(e))
 
+    def __normalize(self, url: str) -> str:
+        parsed = urlparse(url)
+        return f"{parsed.scheme}://{parsed.netloc}{parsed.path.rstrip('/')}"
+
     @future_safe
     async def _discover_links(
             self, 
@@ -126,10 +130,15 @@ class StreamScraper:
             current_depth: int  # Passed from deep_crawl.
         ) -> None:
             internal_links: list[dict[str, str]] = result.links.get("internal", [])
-            raw_links: list[str] = [link_properties.get("href", "") for link_properties in internal_links]
-            links: list[str] = [link for link in raw_links if base_url in link]
+
             
-            for link in links:
+            for link_properties in internal_links:
+                href = link_properties.get("href")
+                if not href:
+                    continue
+
+                absolute: str = urljoin(base_url, href)
+                link: str = self.__normalize(absolute)
                 # Pass depth to the validation check
                 validity_future: FutureResultE[bool] = self._is_valid_navigation(
                     link, 
