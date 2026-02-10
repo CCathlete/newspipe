@@ -17,7 +17,7 @@ class SparkSessionInterface(Protocol):
     ) -> DataFrame: ...
 
 
-class AIProvider(Protocol):
+class AIPort(Protocol):
     @future_safe
     async def is_relevant(
         self,
@@ -32,7 +32,7 @@ class AIProvider(Protocol):
         ...
 
 
-class StorageProvider(Protocol):
+class StoragePort(Protocol):
     @future_safe
     async def write_records(
         self,
@@ -40,7 +40,7 @@ class StorageProvider(Protocol):
     ) -> int: ...
 
 
-class KafkaProvider(Protocol):
+class KafkaPort(Protocol):
     @future_safe
     async def send(
         self,
@@ -110,7 +110,7 @@ class Crawler(Protocol):
                         exc_tb: Any) -> None: ...
 
 
-class ScraperProvider(Protocol):
+class ScraperPort(Protocol):
     @future_safe
     async def deep_crawl(
         self,

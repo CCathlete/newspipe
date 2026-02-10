@@ -15,14 +15,14 @@ from domain.interfaces import (
     Crawler,
     CrawlerResult,
     CrawlerRunConfig,
-    KafkaProvider,
+    KafkaPort,
 )
 from domain.models import BronzeRecord, TraversalRules
 
 @dataclass(slots=True, frozen=True)
 class StreamScraper:
     logger: FilteringBoundLogger
-    kafka_provider: KafkaProvider
+    kafka_provider: KafkaPort
     crawler_factory: Callable[[], Crawler]
     traversal_rules: TraversalRules
     run_config: CrawlerRunConfig

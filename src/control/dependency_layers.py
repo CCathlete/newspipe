@@ -311,6 +311,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         scraper=scraper,
         ingestion_pipeline=pipeline,
         kafka_consumer=kafka_consumer,
+        visited_producer=kafka_producer,
         logger=logger_provider,
     )
 

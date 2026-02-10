@@ -1,7 +1,7 @@
 # src/application/services/discovery_consumer.py
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from aiokafka.structs import ConsumerRecord, TopicPartition
@@ -10,15 +10,19 @@ from returns.io import IOFailure, IOResultE, IOSuccess
 from returns.result import Failure, ResultE, Success, safe
 from structlog.typing import FilteringBoundLogger
 
-from domain.interfaces import KafkaProvider, ScraperProvider
+from domain.interfaces import KafkaPort, ScraperPort
 from domain.services.data_ingestion import IngestionPipeline
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True, frozen=False)
 class DiscoveryConsumer:
-    scraper: ScraperProvider
+    scraper: ScraperPort
     ingestion_pipeline: IngestionPipeline
-    kafka_consumer: KafkaProvider
+    kafka_consumer: KafkaPort
+    visited_producer: KafkaPort
     logger: FilteringBoundLogger
+
+    visited: set[str] = field(default_factory=set)
+
 
     @future_safe
     async def run(self, seeds: dict[str, list[str]]) -> None:

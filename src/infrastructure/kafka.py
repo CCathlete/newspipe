@@ -16,11 +16,11 @@ from aiokafka.admin import AIOKafkaAdminClient, NewTopic
 from aiokafka.errors import TopicAlreadyExistsError
 
 
-from domain.interfaces import KafkaProvider
+from domain.interfaces import KafkaPort
 
 
 @dataclass(slots=True, frozen=True)
-class KafkaConsumerAdapter(KafkaProvider):
+class KafkaConsumerAdapter(KafkaPort):
     bootstrap_servers: str
     group_id: str
     topics: tuple[str, ...]
@@ -109,7 +109,7 @@ class KafkaConsumerAdapter(KafkaProvider):
 
 
 @dataclass(slots=True, frozen=True)
-class KafkaProducerAdapter(KafkaProvider):
+class KafkaProducerAdapter(KafkaPort):
     bootstrap_servers: str
     logger: FilteringBoundLogger
 

@@ -10,12 +10,12 @@ from returns.result import Failure, Success
 from structlog.typing import FilteringBoundLogger
 
 from domain.models import BronzeRecord, RelevancePolicy
-from domain.interfaces import AIProvider, StorageProvider
+from domain.interfaces import AIPort, StoragePort
 
 @dataclass(slots=True)
 class IngestionPipeline:
-    llm: AIProvider
-    lakehouse: StorageProvider
+    llm: AIPort
+    lakehouse: StoragePort
     logger: FilteringBoundLogger
     buffer_size: int
     relevance_policy: RelevancePolicy

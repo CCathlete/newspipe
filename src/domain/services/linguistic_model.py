@@ -6,13 +6,13 @@ from returns.maybe import Some
 from returns.result import Result, Success, Failure
 from structlog.typing import FilteringBoundLogger
 
-from ..interfaces import AIProvider
+from ..interfaces import AIPort
 from ..models import BronzeRecord
 
 
 @dataclass(slots=True, frozen=True)
 class LinguisticService:
-    ai_provider: AIProvider
+    ai_provider: AIPort
     logger: FilteringBoundLogger
 
     def tokenize(self, text: str) -> list[str]:
