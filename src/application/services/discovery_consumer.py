@@ -98,16 +98,16 @@ class DiscoveryConsumer:
     async def _handle_ingestion(self, record: ConsumerRecord) -> None:
         """Markdown chunks found: Trigger LLM Tagging & Storage."""
         match self._safe_decode(record.value):
-            case Success(data):
-                # The IngestionPipeline handles its own LLM tagging monadically
-                ingest_f: FutureResultE[None] = self.ingestion_pipeline.ingest_if_relevant(data)
+            case Success(data_bronzerecord):
+                # The IngestionPipeline handles its own LLM tagging.
+                ingest_f: FutureResultE[None] = self.ingestion_pipeline.ingest_if_relevant(data_bronzerecord)
                 res_io: IOResultE[None] = await ingest_f.awaitable()
                 
                 match res_io:
                     case IOSuccess(Success(_)):
-                        self.logger.info("chunk_persisted", url=data["url"])
+                        self.logger.info("chunk_persisted", url=data_bronzerecord["source_url"])
                     case IOFailure(Failure(e)):
-                        self.logger.error("ingestion_failed", url=data["url"], error=str(e))
+                        self.logger.error("ingestion_failed", url=data_bronzerecord["source_url"], error=str(e))
             case Failure(e):
                 self.logger.error("ingestion_decode_error", error=str(e))
 
