@@ -77,7 +77,7 @@ def main() -> None:
             "relevance": _get_active_config(input_dir / "relevance_policies.json")
         },
         "litellm": {
-            "model": "openrouter/mistralai/devstral-2512:free",
+            "model": "openrouter/arcee-ai/trinity-large-preview:free",
             "base_url": "http://localhost:4000",
             "api_key": os.getenv("LITELLM_API_KEY"),
             "telemetry_endpoint": f"{os.getenv('PHOENIX_COLLECTOR_ENDPOINT')}/v1/traces",

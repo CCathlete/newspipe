@@ -26,7 +26,7 @@ class IngestionPipeline:
     async def ingest_if_relevant(self, data: dict[str, Any]) -> None:
         log: Final = self.logger.bind(url=data.get("url"))
 
-        content: str = data.get("chunk", "")
+        content: str = data.get("content", "")
         language: str = data.get("language", "")
 
         # 1. Heuristic Filter (Cheap)
