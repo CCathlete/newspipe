@@ -273,54 +273,40 @@ match setup_result:
         match bronze_result:
             case Success(bronze_df):
                 spark.sql("""
-                CREATE OR REPLACE TEMP VIEW inspect_s1 AS
-                    SELECT
-                        source,
-                        content_type,
-                        ingest_day,
-                        length(content) AS len,
-
-                        -- head / mid / tail sampling
-                        substring(content, 1, 300) AS head,
-                        substring(content, length(content) / 2, 300) AS mid,
-                        substring(content, greatest(length(content) - 300, 1), 300) AS tail
-                    FROM s1_pieces
+                CREATE OR REPLACE TEMP VIEW inspect_vertical AS
+                SELECT
+                    concat_ws(
+                        '\n',
+                        'SOURCE: ' || source,
+                        'TYPE: ' || content_type,
+                        'INGEST_DAY: ' || cast(ingest_day as string),
+                        'LEN: ' || cast(length(content) as string),
+                        '',
+                        '----- HEAD -----',
+                        substring(content, 1, 800),
+                        '',
+                        '----- MID -----',
+                        substring(content, length(content) / 2, 800),
+                        '',
+                        '----- TAIL -----',
+                        substring(content, greatest(length(content) - 800, 1), 800)
+                    ) AS record
+                FROM s1_pieces
                 ;
                 """)
 
-                spark.sql("""
-                CREATE OR REPLACE TEMP VIEW inspect_s1_clean AS
-                    SELECT
-                        source,
-                        content_type,
-                        ingest_day,
-                        len,
-                        regexp_replace(
-                            regexp_replace(head, '\\s+', ' '),
-                            '(.)\\1{10,}',
-                            '\\1\\1\\1'
-                        ) AS head,
-                        regexp_replace(
-                            regexp_replace(mid, '\\s+', ' '),
-                            '(.)\\1{10,}',
-                            '\\1\\1\\1'
-                        ) AS mid,
-                        regexp_replace(
-                            regexp_replace(tail, '\\s+', ' '),
-                            '(.)\\1{10,}',
-                            '\\1\\1\\1'
-                        ) AS tail
-                    FROM inspect_s1
-                ;
-                """)
+                records: list[str] = (
+                spark.table("inspect_vertical")
+                .select("record")
+                .rdd
+                .map(lambda r: r[0])
+                .take(5)
+                )
 
-                spark.sql("""
-                SELECT * FROM inspect_s1_clean
-                    WHERE content_type = 'article_like'
-                    ORDER BY ingest_day DESC
-                    LIMIT 5
-                ;
-                """)
+                for i, rec in enumerate(records):
+                    print(f"\n===== RECORD {i} =====\n")
+                    print(rec)
+
 
 
 
