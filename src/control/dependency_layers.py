@@ -302,7 +302,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         llm=litellm,
         lakehouse=lakehouse,
         logger=logger_provider,
-        buffer_size=10,
+        buffer_size=5,
         relevance_policy=relevance_policy
     )
 

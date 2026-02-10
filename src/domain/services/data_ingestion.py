@@ -24,7 +24,7 @@ class IngestionPipeline:
 
     @future_safe
     async def ingest_if_relevant(self, data: dict[str, Any]) -> None:
-        log: Final = self.logger.bind(url=data.get("url"))
+        log: Final = self.logger.bind(url=data.get("source_url"))
 
         content: str = data.get("content", "")
         language: str = data.get("language", "")
@@ -82,8 +82,8 @@ class IngestionPipeline:
     async def _create_record(self, data: dict[str, Any]) -> BronzeRecord:
         return BronzeRecord(
             chunk_id = data.get("chunk_id") or f"{data['url']}_{datetime.now(UTC).timestamp()}",
-            source_url=data["url"],
-            content=data.get("chunk", "").strip(),
+            source_url=data["source_url"],
+            content=data.get("content", "").strip(),
             language=data.get("language", "en"),
             ingested_at=datetime.now(UTC).timestamp(),
         )
