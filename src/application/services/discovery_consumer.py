@@ -29,7 +29,7 @@ class DiscoveryConsumer:
         # We need to listen to BOTH topics or run two instances
         # Topic 'raw_chunks' -> Ingestion
         # Topic 'discovery_queue' -> Scraping
-        topics: list[str] = ["raw_chunks", "discovery_queue"]
+        topics: list[str] = ["raw_chunks", "discovery_queue", "visited_urls"]
         
         # 1. Initialize infra and seeds
         scraper_future: FutureResultE[list[str]] = self.scraper.initialize_and_seed(seeds, topics)
@@ -83,6 +83,26 @@ class DiscoveryConsumer:
         decode_result: ResultE[dict[str, Any]] = self._safe_decode(record.value)
         match decode_result:
             case Success(data):
+                url: str = data["url"]
+
+                if url in self.visited:
+                    self.logger.debug("url_already_visited", url=url)
+                    return None
+
+                # marking as visited BEFORE crawling.
+                self.visited.add(url)
+
+                io_sent_to_queue: IOResultE = await self.visited_producer.send(
+                    topic="visited_urls",
+                    key=url.encode("utf-8"),
+                    value=b"1",
+                ).awaitable()
+
+                match io_sent_to_queue:
+                    case IOFailure(Failure(err)):
+                        self.logger.error("discovery_decode_error", error=str(err))
+                        raise
+
                 # We assume standard keys: url, language, strategy_params, etc.
                 crawl_future: FutureResultE[None] = self.scraper.deep_crawl(
                     url=data["url"],
@@ -95,8 +115,10 @@ class DiscoveryConsumer:
                         self.logger.info("discovery_processed", url=data["url"])
                     case IOFailure(Failure(e)):
                         self.logger.error("discovery_failed", url=data["url"], error=str(e))
-            case Failure(e):
-                self.logger.error("discovery_decode_error", error=str(e))
+
+            case Failure(err):
+                self.logger.error("discovery_decode_error", error=str(err))
+                raise
 
     @future_safe
     async def _handle_ingestion(self, record: ConsumerRecord) -> None:
