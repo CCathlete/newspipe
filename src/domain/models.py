@@ -89,15 +89,18 @@ class TraversalRules(BaseModel):
         if any(seg in segments for seg in self.blocked_path_segments):
             return False
 
-        # Allow root + navigation levels
+        # 2. Root is always allowed
         if current_depth == 0:
             return True
 
-        # 2. Required segments (exact match)
+        # 3. If required segments defined, all must appear somewhere in the path
         if self.required_path_segments:
-            return any(seg in segments for seg in self.required_path_segments)
+            if not all(seg in segments for seg in self.required_path_segments):
+                return False
 
+        # 4. Passed all checks
         return True
+
 
 
 class RelevancePolicy(BaseModel):
