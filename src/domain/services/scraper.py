@@ -17,7 +17,7 @@ from domain.interfaces import (
     CrawlerRunConfig,
     KafkaProvider,
 )
-from domain.models import TraversalRules
+from domain.models import BronzeRecord, TraversalRules
 
 @dataclass(slots=True, frozen=True)
 class StreamScraper:
@@ -85,26 +85,36 @@ class StreamScraper:
         language: str, 
         topic: str
     ) -> None:
-        for chunk in strategy.chunk(content):
-            if len(chunk.strip()) > 100:
-                payload: bytes = json.dumps({
-                    "url": url,
-                    "chunk": chunk.strip(),
-                    "language": language
-                }).encode("utf-8")
-                
-                send_res_future: FutureResultE[None] = self.kafka_provider.send(
-                    topic=topic,
-                    value=payload,
-                    key=url.encode("utf-8")
-                )
-                send_res_io: IOResultE[None] = await send_res_future.awaitable()
-                
-                match send_res_io:
-                    case IOSuccess(Success(_)):
-                        pass
-                    case IOFailure(Failure(e)):
-                        self.logger.error("chunk_publish_failed", url=url, error=str(e))
+
+        for idx, chunk in enumerate(strategy.chunk(content)):
+            chunk = chunk.strip()
+            if len(chunk) <= 100:
+                continue
+
+            # Create a BronzeRecord instance
+            record = BronzeRecord(
+                chunk_id=f"{url}::{idx}",  # deterministic ID per source + chunk index
+                source_url=url,
+                content=chunk,
+                language=language
+            )
+
+            # Serialize to JSON
+            payload: bytes = record.model_dump_json().encode("utf-8")
+
+            # Send to Kafka
+            send_res_future: FutureResultE[None] = self.kafka_provider.send(
+                topic=topic,
+                value=payload,
+                key=url.encode("utf-8")
+            )
+            send_res_io: IOResultE[None] = await send_res_future.awaitable()
+
+            match send_res_io:
+                case IOSuccess(Success(_)):
+                    pass
+                case IOFailure(Failure(e)):
+                    self.logger.error("chunk_publish_failed", url=url, error=str(e))
 
     @future_safe
     async def _discover_links(

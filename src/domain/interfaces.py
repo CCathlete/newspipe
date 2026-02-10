@@ -33,10 +33,11 @@ class AIProvider(Protocol):
 
 
 class StorageProvider(Protocol):
+    @future_safe
     async def write_records(
         self,
         records: list[BronzeRecord],
-    ) -> FutureResult[int, Exception]: ...
+    ) -> int: ...
 
 
 class KafkaProvider(Protocol):

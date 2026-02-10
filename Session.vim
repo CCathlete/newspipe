@@ -2,7 +2,7 @@ let SessionLoad = 1
 let s:so_save = &g:so | let s:siso_save = &g:siso | setg so=0 siso=0 | setl so=-1 siso=-1
 let v:this_session=expand("<sfile>:p")
 let NvimTreeSetup =  1 
-let TabbyTabNames = "{\"1\":\"ingestion\",\"2\":\"dependencies\",\"3\":\"log\"}"
+let TabbyTabNames = "{\"2\":\"Ingestion\",\"3\":\"Interfaces\",\"4\":\"Dependencies\",\"5\":\"Logs\",\"1\":\"General\"}"
 let NvimTreeRequired =  1 
 silent only
 silent tabonly
@@ -31,11 +31,11 @@ badd +1 control/dependency_layers.py
 badd +89 ~/Repos/newspipe.vim
 badd +22 ../input_files/seed_urls.json
 badd +14 ~/Repos/infra-stuff/nvim/lua/core/debuggerconfig.lua
-badd +97 src/control/main.py
-badd +116 src/domain/services/scraper.py
+badd +7 src/control/main.py
+badd +94 src/domain/services/scraper.py
 badd +13 input_files/traversal_policies.json
 badd +138 src/control/dependency_layers.py
-badd +117 src/domain/models.py
+badd +50 src/domain/models.py
 badd +51 ~/.cache/nvim/dap.log
 badd +1 ~/.cache/nvim/dap-python-stderr.log
 badd +275 Session.vim
@@ -51,8 +51,8 @@ badd +135 src/infrastructure/litellm_client.py
 badd +1 ~/Repos/pipeline_infra/env.auto.tfvars
 badd +200 ~/Repos/pipeline_infra/variables.tf
 badd +1 \[dap-repl-48]
-badd +8 src/application/services/discovery_consumer.py
-badd +1 src/domain/interfaces.py
+badd +1 src/application/services/discovery_consumer.py
+badd +86 src/domain/interfaces.py
 badd +2 src/infrastructure/kafka.py
 badd +1 src/domain/services/data_ingestion.py
 badd +1 term://~/Repos/newspipe//382906:/usr/bin/fish
@@ -64,13 +64,13 @@ badd +1 notebooks/python/silver_layer.py
 badd +32 term://~/Repos/newspipe//6787:/usr/bin/fish
 badd +49 .gitignore
 badd +1 src/infrastructure/lakehouse.py
-badd +90 notebooks/python/silver_layer.ipynb
+badd +100 notebooks/python/silver_layer.ipynb
 badd +1 notebooks/python/silver_layer.md
 badd +1 term://~/Repos/newspipe//35919:quarto\ preview\ \'/home/kcat/Repos/newspipe/notebooks/python/silver_layer.md\'\ 
 badd +1 notebooks/python/silver_layer.qmd
 badd +176 ~/Repos/infra-stuff/nvim/lua/plugins/molten.lua
 badd +79 ~/Repos/infra-stuff/nvim/lua/plugins/lsp.lua
-badd +429 term://~/Repos/newspipe//17173:/usr/bin/fish
+badd +32 term://~/Repos/newspipe//17173:/usr/bin/fish
 argglobal
 %argdel
 $argadd infrastructure/lakehouse.py
@@ -78,17 +78,9 @@ set stal=2
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
+tabnew +setlocal\ bufhidden=wipe
 tabrewind
-edit notebooks/python/silver_layer.ipynb
-let s:save_splitbelow = &splitbelow
-let s:save_splitright = &splitright
-set splitbelow splitright
-wincmd _ | wincmd |
-vsplit
-1wincmd h
-wincmd w
-let &splitbelow = s:save_splitbelow
-let &splitright = s:save_splitright
+edit src/application/services/discovery_consumer.py
 wincmd t
 let s:save_winminheight = &winminheight
 let s:save_winminwidth = &winminwidth
@@ -96,9 +88,8 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-wincmd =
 argglobal
-balt notebooks/python/silver_layer.py
+balt src/domain/services/scraper.py
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -109,19 +100,16 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 100 - ((20 * winheight(0) + 16) / 32)
+let s:l = 1 - ((0 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 100
-normal! 041|
-wincmd w
+keepjumps 1
+normal! 0
+tabnext
+edit src/domain/services/scraper.py
 argglobal
-if bufexists(fnamemodify("term://~/Repos/newspipe//17173:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//17173:/usr/bin/fish | else | edit term://~/Repos/newspipe//17173:/usr/bin/fish | endif
-if &buftype ==# 'terminal'
-  silent file term://~/Repos/newspipe//17173:/usr/bin/fish
-endif
-balt notebooks/python/silver_layer.ipynb
+balt src/infrastructure/lakehouse.py
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -130,14 +118,34 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 422 - ((24 * winheight(0) + 16) / 32)
+silent! normal! zE
+let &fdl = &fdl
+let s:l = 76 - ((10 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 422
-normal! 09|
-wincmd w
-wincmd =
+keepjumps 76
+normal! 012|
+tabnext
+edit src/domain/interfaces.py
+argglobal
+balt src/domain/models.py
+setlocal foldmethod=manual
+setlocal foldexpr=0
+setlocal foldmarker={{{,}}}
+setlocal foldignore=#
+setlocal foldlevel=0
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal foldenable
+silent! normal! zE
+let &fdl = &fdl
+let s:l = 86 - ((15 * winheight(0) + 16) / 32)
+if s:l < 1 | let s:l = 1 | endif
+keepjumps exe s:l
+normal! zt
+keepjumps 86
+normal! 0
 tabnext
 edit src/control/main.py
 argglobal
@@ -152,11 +160,11 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 97 - ((31 * winheight(0) + 16) / 32)
+let s:l = 7 - ((6 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 97
+keepjumps 7
 normal! 0
 tabnext
 argglobal
@@ -173,32 +181,12 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 451 - ((31 * winheight(0) + 16) / 32)
+let s:l = 32 - ((31 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 451
-normal! 035|
-tabnext
-edit .gitignore
-argglobal
-balt term://~/Repos/newspipe//125731:/usr/bin/fish
-setlocal foldmethod=manual
-setlocal foldexpr=0
-setlocal foldmarker={{{,}}}
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldenable
-silent! normal! zE
-let &fdl = &fdl
-let s:l = 49 - ((30 * winheight(0) + 16) / 32)
-if s:l < 1 | let s:l = 1 | endif
-keepjumps exe s:l
-normal! zt
-keepjumps 49
-normal! 02|
+keepjumps 32
+normal! 0
 tabnext 1
 set stal=1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
