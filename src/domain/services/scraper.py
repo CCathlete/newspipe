@@ -116,10 +116,6 @@ class StreamScraper:
                 case IOFailure(Failure(e)):
                     self.logger.error("chunk_publish_failed", url=url, error=str(e))
 
-    def __normalize(self, url: str) -> str:
-        parsed = urlparse(url)
-        return f"{parsed.scheme}://{parsed.netloc}{parsed.path.rstrip('/')}"
-
     @future_safe
     async def _discover_links(
             self, 
@@ -138,18 +134,22 @@ class StreamScraper:
                 if not href:
                     continue
 
+                
+                base_netloc: str = urlparse(base_url).netloc
                 absolute: str = urljoin(base_url, href)
-                link: str = self.__normalize(absolute)
+                parsed_link: ParseResult = urlparse(absolute)
+
+                # skip links outside the base repo/domain
+                if parsed_link.netloc != base_netloc:
+                    self.logger.debug("link_skipped_outside_base", link=absolute)
+                    continue
+
+                link: str = f"{parsed_link.scheme}://{parsed_link.netloc}{parsed_link.path.rstrip('/')}"
                 self.logger.info("link_discovered", link=link, depth=current_depth + 1)
-
-                parsed: ParseResult = urlparse(link)
-                link_for_check: str = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-                self.logger.info("link_for_check", link=link_for_check, depth=current_depth + 1)
-
 
                 # Pass depth to the validation check
                 validity_future: FutureResultE[bool] = self._is_valid_navigation(
-                    link_for_check, 
+                    link, 
                     current_depth + 1
                 )
                 validity_io_monad: IOResultE[bool] = await validity_future.awaitable()
