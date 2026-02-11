@@ -22,6 +22,9 @@ class DiscoveryConsumer:
     logger: FilteringBoundLogger
 
     visited: set[str] = field(default_factory=set)
+    processed_count: int = 0
+    discovered_count: int = 0
+
 
 
     @future_safe
@@ -30,6 +33,9 @@ class DiscoveryConsumer:
         # Topic 'raw_chunks' -> Ingestion
         # Topic 'discovery_queue' -> Scraping
         topics: list[str] = ["raw_chunks", "discovery_queue", "visited_urls"]
+        idle_polls: int = 0
+        IDLE_THRESHOLD: int = 10
+
         
         # 1. Initialize infra and seeds
         scraper_future: FutureResultE[list[str]] = self.scraper.initialize_and_seed(seeds, topics)
@@ -55,6 +61,31 @@ class DiscoveryConsumer:
 
             match messages_io_monad:
                 case IOSuccess(Success(messages)):
+                    # ---- IDLE DETECTION ----
+                    if not any(messages.values()):
+                        idle_polls += 1
+
+                        self.logger.debug(
+                            "consumer_idle",
+                            idle_polls=idle_polls,
+                            visited=len(self.visited),
+                            discovered=self.discovered_count,
+                            processed=self.processed_count,
+                        )
+
+                        if idle_polls >= IDLE_THRESHOLD:
+                            self.logger.info(
+                                "crawl_quiescent",
+                                visited=len(self.visited),
+                                discovered=self.discovered_count,
+                                processed=self.processed_count,
+                            )
+                            break  # If we have many idle records we stop the discovery loop.
+
+                        continue
+
+                    # We received messages → wereset idle counter.
+                    idle_polls = 0
                     offsets_to_commit: dict[TopicPartition, int] = {}
 
                     for tp, records in messages.items():
@@ -99,6 +130,8 @@ class DiscoveryConsumer:
                 if url in self.visited:
                     self.logger.debug("url_already_visited", url=url)
                     return None
+                else:
+                    self.discovered_count += 1
 
                 # marking as visited BEFORE crawling.
                 self.visited.add(url)
@@ -123,6 +156,7 @@ class DiscoveryConsumer:
                 
                 match res_io:
                     case IOSuccess(Success(_)):
+                        self.processed_count += 1
                         self.logger.info("discovery_processed", url=data["url"])
                     case IOFailure(Failure(e)):
                         self.logger.error("discovery_failed", url=data["url"], error=str(e))
