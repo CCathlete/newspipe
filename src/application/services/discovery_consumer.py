@@ -65,7 +65,7 @@ class DiscoveryConsumer:
                     if not any(messages.values()):
                         idle_polls += 1
 
-                        self.logger.debug(
+                        self.logger.info(
                             "consumer_idle",
                             idle_polls=idle_polls,
                             visited=len(self.visited),
@@ -96,18 +96,20 @@ class DiscoveryConsumer:
                                 match discovery_io_result:
                                     case IOSuccess(Success(_)):
                                         assert record.value
-                                        self.logger.info("Record %s passed to discovery queue.", record.value[:100])
+                                        self.logger.info("Record %s passed to discovery queue.", record.value[:50])
                                     case IOFailure(Failure(e)):
                                         assert record.value
-                                        self.logger.error("Record %s failed to pass to discovery queue.", record.value[:100])
+                                        self.logger.error("Record %s failed to pass to discovery queue.", record.value[:50])
 
                             elif tp.topic == "raw_chunks":
                                 ingestion_io_result: IOResultE[None] = await self._handle_ingestion(record).awaitable()
                                 match ingestion_io_result:
                                     case IOSuccess(Success(_)):
-                                        self.logger.info("Record %s passed to ingestion queue.", record.value)
+                                        assert record.value
+                                        self.logger.info("Record %s passed to ingestion queue.", record.value[:50])
                                     case IOFailure(Failure(e)):
-                                        self.logger.error("Record %s failed to pass to ingestion queue.", record.value)
+                                        assert record.value
+                                        self.logger.error("Record %s failed to pass to ingestion queue.", record.value[:50])
 
 
                             offsets_to_commit[tp] = record.offset
