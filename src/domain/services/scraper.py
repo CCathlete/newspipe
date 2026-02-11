@@ -140,10 +140,11 @@ class StreamScraper:
 
                 absolute: str = urljoin(base_url, href)
                 link: str = self.__normalize(absolute)
-                self.logger.debug("link_discovered", link=link, depth=current_depth + 1)
+                self.logger.info("link_discovered", link=link, depth=current_depth + 1)
 
                 parsed: ParseResult = urlparse(link)
                 link_for_check: str = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+                self.logger.info("link_for_check", link=link_for_check, depth=current_depth + 1)
 
 
                 # Pass depth to the validation check
