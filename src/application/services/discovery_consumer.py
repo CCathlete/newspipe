@@ -96,20 +96,20 @@ class DiscoveryConsumer:
                                 match discovery_io_result:
                                     case IOSuccess(Success(_)):
                                         assert record.value
-                                        self.logger.info("Record %s passed to discovery queue.", record.value[:50])
+                                        self.logger.info("Record %s passed to discovery queue.", record.value[:100])
                                     case IOFailure(Failure(e)):
                                         assert record.value
-                                        self.logger.error("Record %s failed to pass to discovery queue.", record.value[:50])
+                                        self.logger.error("Record %s failed to pass to discovery queue.", record.value[:100])
 
                             elif tp.topic == "raw_chunks":
                                 ingestion_io_result: IOResultE[None] = await self._handle_ingestion(record).awaitable()
                                 match ingestion_io_result:
                                     case IOSuccess(Success(_)):
                                         assert record.value
-                                        self.logger.info("Record %s passed to ingestion queue.", record.value[:50])
+                                        self.logger.info("Record %s passed to ingestion queue.", record.value[:100])
                                     case IOFailure(Failure(e)):
                                         assert record.value
-                                        self.logger.error("Record %s failed to pass to ingestion queue.", record.value[:50])
+                                        self.logger.error("Record %s failed to pass to ingestion queue.", record.value[:100])
 
 
                             offsets_to_commit[tp] = record.offset
