@@ -68,7 +68,7 @@ class BronzeRecord(SparkModel):
 class TraversalRules(BaseModel):
     required_path_segments: list[str] = Field(default_factory=list)
     blocked_path_segments: list[str] = Field(default_factory=list)
-    max_depth: int = 3
+    max_depth: int = 10
 
     def _path_segments(self, url: str) -> list[str]:
         parsed: ParseResult = urlparse(url)
@@ -95,7 +95,7 @@ class TraversalRules(BaseModel):
 
         # 3. If required segments defined, all must appear somewhere in the path
         if self.required_path_segments:
-            if not all(seg in segments for seg in self.required_path_segments):
+            if not any(seg in segments for seg in self.required_path_segments):
                 return False
 
         # 4. Passed all checks

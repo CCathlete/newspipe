@@ -125,6 +125,7 @@ class ScraperPort(Protocol):
         language: str,
         discovery_topics: list[str] = ["discovery_queue"],
         chunks_topic: str = "raw_chunks",
+        depth: int = 0,
     ) -> None:
         """Performs crawl, discovers links, and publishes chunks to Kafka."""
         ...

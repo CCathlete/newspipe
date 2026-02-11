@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass
 from typing import Callable
-from urllib.parse import urljoin, urlparse
+from urllib.parse import ParseResult, urljoin, urlparse
 
 from returns.future import FutureResultE, future_safe
 from returns.io import IOFailure, IOResultE, IOSuccess
@@ -131,6 +131,7 @@ class StreamScraper:
         ) -> None:
             internal_links: list[dict[str, str]] = result.links.get("internal", [])
 
+
             
             for link_properties in internal_links:
                 href = link_properties.get("href")
@@ -139,9 +140,15 @@ class StreamScraper:
 
                 absolute: str = urljoin(base_url, href)
                 link: str = self.__normalize(absolute)
+                self.logger.debug("link_discovered", link=link, depth=current_depth + 1)
+
+                parsed: ParseResult = urlparse(link)
+                link_for_check: str = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
+
                 # Pass depth to the validation check
                 validity_future: FutureResultE[bool] = self._is_valid_navigation(
-                    link, 
+                    link_for_check, 
                     current_depth + 1
                 )
                 validity_io_monad: IOResultE[bool] = await validity_future.awaitable()
