@@ -62,9 +62,11 @@ class DiscoveryConsumer:
                                 discovery_io_result: IOResultE[None] = await self._handle_discovery(record).awaitable()
                                 match discovery_io_result:
                                     case IOSuccess(Success(_)):
-                                        self.logger.info("Record %s passed to discovery queue.", record.value)
+                                        assert record.value
+                                        self.logger.info("Record %s passed to discovery queue.", record.value[:100])
                                     case IOFailure(Failure(e)):
-                                        self.logger.error("Record %s failed to pass to discovery queue.", record.value)
+                                        assert record.value
+                                        self.logger.error("Record %s failed to pass to discovery queue.", record.value[:100])
 
                             elif tp.topic == "raw_chunks":
                                 ingestion_io_result: IOResultE[None] = await self._handle_ingestion(record).awaitable()
