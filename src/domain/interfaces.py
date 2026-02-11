@@ -72,6 +72,13 @@ class KafkaPort(Protocol):
     ) ->list[str]:
         ...
 
+    @future_safe
+    async def commit(
+        self, 
+        offsets: dict[TopicPartition, int] | None = None,
+    ) -> None:
+        ...
+
 
 @runtime_checkable
 class ChunkingStrategy(Protocol):

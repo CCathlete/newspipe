@@ -7,7 +7,7 @@ from functools import cached_property
 from typing import Any
 
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
-from aiokafka.structs import TopicPartition, ConsumerRecord
+from aiokafka.structs import TopicPartition, ConsumerRecord, OffsetAndMetadata
 from aiokafka.protocol.api import Response
 from returns.future import future_safe
 from returns.result import  safe
@@ -108,6 +108,25 @@ class KafkaConsumerAdapter(KafkaPort):
             await admin_client.close()
 
 
+
+    @future_safe
+    async def commit(
+        self,
+        offsets: dict[TopicPartition, int] | None = None,
+    ) -> None:
+        if offsets is None:
+            await self._consumer.commit()
+            return
+
+        formatted: dict[TopicPartition, OffsetAndMetadata] = {
+            tp: OffsetAndMetadata(offset + 1, "")
+            for tp, offset in offsets.items()
+        }
+
+        await self._consumer.commit(formatted)
+
+
+
 @dataclass(slots=True, frozen=True)
 class KafkaProducerAdapter(KafkaPort):
     bootstrap_servers: str
@@ -187,6 +206,11 @@ class KafkaProducerAdapter(KafkaPort):
         finally:
             await admin_client.close()
 
+    @future_safe
+    async def commit(
+            self,
+    ) -> None:
+        return None
 
 
 

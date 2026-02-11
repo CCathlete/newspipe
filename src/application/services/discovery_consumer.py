@@ -55,6 +55,8 @@ class DiscoveryConsumer:
 
             match messages_io_monad:
                 case IOSuccess(Success(messages)):
+                    offsets_to_commit: dict[TopicPartition, int] = {}
+
                     for tp, records in messages.items():
                         for record in records:
                             # Route based on topic
@@ -75,6 +77,13 @@ class DiscoveryConsumer:
                                         self.logger.info("Record %s passed to ingestion queue.", record.value)
                                     case IOFailure(Failure(e)):
                                         self.logger.error("Record %s failed to pass to ingestion queue.", record.value)
+
+
+                            offsets_to_commit[tp] = record.offset
+
+
+                    if any(messages.values()):
+                        await self.kafka_consumer.commit(offsets=offsets_to_commit).awaitable()
 
                 case IOFailure(Failure(e)):
                     self.logger.error("Problem with consumption: %s", e)
