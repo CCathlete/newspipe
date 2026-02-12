@@ -286,7 +286,6 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         kafka_provider=kafka_producer,
         crawler=scraping_provider,
         traversal_rules=traversal_rules,
-        run_config=run_config,
         # Chunking strategy.
         strategy=strategy,
         query=config.policy.traversal.query, # Traversal query for adaptive crawling.
