@@ -238,20 +238,23 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         overlap=config.stream_scraper.overlap,
     )
 
-    browser_configuration = providers.Singleton(
-        BrowserConfig,
-        headless=True,
-        enable_stealth=True,
-        browser_mode="builtin",
-    )
-
     run_config = providers.Singleton(
         CrawlerRunConfig,
         cache_mode=cache_context.CacheMode.BYPASS,
         chunking_strategy=strategy,
         markdown_generator=markdown_generation_strategy.DefaultMarkdownGenerator(
             options={"ignore_links": False}
-        )
+        ),
+        semaphore_count= config.litellm.max_concurrency,
+        # Anti-bot
+        simulate_user=True,
+        magic=True,
+    )
+
+    browser_configuration = providers.Singleton(
+        BrowserConfig,
+        headless=True,
+        browser_mode="builtin",
     )
 
     async_crawler = providers.Singleton(
@@ -268,7 +271,6 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         top_k_links=3,                   # links to follow per page
         min_gain_threshold=0.1,          # minimum info gain to continue
         strategy="statistical",          # default strategy; can be "embedding"
-        query=providers.Callable(lambda cfg=config: cfg.policy.traversal.query)  # Using a callable defers the loading until config is ready.
     )
 
     # Adaptive crawler provider
@@ -282,10 +284,10 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         StreamScraper,
         logger=logger_provider,
         kafka_provider=kafka_producer,
-        crawler_factory=scraping_provider.provider,
+        crawler=scraping_provider.provider,
         traversal_rules=traversal_rules,
         run_config=run_config,
-        strategy=strategy
+        query=config.policy.traversal.query, # Traversal query for adaptive crawling.
     )
 
     # Telemetry object that monitors LLM performance (including embedding).

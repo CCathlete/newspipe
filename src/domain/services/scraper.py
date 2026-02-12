@@ -12,7 +12,7 @@ from structlog.typing import FilteringBoundLogger
 
 from domain.interfaces import (
     ChunkingStrategy,
-    Crawler,
+    AdaptiveCrawler,
     CrawlerResult,
     CrawlerRunConfig,
     KafkaPort,
@@ -23,10 +23,11 @@ from domain.models import BronzeRecord, TraversalRules
 class StreamScraper:
     logger: FilteringBoundLogger
     kafka_provider: KafkaPort
-    crawler_factory: Callable[[], Crawler]
+    crawler: AdaptiveCrawler
     traversal_rules: TraversalRules
     run_config: CrawlerRunConfig
     strategy: ChunkingStrategy
+    query: str
 
     @future_safe
     async def initialize_and_seed(self, seeds: dict[str, list[str]], topics: list[str]) -> list[str]:
@@ -55,26 +56,25 @@ class StreamScraper:
         chunks_topic: str = "raw_chunks",
         depth: int = 0
     ) -> None:
-        async with self.crawler_factory() as crawler:
-            result: CrawlerResult = await crawler.arun(url=url, config=self.run_config)
+        result: CrawlerResult = await self.crawler.digest(url=url, query=self.query)
 
-            if not result.success:
-                raise RuntimeError(result.error_message or "Crawl failed")
+        if not result.success:
+            raise RuntimeError(result.error_message or "Crawl failed")
 
-            # 1. Deterministic Link Discovery (now uses url to resolve relatives)
-            discovery_future: FutureResultE[None] = self._discover_links(
-                result, url, discovery_topics, language, depth
-            )
-            await discovery_future.awaitable()
+        # 1. Deterministic Link Discovery (now uses url to resolve relatives)
+        discovery_future: FutureResultE[None] = self._discover_links(
+            result, url, discovery_topics, language, depth
+        )
+        await discovery_future.awaitable()
 
-            # 2. Content Chunking & Publishing
-            if not result.markdown:
-                raise ValueError(f"No content retrieved from {url}")
+        # 2. Content Chunking & Publishing
+        if not result.markdown:
+            raise ValueError(f"No content retrieved from {url}")
 
-            publish_future: FutureResultE[None] = self._publish_chunks(result.markdown, self.strategy, url, language, chunks_topic)
-            await publish_future.awaitable()
-            
-            return None
+        publish_future: FutureResultE[None] = self._publish_chunks(result.markdown, self.strategy, url, language, chunks_topic)
+        await publish_future.awaitable()
+        
+        return None
 
     @future_safe
     async def _publish_chunks(

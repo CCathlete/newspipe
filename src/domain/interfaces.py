@@ -1,6 +1,7 @@
 # src/domain/interfaces.py
 
 from typing import Any, Iterable, Protocol, runtime_checkable
+from crawl4ai.adaptive_crawler import CrawlState
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 from returns.result import Result, safe
@@ -115,6 +116,10 @@ class Crawler(Protocol):
 
     async def __aexit__(self, exc_type: Any, exc_val: Any,
                         exc_tb: Any) -> None: ...
+
+@runtime_checkable
+class AdaptiveCrawler(Protocol):
+    async def digest(self, url: str, query: str) -> CrawlState: ...
 
 
 class ScraperPort(Protocol):
