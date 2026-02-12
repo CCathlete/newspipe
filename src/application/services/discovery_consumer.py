@@ -1,6 +1,7 @@
 # src/application/services/discovery_consumer.py
 
 import json
+import asyncio
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -24,7 +25,7 @@ class DiscoveryConsumer:
     visited: set[str] = field(default_factory=set)
     processed_count: int = 0
     discovered_count: int = 0
-
+    in_flight: int = 0
 
 
     @future_safe
@@ -62,7 +63,7 @@ class DiscoveryConsumer:
             match messages_io_monad:
                 case IOSuccess(Success(messages)):
                     # ---- IDLE DETECTION ----
-                    if not any(messages.values()):
+                    if not any(messages.values()) and self.in_flight == 0:
                         idle_polls += 1
 
                         self.logger.info(
@@ -115,7 +116,7 @@ class DiscoveryConsumer:
                             offsets_to_commit[tp] = record.offset
 
 
-                    if any(messages.values()):
+                    if offsets_to_commit:
                         await self.kafka_consumer.commit(offsets=offsets_to_commit).awaitable()
 
                 case IOFailure(Failure(e)):
@@ -148,21 +149,32 @@ class DiscoveryConsumer:
                     case IOFailure(Failure(err)):
                         self.logger.error("discovery_decode_error", error=str(err))
                         raise
+                # --- Making the crawl non blocking to implement BFS traversal. ---
 
-                # We assume standard keys: url, language, strategy_params, etc.
-                crawl_future: FutureResultE[None] = self.scraper.deep_crawl(
-                    url=data["url"],
-                    language=data.get("language", "en"),
-                    depth=data.get("depth", 0),
-                )
-                res_io: IOResultE[None] = await crawl_future.awaitable()
-                
-                match res_io:
-                    case IOSuccess(Success(_)):
-                        self.processed_count += 1
-                        self.logger.info("discovery_processed", url=data["url"])
-                    case IOFailure(Failure(e)):
-                        self.logger.error("discovery_failed", url=data["url"], error=str(e))
+                self.in_flight += 1
+
+                async def _run_crawl() -> None:
+                    try:
+                        crawl_future: FutureResultE[None] = self.scraper.deep_crawl(
+                            url=data["url"],
+                            language=data.get("language", "en"),
+                            depth=data.get("depth", 0),
+                        )
+                        res_io: IOResultE[None] = await crawl_future.awaitable()
+
+                        match res_io:
+                            case IOSuccess(Success(_)):
+                                self.processed_count += 1
+                                self.logger.info("discovery_processed", url=url)
+                            case IOFailure(Failure(e)):
+                                self.logger.error("discovery_failed", url=url, error=str(e))
+                    finally:
+                        self.in_flight -= 1
+
+                asyncio.create_task(_run_crawl())
+
+                # ----------------------------------------------------------------
+
 
             case Failure(err):
                 self.logger.error("discovery_decode_error", error=str(err))
