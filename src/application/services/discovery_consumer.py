@@ -12,12 +12,10 @@ from returns.result import Failure, ResultE, Success, safe
 from structlog.typing import FilteringBoundLogger
 
 from domain.interfaces import KafkaPort, ScraperPort
-from domain.services.data_ingestion import IngestionPipeline
 
 @dataclass(slots=True, frozen=False)
 class DiscoveryConsumer:
     scraper: ScraperPort
-    ingestion_pipeline: IngestionPipeline
     kafka_consumer: KafkaPort
     visited_producer: KafkaPort
     logger: FilteringBoundLogger
@@ -28,7 +26,6 @@ class DiscoveryConsumer:
 
     processed_count: int = 0
     discovered_count: int = 0
-    # in_flight: int = 0
 
 
     def _on_task_done(self, task: asyncio.Task) -> None:
@@ -39,7 +36,7 @@ class DiscoveryConsumer:
         # We need to listen to BOTH topics or run two instances
         # Topic 'raw_chunks' -> Ingestion
         # Topic 'discovery_queue' -> Scraping
-        topics: list[str] = ["raw_chunks", "discovery_queue", "visited_urls"]
+        topics: list[str] = ["discovery_queue", "visited_urls"]
         idle_polls: int = 0
         IDLE_THRESHOLD: int = 10
 
@@ -111,17 +108,6 @@ class DiscoveryConsumer:
                                     case IOFailure(Failure(e)):
                                         assert record.value
                                         self.logger.error("Record %s failed to pass to discovery queue.", record.value[:100])
-
-                            elif tp.topic == "raw_chunks":
-                                ingestion_io_result: IOResultE[None] = await self._handle_ingestion(record).awaitable()
-                                match ingestion_io_result:
-                                    case IOSuccess(Success(_)):
-                                        assert record.value
-                                        self.logger.info("Record %s passed to ingestion queue.", record.value[:100])
-                                    case IOFailure(Failure(e)):
-                                        assert record.value
-                                        self.logger.error("Record %s failed to pass to ingestion queue.", record.value[:100])
-
 
                             offsets_to_commit[tp] = record.offset
 
@@ -196,23 +182,6 @@ class DiscoveryConsumer:
             case Failure(err):
                 self.logger.error("discovery_decode_error", error=str(err))
                 raise
-
-    @future_safe
-    async def _handle_ingestion(self, record: ConsumerRecord) -> None:
-        """Markdown chunks found: Trigger LLM Tagging & Storage."""
-        match self._safe_decode(record.value):
-            case Success(data_bronzerecord):
-                # The IngestionPipeline handles its own LLM tagging.
-                ingest_f: FutureResultE[None] = self.ingestion_pipeline.ingest_if_relevant(data_bronzerecord)
-                res_io: IOResultE[None] = await ingest_f.awaitable()
-                
-                match res_io:
-                    case IOSuccess(Success(_)):
-                        self.logger.info("chunk_persisted", url=data_bronzerecord["source_url"])
-                    case IOFailure(Failure(e)):
-                        self.logger.error("ingestion_failed", url=data_bronzerecord["source_url"], error=str(e))
-            case Failure(e):
-                self.logger.error("ingestion_decode_error", error=str(e))
 
     @safe
     def _safe_decode(self, value: bytes | None) -> dict[str, Any]:

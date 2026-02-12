@@ -28,10 +28,10 @@ class IngestionService:
         self.logger.info("ingestion_service_starting", topics=topics)
 
         while True:
-            # async getmany
             messages_future: FutureResultE[
                 dict[TopicPartition, list[ConsumerRecord[Any, Any]]]
             ] = self.kafka_consumer.getmany(timeout_ms=1000, max_records=50)
+
             messages_io: IOResultE[
                 dict[TopicPartition, list[ConsumerRecord[Any, Any]]]
             ] = await messages_future.awaitable()
