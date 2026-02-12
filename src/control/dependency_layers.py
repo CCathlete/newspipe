@@ -287,6 +287,8 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         crawler=scraping_provider.provider,
         traversal_rules=traversal_rules,
         run_config=run_config,
+        # Chunking strategy.
+        strategy=strategy,
         query=config.policy.traversal.query, # Traversal query for adaptive crawling.
     )
 
