@@ -57,7 +57,8 @@ class DiscoveryConsumer:
         while True:
             messages_future: FutureResultE[dict[TopicPartition, list[ConsumerRecord[Any, Any]]]] = self.kafka_consumer.getmany(
                 timeout_ms=1000,
-                max_records=50
+                # max_records=50,
+                max_records=5,
             )
             messages_io_monad: IOResultE[dict[TopicPartition, list[ConsumerRecord[Any, Any]]]] = await messages_future.awaitable()
 
@@ -152,6 +153,7 @@ class DiscoveryConsumer:
                         raise
                 # --- Making the crawl non blocking to implement BFS traversal. ---
 
+                await self.semaphore.acquire()
                 self.in_flight += 1
 
                 async def _run_crawl() -> None:
@@ -162,8 +164,7 @@ class DiscoveryConsumer:
                             depth=data.get("depth", 0),
                         )
 
-                        async with self.semaphore:
-                            res_io: IOResultE[None] = await crawl_future.awaitable()
+                        res_io: IOResultE[None] = await crawl_future.awaitable()
 
                         match res_io:
                             case IOSuccess(Success(_)):
@@ -173,6 +174,7 @@ class DiscoveryConsumer:
                                 self.logger.error("discovery_failed", url=url, error=str(e))
                     finally:
                         self.in_flight -= 1
+                        self.semaphore.release()
 
                 asyncio.create_task(_run_crawl())
 

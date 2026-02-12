@@ -251,7 +251,8 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         )
     )
 
-    scraping_provider = providers.Factory(
+    scraping_provider = providers.Singleton(
+    # scraping_provider = providers.Factory(
         AsyncWebCrawler,
         config=browser_configuration,
     )
