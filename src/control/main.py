@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from returns.io import IOFailure, IOSuccess
+from returns.io import IOFailure, IOResultE, IOSuccess
 from returns.result import Failure, Success
 import structlog
 from dependency_injector.wiring import Provide, inject
@@ -58,21 +58,20 @@ async def main_async(
     if (init_task := container.init_resources()) is not None:
         await init_task
 
-    logger.info("Starting discovery application service")
+    discovery_task: asyncio.Task[IOResultE[None]] = asyncio.create_task(discovery_service.run(seeds).awaitable())
+    ingestion_task: asyncio.Task[IOResultE[None]] = asyncio.create_task(ingestion_service.run().awaitable())
 
-    match await discovery_service.run(seeds):
-        case IOSuccess(Success(_)):
-            logger.info("Discovery service completed gracefully")
-        case IOFailure(Failure(e)):
-            logger.error("Discovery service crashed", error=str(e))
+    results = await asyncio.gather(discovery_task, ingestion_task, return_exceptions=True)
 
-    logger.info("starting ingestion application_service")
+    for result, name in zip(results, ["discovery", "ingestion"]):
+        match result:
+            case IOSuccess(Success(_)):
+                logger.info(f"{name} service completed gracefully")
+            case IOFailure(Failure(e)):
+                logger.error(f"{name} service crashed", error=str(e))
+            case Exception() as e:
+                logger.error(f"{name} service raised exception", error=str(e))
 
-    match await ingestion_service.run():
-        case IOSuccess(Success(_)):
-            logger.info("Ingestion service completed gracefully")
-        case IOFailure(Failure(e)):
-            logger.error("Ingestion service crashed", error=str(e))
 
     if (shutdown_task := container.shutdown_resources()) is not None:
         await shutdown_task
