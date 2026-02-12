@@ -85,7 +85,7 @@ class DiscoveryConsumer:
 
                         continue
 
-                    # We received messages → wereset idle counter.
+                    # We received messages → we reset idle counter.
                     idle_polls = 0
                     offsets_to_commit: dict[TopicPartition, int] = {}
 
