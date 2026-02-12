@@ -17,7 +17,9 @@ from crawl4ai import (
     BrowserConfig,
     CrawlerRunConfig,
     cache_context,
-    markdown_generation_strategy
+    markdown_generation_strategy,
+    AdaptiveCrawler,
+    AdaptiveConfig
 )
 from crawl4ai.chunking_strategy import OverlappingWindowChunking
 from structlog.processors import JSONRenderer, TimeStamper, StackInfoRenderer, format_exc_info
@@ -252,10 +254,28 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         )
     )
 
-    scraping_provider = providers.Singleton(
+    async_crawler = providers.Singleton(
     # scraping_provider = providers.Factory(
         AsyncWebCrawler,
         config=browser_configuration,
+    )
+        
+    # Adaptive crawler configuration
+    adaptive_config = providers.Singleton(
+        AdaptiveConfig,
+        confidence_threshold=0.8,       # default threshold
+        max_pages=20,                    # safety limit
+        top_k_links=3,                   # links to follow per page
+        min_gain_threshold=0.1,          # minimum info gain to continue
+        strategy="statistical",          # default strategy; can be "embedding"
+        query=providers.Callable(lambda cfg=config: cfg.policy.traversal.query)  # use your traversal query
+    )
+
+    # Adaptive crawler provider
+    scraping_provider = providers.Singleton(
+        AdaptiveCrawler,
+        crawler=async_crawler,
+        config=adaptive_config
     )
 
     scraper = providers.Factory(
