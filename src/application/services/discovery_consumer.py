@@ -171,6 +171,7 @@ class DiscoveryConsumer:
                         crawl_future: FutureResultE[None] = self.scraper.deep_crawl(
                             url=data["url"],
                             language=data.get("language", "en"),
+                            chunks_topic="raw_chunks",
                         )
 
                         res_io: IOResultE[None] = await crawl_future.awaitable()
