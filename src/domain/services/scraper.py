@@ -57,7 +57,7 @@ class StreamScraper:
         depth: int = 0
     ) -> None:
 
-        state: CrawlState = await self.crawler.digest(url=url, query=self.query)
+        state: CrawlState = await self.crawler.digest(start_url=url, query=self.query)
 
         # Track crawl order
         state.crawl_order.append(url)
