@@ -239,7 +239,8 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     browser_configuration = providers.Singleton(
         BrowserConfig,
         headless=True,
-        enable_stealth=True
+        enable_stealth=True,
+        browser_mode="builtin",
     )
 
     run_config = providers.Singleton(
