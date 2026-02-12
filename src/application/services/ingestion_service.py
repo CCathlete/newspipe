@@ -21,7 +21,6 @@ class IngestionService:
     kafka_consumer: KafkaPort
     logger: FilteringBoundLogger
 
-    @future_safe
     async def run(self) -> None:
         topics = ["relevant_chunks"]
         self.kafka_consumer.subscribe(topics)

@@ -58,19 +58,17 @@ async def main_async(
     if (init_task := container.init_resources()) is not None:
         await init_task
 
-    discovery_task: asyncio.Task[IOResultE[None]] = asyncio.create_task(discovery_service.run(seeds).awaitable())
-    ingestion_task: asyncio.Task[IOResultE[None]] = asyncio.create_task(ingestion_service.run().awaitable())
+    discovery_task: asyncio.Task[None] = asyncio.create_task(discovery_service.run(seeds))
+    ingestion_task: asyncio.Task[None] = asyncio.create_task(ingestion_service.run())
 
-    results = await asyncio.gather(discovery_task, ingestion_task, return_exceptions=True)
+    try:
+        # Wait forever until interrupted
+        await asyncio.gather(discovery_task, ingestion_task)
 
-    for result, name in zip(results, ["discovery", "ingestion"]):
-        match result:
-            case IOSuccess(Success(_)):
-                logger.info(f"{name} service completed gracefully")
-            case IOFailure(Failure(e)):
-                logger.error(f"{name} service crashed", error=str(e))
-            case Exception() as e:
-                logger.error(f"{name} service raised exception", error=str(e))
+    except Exception as e:
+        logger.error("Service raised an exception", error=str(e))
+    except asyncio.CancelledError:
+        logger.info("Shutdown requested")
 
 
     if (shutdown_task := container.shutdown_resources()) is not None:
@@ -92,7 +90,7 @@ def main() -> None:
             "telemetry_endpoint": f"{os.getenv('PHOENIX_COLLECTOR_ENDPOINT')}/v1/traces",
             "telemetry_api_key": os.getenv("PHOENIX_API_KEY"), 
             "telemetry_project_name": "newspipe",
-            "max_concurrency": 2 # Concurrent requests to llm.
+            "max_concurrency": 10 # Concurrent requests to llm.
         },
         "lakehouse": {
             "bronze_path": "s3a://lakehouse/bronze",
