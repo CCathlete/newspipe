@@ -6,3 +6,27 @@ https://github.com/CCathlete/pipeline_infra
 
 Business logic (stream scraping + lakehouse loading) -
 https://github.com/CCathlete/newspipe
+
+
+
+            ┌──────────────┐
+            │ discovery app│
+            │ asyncio      │
+            └──────┬───────┘
+                   │
+            discovery_queue
+                   │
+                   ▼
+             crawler + chunker
+                   │
+               raw_chunks
+                   │
+                   ▼
+            ┌──────────────┐
+            │ ingestion app│
+            │ blocking     │
+            │ Spark owner  │
+            └──────┬───────┘
+                   │
+                 lakehouse
+
