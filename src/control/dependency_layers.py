@@ -284,7 +284,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         StreamScraper,
         logger=logger_provider,
         kafka_provider=kafka_producer,
-        crawler=scraping_provider.provider,
+        crawler=scraping_provider,
         traversal_rules=traversal_rules,
         run_config=run_config,
         # Chunking strategy.
