@@ -31,6 +31,7 @@ class DiscoveryService:
     def _on_task_done(self, task: asyncio.Task) -> None:
         self.active_tasks.discard(task)
 
+    @future_safe
     async def run(self, seeds: dict[str, list[str]]) -> None:
         topics: list[str] = ["discovery_queue", "visited_urls"]
         idle_polls: int = 0
