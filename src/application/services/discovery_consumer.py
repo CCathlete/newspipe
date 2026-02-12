@@ -24,6 +24,8 @@ class DiscoveryConsumer:
     semaphore: asyncio.Semaphore
 
     visited: set[str] = field(default_factory=set)
+    active_tasks: set[asyncio.Task] = field(default_factory=set)
+
     processed_count: int = 0
     discovered_count: int = 0
     in_flight: int = 0
@@ -83,6 +85,9 @@ class DiscoveryConsumer:
                                 discovered=self.discovered_count,
                                 processed=self.processed_count,
                             )
+
+                            self.logger.info("waiting_for_inflight_tasks", count=len(self.active_tasks))
+                            await asyncio.gather(*self.active_tasks, return_exceptions=True)
                             break  # If we have many idle records we stop the discovery loop.
 
                         continue
@@ -156,6 +161,8 @@ class DiscoveryConsumer:
                 await self.semaphore.acquire()
                 self.in_flight += 1
 
+                # ----------------------------------------------------------------
+
                 async def _run_crawl() -> None:
                     try:
                         crawl_future: FutureResultE[None] = self.scraper.deep_crawl(
@@ -176,9 +183,13 @@ class DiscoveryConsumer:
                         self.in_flight -= 1
                         self.semaphore.release()
 
-                asyncio.create_task(_run_crawl())
-
                 # ----------------------------------------------------------------
+
+                task: asyncio.Task = asyncio.create_task(_run_crawl())
+                self.active_tasks.add(task)
+
+                task.add_done_callback(lambda task: self.active_tasks.discard(task))
+
 
 
             case Failure(err):
