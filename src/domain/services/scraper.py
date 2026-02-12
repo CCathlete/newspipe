@@ -2,9 +2,10 @@
 
 import json
 from dataclasses import dataclass
-from typing import Callable
 from urllib.parse import ParseResult, urljoin, urlparse
 
+from crawl4ai.adaptive_crawler import CrawlState
+from crawl4ai.models import Link, StringCompatibleMarkdown
 from returns.future import FutureResultE, future_safe
 from returns.io import IOFailure, IOResultE, IOSuccess
 from returns.result import Failure, Success
@@ -13,7 +14,6 @@ from structlog.typing import FilteringBoundLogger
 from domain.interfaces import (
     ChunkingStrategy,
     AdaptiveCrawler,
-    CrawlerResult,
     CrawlerRunConfig,
     KafkaPort,
 )
@@ -56,30 +56,36 @@ class StreamScraper:
         chunks_topic: str = "raw_chunks",
         depth: int = 0
     ) -> None:
-        result: CrawlerResult = await self.crawler.digest(url=url, query=self.query)
 
-        if not result.success:
-            raise RuntimeError(result.error_message or "Crawl failed")
+        state: CrawlState = await self.crawler.digest(url=url, query=self.query)
 
-        # 1. Deterministic Link Discovery (now uses url to resolve relatives)
-        discovery_future: FutureResultE[None] = self._discover_links(
-            result, url, discovery_topics, language, depth
+        # Track crawl order
+        state.crawl_order.append(url)
+
+        # Publish content from knowledge base
+        for crawl_result in state.knowledge_base:
+            assert crawl_result.markdown
+            await self._publish_chunks(
+                content=crawl_result.markdown, 
+                strategy=self.strategy, 
+                url=crawl_result.url, 
+                language=language, 
+                topic=chunks_topic
+            )
+
+        # Discover and enqueue new links
+        await self._discover_links(
+            result=state,
+            base_url=url, 
+            topics=discovery_topics, 
+            language=language, 
+            current_depth=depth
         )
-        await discovery_future.awaitable()
-
-        # 2. Content Chunking & Publishing
-        if not result.markdown:
-            raise ValueError(f"No content retrieved from {url}")
-
-        publish_future: FutureResultE[None] = self._publish_chunks(result.markdown, self.strategy, url, language, chunks_topic)
-        await publish_future.awaitable()
-        
-        return None
 
     @future_safe
     async def _publish_chunks(
         self, 
-        content: str, 
+        content: str | StringCompatibleMarkdown, 
         strategy: ChunkingStrategy, 
         url: str, 
         language: str, 
@@ -119,18 +125,18 @@ class StreamScraper:
     @future_safe
     async def _discover_links(
             self, 
-            result: CrawlerResult, 
+            result: CrawlState, 
             base_url: str, 
             topics: list[str], 
             language: str,
             current_depth: int  # Passed from deep_crawl.
         ) -> None:
-            internal_links: list[dict[str, str]] = result.links.get("internal", [])
+            internal_links: list[Link] = result.pending_links
 
 
             
             for link_properties in internal_links:
-                href = link_properties.get("href")
+                href: str | None = link_properties.href
                 if not href:
                     continue
 

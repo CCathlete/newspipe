@@ -121,6 +121,9 @@ class Crawler(Protocol):
 class AdaptiveCrawler(Protocol):
     async def digest(self, url: str, query: str) -> CrawlState: ...
 
+    def get_relevant_content(self, top_k: int = 5) -> list[dict[str, Any]]: ...
+
+
 
 class ScraperPort(Protocol):
     @future_safe
