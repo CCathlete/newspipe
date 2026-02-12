@@ -11,7 +11,8 @@ from returns.result import Failure, Success
 import structlog
 from dependency_injector.wiring import Provide, inject
 
-from application.services.discovery_consumer import DiscoveryConsumer
+from application.services.discovery_service import DiscoveryService
+from application.services.ingestion_service import IngestionService
 from .dependency_layers import DataPlatformContainer
 
 root_path: Path = Path(__file__).parents[2]
@@ -48,7 +49,8 @@ def _get_seed_urls(seeds_file_path: Path) -> dict[str, list[str]]:
 @inject
 async def main_async(
     seeds: dict[str, list[str]],
-    discovery_service: DiscoveryConsumer = Provide[DataPlatformContainer.discovery_consumer],
+    discovery_service: DiscoveryService = Provide[DataPlatformContainer.discovery_service],
+    ingestion_service: IngestionService = Provide[DataPlatformContainer.ingestion_service],
     logger: structlog.typing.FilteringBoundLogger = Provide[DataPlatformContainer.logger_provider],
     container: DataPlatformContainer = Provide[DataPlatformContainer],
 ) -> None:
@@ -56,13 +58,21 @@ async def main_async(
     if (init_task := container.init_resources()) is not None:
         await init_task
 
-    logger.info("starting_discovery_application_service")
+    logger.info("Starting discovery application service")
 
     match await discovery_service.run(seeds):
         case IOSuccess(Success(_)):
-            logger.info("discovery_service_completed_gracefully")
+            logger.info("Discovery service completed gracefully")
         case IOFailure(Failure(e)):
-            logger.error("discovery_service_crashed", error=str(e))
+            logger.error("Discovery service crashed", error=str(e))
+
+    logger.info("starting ingestion application_service")
+
+    match await ingestion_service.run():
+        case IOSuccess(Success(_)):
+            logger.info("Ingestion service completed gracefully")
+        case IOFailure(Failure(e)):
+            logger.error("Ingestion service crashed", error=str(e))
 
     if (shutdown_task := container.shutdown_resources()) is not None:
         await shutdown_task

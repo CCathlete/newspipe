@@ -14,7 +14,7 @@ from structlog.typing import FilteringBoundLogger
 from domain.interfaces import KafkaPort, ScraperPort
 
 @dataclass(slots=True, frozen=False)
-class DiscoveryConsumer:
+class DiscoveryService:
     scraper: ScraperPort
     kafka_consumer: KafkaPort
     visited_producer: KafkaPort
@@ -33,9 +33,6 @@ class DiscoveryConsumer:
 
     @future_safe
     async def run(self, seeds: dict[str, list[str]]) -> None:
-        # We need to listen to BOTH topics or run two instances
-        # Topic 'raw_chunks' -> Ingestion
-        # Topic 'discovery_queue' -> Scraping
         topics: list[str] = ["discovery_queue", "visited_urls"]
         idle_polls: int = 0
         IDLE_THRESHOLD: int = 10
@@ -148,7 +145,6 @@ class DiscoveryConsumer:
                 # --- Making the crawl non blocking to implement BFS traversal. ---
 
                 await self.semaphore.acquire()
-                # self.in_flight += 1
 
                 # ----------------------------------------------------------------
 
@@ -157,7 +153,7 @@ class DiscoveryConsumer:
                         crawl_future: FutureResultE[None] = self.scraper.deep_crawl(
                             url=data["url"],
                             language=data.get("language", "en"),
-                            chunks_topic="raw_chunks",
+                            chunks_topic="relevant_chunks",
                         )
 
                         res_io: IOResultE[None] = await crawl_future.awaitable()
@@ -169,7 +165,6 @@ class DiscoveryConsumer:
                             case IOFailure(Failure(e)):
                                 self.logger.error("discovery_failed", url=url, error=str(e))
                     finally:
-                        # self.in_flight -= 1
                         self.semaphore.release()
 
                 # ----------------------------------------------------------------

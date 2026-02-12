@@ -26,7 +26,8 @@ from structlog.processors import JSONRenderer, TimeStamper, StackInfoRenderer, f
 
 from domain.models import RelevancePolicy, TraversalRules
 from domain.services.data_ingestion import IngestionPipeline
-from application.services.discovery_consumer import DiscoveryConsumer
+from application.services.discovery_service import DiscoveryService
+from application.services.ingestion_service import IngestionService
 from domain.services.scraper import StreamScraper
 from infrastructure.litellm_client import LitellmClient
 from infrastructure.lakehouse import LakehouseConnector
@@ -331,14 +332,19 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         relevance_policy=relevance_policy
     )
 
-    discovery_consumer = providers.Factory(
-        DiscoveryConsumer,
+    discovery_service = providers.Factory(
+        DiscoveryService,
         scraper=scraper,
-        ingestion_pipeline=pipeline,
         kafka_consumer=kafka_consumer,
         visited_producer=kafka_producer,
         logger=logger_provider,
         semaphore=semaphore,
-        # visited=set(), # In case we want one global visited set for multiple instances.
+    )
+
+    ingestion_service = providers.Factory(
+        IngestionService,
+        ingestion_pipeline=pipeline,
+        kafka_consumer=kafka_consumer,
+        logger=logger_provider,
     )
 
