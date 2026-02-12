@@ -313,6 +313,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         kafka_consumer=kafka_consumer,
         visited_producer=kafka_producer,
         logger=logger_provider,
+        semaphore=semaphore,
         # visited=set(), # In case we want one global visited set for multiple instances.
     )
 

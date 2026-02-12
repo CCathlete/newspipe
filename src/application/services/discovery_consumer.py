@@ -21,6 +21,7 @@ class DiscoveryConsumer:
     kafka_consumer: KafkaPort
     visited_producer: KafkaPort
     logger: FilteringBoundLogger
+    semaphore: asyncio.Semaphore
 
     visited: set[str] = field(default_factory=set)
     processed_count: int = 0
@@ -160,7 +161,9 @@ class DiscoveryConsumer:
                             language=data.get("language", "en"),
                             depth=data.get("depth", 0),
                         )
-                        res_io: IOResultE[None] = await crawl_future.awaitable()
+
+                        async with self.semaphore:
+                            res_io: IOResultE[None] = await crawl_future.awaitable()
 
                         match res_io:
                             case IOSuccess(Success(_)):
