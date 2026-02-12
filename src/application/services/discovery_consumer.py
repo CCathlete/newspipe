@@ -28,8 +28,11 @@ class DiscoveryConsumer:
 
     processed_count: int = 0
     discovered_count: int = 0
-    in_flight: int = 0
+    # in_flight: int = 0
 
+
+    def _on_task_done(self, task: asyncio.Task) -> None:
+        self.active_tasks.discard(task)
 
     @future_safe
     async def run(self, seeds: dict[str, list[str]]) -> None:
@@ -67,7 +70,7 @@ class DiscoveryConsumer:
             match messages_io_monad:
                 case IOSuccess(Success(messages)):
                     # ---- IDLE DETECTION ----
-                    if not any(messages.values()) and self.in_flight == 0:
+                    if not any(messages.values()) and len(self.active_tasks) == 0:
                         idle_polls += 1
 
                         self.logger.info(
@@ -159,7 +162,7 @@ class DiscoveryConsumer:
                 # --- Making the crawl non blocking to implement BFS traversal. ---
 
                 await self.semaphore.acquire()
-                self.in_flight += 1
+                # self.in_flight += 1
 
                 # ----------------------------------------------------------------
 
@@ -180,16 +183,14 @@ class DiscoveryConsumer:
                             case IOFailure(Failure(e)):
                                 self.logger.error("discovery_failed", url=url, error=str(e))
                     finally:
-                        self.in_flight -= 1
+                        # self.in_flight -= 1
                         self.semaphore.release()
 
                 # ----------------------------------------------------------------
 
                 task: asyncio.Task = asyncio.create_task(_run_crawl())
                 self.active_tasks.add(task)
-
-                task.add_done_callback(lambda task: self.active_tasks.discard(task))
-
+                task.add_done_callback(self._on_task_done)
 
 
             case Failure(err):
