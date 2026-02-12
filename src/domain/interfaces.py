@@ -34,6 +34,7 @@ class AIPort(Protocol):
 
 
 class StoragePort(Protocol):
+    @future_safe
     async def write_records(
         self,
         records: list[BronzeRecord],

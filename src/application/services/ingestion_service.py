@@ -51,6 +51,7 @@ class IngestionService:
                     self.logger.error("kafka_get_failed", error=str(e))
                     await asyncio.sleep(1)
 
+    @future_safe
     async def _handle_ingestion(self, record: ConsumerRecord, tp: TopicPartition) -> None:
         data_result: ResultE[dict[str, Any]] = self._safe_decode(record.value)
 
