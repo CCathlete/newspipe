@@ -19,7 +19,7 @@ from crawl4ai import (
     cache_context,
     markdown_generation_strategy,
     AdaptiveCrawler,
-    AdaptiveConfig
+    AdaptiveConfig,
 )
 from crawl4ai.chunking_strategy import OverlappingWindowChunking
 from structlog.processors import JSONRenderer, TimeStamper, StackInfoRenderer, format_exc_info
@@ -268,7 +268,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         top_k_links=3,                   # links to follow per page
         min_gain_threshold=0.1,          # minimum info gain to continue
         strategy="statistical",          # default strategy; can be "embedding"
-        query=providers.Callable(lambda cfg=config: cfg.policy.traversal.query)  # use your traversal query
+        query=providers.Callable(lambda cfg=config: cfg.policy.traversal.query)  # Using a callable defers the loading until config is ready.
     )
 
     # Adaptive crawler provider
