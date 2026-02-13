@@ -27,6 +27,10 @@ class DiscoveryService:
     processed_count: int = 0
     discovered_count: int = 0
 
+    async def wait_for_tasks(self) -> None:
+        """Waits for all active tasks to complete."""
+        if self.active_tasks:
+            await asyncio.gather(*self.active_tasks, return_exceptions=True)
 
     def _on_task_done(self, task: asyncio.Task) -> None:
         self.active_tasks.discard(task)
@@ -82,10 +86,9 @@ class DiscoveryService:
                                 discovered=self.discovered_count,
                                 processed=self.processed_count,
                             )
-
                             self.logger.info("waiting_for_inflight_tasks", count=len(self.active_tasks))
-                            await asyncio.gather(*self.active_tasks, return_exceptions=True)
-                            break  # If we have many idle records we stop the discovery loop.
+                            await self.wait_for_tasks()
+                            break
 
                         continue
 
