@@ -56,7 +56,12 @@ class StreamScraper:
                             value=payload,
                             key=url.encode(),
                         )
-                        await send_future.awaitable()
+                        send_result: IOResultE[None] = await send_future.awaitable()
+                        match send_result:
+                            case IOFailure(Failure(e)):
+                                self.logger.error("Sending seed to kafka failed", seed=url, error=e) 
+                                raise e
+
 
                 return topics
 
