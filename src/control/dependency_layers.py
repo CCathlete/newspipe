@@ -268,7 +268,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     adaptive_config = providers.Singleton(
         AdaptiveConfig,
         confidence_threshold=0.6,       # default threshold
-        max_pages=50,                    # safety limit
+        max_pages=500,                    # safety limit
         top_k_links=10,                   # links to follow per page
         min_gain_threshold=0.0,          # minimum info gain to continue
         strategy="statistical",          # default strategy; can be "embedding"
