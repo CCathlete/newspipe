@@ -45,6 +45,8 @@ class DiscoveryService:
         # 1. Initialize infra and seeds
         await self.kafka_consumer.start().awaitable()
         self.kafka_consumer.subscribe(topics)
+        # 2. FORCE GROUP JOIN
+        await self.kafka_consumer.getmany(timeout_ms=0).awaitable()
         
         scraper_future: FutureResultE[list[str]] = self.scraper.initialize_and_seed(seeds, topics)
         scraper_io: IOResultE[list[str]] = await scraper_future.awaitable()
