@@ -31,10 +31,11 @@ class StreamScraper:
     async def initialize_and_seed(
         self,
         seeds: dict[str, list[str]],
-        topic: str,
+        topics: list[str],
+        discovery_topic_name: str = "discovery_queue",
     ) -> list[str]:
 
-        infra_future: FutureResultE[list[str]] = self.kafka_provider.ensure_topics_exist([topic])
+        infra_future: FutureResultE[list[str]] = self.kafka_provider.ensure_topics_exist(topics)
         infra_res: IOResultE[list[str]] = await infra_future.awaitable()
 
         match infra_res:
@@ -51,13 +52,13 @@ class StreamScraper:
                         }).encode()
 
                         send_future: FutureResultE[None] = self.kafka_provider.send(
-                            topic=topic,
+                            topic=discovery_topic_name,
                             value=payload,
                             key=url.encode(),
                         )
                         await send_future.awaitable()
 
-                return [topic]
+                return topics
 
             case IOFailure(Failure(e)):
                 raise e

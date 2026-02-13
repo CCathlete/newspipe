@@ -43,6 +43,8 @@ class DiscoveryService:
 
         
         # 1. Initialize infra and seeds
+        self.kafka_consumer.subscribe(topics)
+        
         scraper_future: FutureResultE[list[str]] = self.scraper.initialize_and_seed(seeds, topics)
         scraper_io: IOResultE[list[str]] = await scraper_future.awaitable()
         
@@ -55,8 +57,6 @@ class DiscoveryService:
             case _:
                 raise RuntimeError("Inconsistent state")
 
-        self.kafka_consumer.subscribe(topics)
-        
         while True:
             messages_future: FutureResultE[dict[TopicPartition, list[ConsumerRecord[Any, Any]]]] = self.kafka_consumer.getmany(
                 timeout_ms=1000,
