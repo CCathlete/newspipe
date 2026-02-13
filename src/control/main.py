@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any
+from typing_extensions import Coroutine
 
 from returns.io import IOFailure, IOResultE, IOSuccess
 from returns.result import Failure, Success
@@ -58,23 +59,40 @@ async def main_async(
     if (init_task := container.init_resources()) is not None:
         await init_task
 
-    discovery_task: asyncio.Task[IOResultE[None]] = asyncio.create_task(discovery_service.run(seeds).awaitable())
-    ingestion_task: asyncio.Task[IOResultE[None]] = asyncio.create_task(ingestion_service.run().awaitable())
+    def run_discovery_in_thread(seed_data: dict[str, list[str]]) -> IOResultE[None]:
+        return asyncio.run(discovery_service.run(seed_data).awaitable())
 
-    results = await asyncio.gather(discovery_task, ingestion_task, return_exceptions=True)
+    def run_ingestion_in_thread() -> IOResultE[None]:
+        return asyncio.run(ingestion_service.run().awaitable())
 
-    for result, name in zip(results, ["discovery", "ingestion"]):
+    discovery_coro: Coroutine = asyncio.to_thread(run_discovery_in_thread, seeds)
+    ingestion_coro: Coroutine = asyncio.to_thread(run_ingestion_in_thread)
+
+    results: tuple[IOResultE[None] | BaseException, ...] = await asyncio.gather(
+        discovery_coro, 
+        ingestion_coro, 
+        return_exceptions=True
+    )
+
+    service_names: list[str] = ["discovery", "ingestion"]
+    for result, name in zip(results, service_names):
         match result:
-            case IOSuccess(Success(_)):
-                logger.info(f"{name} service completed gracefully")
-            case IOFailure(Failure(e)):
-                logger.error(f"{name} service crashed", error=str(e))
+            case IOSuccess(inner_success):
+                match inner_success:
+                    case Success(_):
+                        logger.info(f"{name} service completed gracefully")
+                    case Failure(e):
+                        logger.error(f"{name} service logic failure", error=str(e))
+            case IOFailure(inner_failure):
+                match inner_failure:
+                    case Failure(e):
+                        logger.error(f"{name} service IO crash", error=str(e))
             case Exception() as e:
-                logger.error(f"{name} service raised exception", error=str(e))
-
+                logger.error(f"{name} service thread raised exception", error=str(e))
 
     if (shutdown_task := container.shutdown_resources()) is not None:
         await shutdown_task
+
 
 def main() -> None:
     input_dir: Path = root_path / "input_files"
