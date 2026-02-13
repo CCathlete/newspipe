@@ -267,10 +267,10 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     # Adaptive crawler configuration
     adaptive_config = providers.Singleton(
         AdaptiveConfig,
-        confidence_threshold=0.8,       # default threshold
-        max_pages=20,                    # safety limit
-        top_k_links=3,                   # links to follow per page
-        min_gain_threshold=0.1,          # minimum info gain to continue
+        confidence_threshold=0.6,       # default threshold
+        max_pages=50,                    # safety limit
+        top_k_links=10,                   # links to follow per page
+        min_gain_threshold=0.0,          # minimum info gain to continue
         strategy="statistical",          # default strategy; can be "embedding"
     )
 

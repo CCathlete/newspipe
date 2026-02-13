@@ -41,13 +41,6 @@ class DiscoveryService:
         idle_polls: int = 0
         IDLE_THRESHOLD: int = 10
 
-        
-        # 1. Initialize infra and seeds
-        await self.kafka_consumer.start().awaitable()
-        self.kafka_consumer.subscribe(topics)
-        # 2. FORCE GROUP JOIN
-        await self.kafka_consumer.getmany(timeout_ms=0).awaitable()
-        
         scraper_future: FutureResultE[list[str]] = self.scraper.initialize_and_seed(seeds, topics)
         scraper_io: IOResultE[list[str]] = await scraper_future.awaitable()
         
@@ -59,6 +52,8 @@ class DiscoveryService:
                 raise e
             case _:
                 raise RuntimeError("Inconsistent state")
+
+        self.kafka_consumer.subscribe(topics)
 
         while True:
             messages_future: FutureResultE[dict[TopicPartition, list[ConsumerRecord[Any, Any]]]] = self.kafka_consumer.getmany(

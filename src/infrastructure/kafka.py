@@ -56,6 +56,7 @@ class KafkaConsumerAdapter(KafkaPort):
         Retrieve messages from the subscribed topics.
         """
         return await self._consumer.getmany(
+            *partitions,
             timeout_ms=timeout_ms,
             max_records=max_records
         )
@@ -225,7 +226,8 @@ class KafkaProducerAdapter(KafkaPort):
 
     @future_safe
     async def commit(
-            self,
+        self,
+        offsets: dict[TopicPartition, int] | None = None,
     ) -> None:
         return None
 
