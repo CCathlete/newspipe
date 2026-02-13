@@ -63,6 +63,8 @@ class LakehouseConnector:
         base_part: Final = _url_base_part(records[0].source_url)
         target_dir: Final = f"{self.path}{base_part}/"
 
+        # TODO: Consider creating a threadpool.
+        # Spark write is synchronous so we call each write in a separate thread.
         await asyncio.to_thread(
             self._execute_spark_write,
             df_partitioned,
