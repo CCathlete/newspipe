@@ -197,7 +197,15 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         logger=logger_provider
     )
 
-    kafka_consumer = providers.Resource(
+    ingestion_kafka_consumer = providers.Resource(
+        init_kafka_consumer,
+        bootstrap_servers=config.kafka.bootstrap_servers,
+        group_id=config.kafka.group_id,
+        topics=providers.Callable(lambda: ("relevant_chunks",)),
+        logger=logger_provider
+    )
+
+    discovery_kafka_consumer = providers.Resource(
         init_kafka_consumer,
         bootstrap_servers=config.kafka.bootstrap_servers,
         group_id=config.kafka.group_id,
@@ -268,7 +276,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     adaptive_config = providers.Singleton(
         AdaptiveConfig,
         confidence_threshold=0.6,       # default threshold
-        max_pages=500,                    # safety limit
+        max_pages=50,                    # safety limit
         top_k_links=10,                   # links to follow per page
         min_gain_threshold=0.0,          # minimum info gain to continue
         strategy="statistical",          # default strategy; can be "embedding"
@@ -335,7 +343,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     discovery_service = providers.Factory(
         DiscoveryService,
         scraper=scraper,
-        kafka_consumer=kafka_consumer,
+        kafka_consumer=discovery_kafka_consumer,
         visited_producer=kafka_producer,
         logger=logger_provider,
         semaphore=semaphore,
@@ -344,7 +352,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
     ingestion_service = providers.Factory(
         IngestionService,
         ingestion_pipeline=pipeline,
-        kafka_consumer=kafka_consumer,
+        kafka_consumer=ingestion_kafka_consumer,
         logger=logger_provider,
     )
 

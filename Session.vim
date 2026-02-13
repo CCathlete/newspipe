@@ -2,7 +2,7 @@ let SessionLoad = 1
 let s:so_save = &g:so | let s:siso_save = &g:siso | setg so=0 siso=0 | setl so=-1 siso=-1
 let v:this_session=expand("<sfile>:p")
 let NvimTreeSetup =  1 
-let TabbyTabNames = "{\"2\":\"Ingestion\",\"1\":\"General\",\"6\":\"Config\",\"5\":\"Logs\",\"4\":\"Interfaces\",\"3\":\"Dependencies\"}"
+let TabbyTabNames = "{\"2\":\"Ingestion\",\"1\":\"General\",\"7\":\"Config\",\"6\":\"Logs\",\"5\":\"Interfaces\",\"4\":\"Dependencies\",\"3\":\"General2\"}"
 let NvimTreeRequired =  1 
 silent only
 silent tabonly
@@ -31,10 +31,10 @@ badd +1 control/dependency_layers.py
 badd +89 ~/Repos/newspipe.vim
 badd +22 ../input_files/seed_urls.json
 badd +14 ~/Repos/infra-stuff/nvim/lua/core/debuggerconfig.lua
-badd +63 src/control/main.py
-badd +1 src/domain/services/scraper.py
+badd +9 src/control/main.py
+badd +72 src/domain/services/scraper.py
 badd +13 input_files/traversal_policies.json
-badd +30 src/control/dependency_layers.py
+badd +271 src/control/dependency_layers.py
 badd +50 src/domain/models.py
 badd +51 ~/.cache/nvim/dap.log
 badd +1 ~/.cache/nvim/dap-python-stderr.log
@@ -42,7 +42,7 @@ badd +275 Session.vim
 badd +1 src/newspipe.log
 badd +1 src/domain/services/discovery_consumer.py
 badd +135 src/application/services/data_ingestion.py
-badd +4 term://~/Repos/newspipe//125731:/usr/bin/fish
+badd +2024 term://~/Repos/newspipe//125731:/usr/bin/fish
 badd +697 ~/Repos/pipeline_infra/data_platform.tf
 badd +1 input_files/seed_urls.json
 badd +1 \[dap-repl-41]
@@ -51,10 +51,10 @@ badd +135 src/infrastructure/litellm_client.py
 badd +1 ~/Repos/pipeline_infra/env.auto.tfvars
 badd +200 ~/Repos/pipeline_infra/variables.tf
 badd +1 \[dap-repl-48]
-badd +1 ~/Repos/newspipe/src/application/services/discovery_service.py
-badd +108 src/domain/interfaces.py
-badd +2 src/infrastructure/kafka.py
-badd +37 src/domain/services/data_ingestion.py
+badd +69 ~/Repos/newspipe/src/application/services/discovery_service.py
+badd +56 src/domain/interfaces.py
+badd +60 src/infrastructure/kafka.py
+badd +132 src/domain/services/data_ingestion.py
 badd +1 term://~/Repos/newspipe//382906:/usr/bin/fish
 badd +1 \[dap-terminal]\ dap-1
 badd +1 \[dap-repl-138]
@@ -62,7 +62,7 @@ badd +1 \[dap-repl-66]
 badd +1 notebooks/python/silver_layer.py
 badd +32 term://~/Repos/newspipe//6787:/usr/bin/fish
 badd +49 .gitignore
-badd +77 src/infrastructure/lakehouse.py
+badd +83 src/infrastructure/lakehouse.py
 badd +100 notebooks/python/silver_layer.ipynb
 badd +1 notebooks/python/silver_layer.md
 badd +1 term://~/Repos/newspipe//35919:quarto\ preview\ \'/home/kcat/Repos/newspipe/notebooks/python/silver_layer.md\'\ 
@@ -71,11 +71,11 @@ badd +176 ~/Repos/infra-stuff/nvim/lua/plugins/molten.lua
 badd +79 ~/Repos/infra-stuff/nvim/lua/plugins/lsp.lua
 badd +32 term://~/Repos/newspipe//17173:/usr/bin/fish
 badd +1 \[dap-repl-77]
-badd +24 src/application/services/ingestion_service.py
-badd +673 \[dap-terminal]\ Python:\ module\ src.control.main
+badd +51 src/application/services/ingestion_service.py
 badd +0 term
 badd +0 term://~/Repos/newspipe//147748:/usr/bin/fish
 badd +0 term://~/Repos/newspipe//148038:/usr/bin/fish
+badd +10005 \[dap-terminal]\ Python:\ module\ src.control.main
 argglobal
 %argdel
 $argadd infrastructure/lakehouse.py
@@ -85,10 +85,11 @@ tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
+tabnew +setlocal\ bufhidden=wipe
 tabrewind
 edit src/control/main.py
 argglobal
-balt ~/Repos/newspipe/src/application/services/discovery_service.py
+balt src/domain/services/scraper.py
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -99,12 +100,12 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 61 - ((12 * winheight(0) + 17) / 35)
+let s:l = 102 - ((34 * winheight(0) + 17) / 35)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 61
-normal! 0101|
+keepjumps 102
+normal! 0
 tabnext
 edit ~/Repos/newspipe/src/application/services/discovery_service.py
 let s:save_splitbelow = &splitbelow
@@ -123,8 +124,8 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe 'vert 1resize ' . ((&columns * 94 + 95) / 190)
-exe 'vert 2resize ' . ((&columns * 95 + 95) / 190)
+exe 'vert 1resize ' . ((&columns * 28 + 95) / 190)
+exe 'vert 2resize ' . ((&columns * 161 + 95) / 190)
 argglobal
 balt src/application/services/ingestion_service.py
 setlocal foldmethod=manual
@@ -137,12 +138,12 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 34 - ((19 * winheight(0) + 17) / 35)
+let s:l = 69 - ((12 * winheight(0) + 17) / 35)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 34
-normal! 016|
+keepjumps 69
+normal! 0
 wincmd w
 argglobal
 if bufexists(fnamemodify("src/application/services/ingestion_service.py", ":p")) | buffer src/application/services/ingestion_service.py | else | edit src/application/services/ingestion_service.py | endif
@@ -160,15 +161,42 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 24 - ((11 * winheight(0) + 17) / 35)
+let s:l = 89 - ((34 * winheight(0) + 17) / 35)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 24
-normal! 016|
+keepjumps 89
+normal! 0
 wincmd w
-exe 'vert 1resize ' . ((&columns * 94 + 95) / 190)
-exe 'vert 2resize ' . ((&columns * 95 + 95) / 190)
+exe 'vert 1resize ' . ((&columns * 28 + 95) / 190)
+exe 'vert 2resize ' . ((&columns * 161 + 95) / 190)
+tabnext
+edit src/infrastructure/lakehouse.py
+wincmd t
+let s:save_winminheight = &winminheight
+let s:save_winminwidth = &winminwidth
+set winminheight=0
+set winheight=1
+set winminwidth=0
+set winwidth=1
+argglobal
+balt src/domain/services/data_ingestion.py
+setlocal foldmethod=manual
+setlocal foldexpr=0
+setlocal foldmarker={{{,}}}
+setlocal foldignore=#
+setlocal foldlevel=0
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal foldenable
+silent! normal! zE
+let &fdl = &fdl
+let s:l = 83 - ((34 * winheight(0) + 17) / 35)
+if s:l < 1 | let s:l = 1 | endif
+keepjumps exe s:l
+normal! zt
+keepjumps 83
+normal! 09|
 tabnext
 edit src/control/dependency_layers.py
 argglobal
@@ -183,16 +211,16 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 30 - ((29 * winheight(0) + 17) / 35)
+let s:l = 271 - ((24 * winheight(0) + 17) / 35)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 30
-normal! 09|
+keepjumps 271
+normal! 021|
 tabnext
-edit src/domain/interfaces.py
+edit src/infrastructure/kafka.py
 argglobal
-balt src/domain/models.py
+balt src/domain/interfaces.py
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -203,31 +231,13 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 108 - ((34 * winheight(0) + 17) / 35)
+let s:l = 60 - ((17 * winheight(0) + 17) / 35)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 108
-normal! 0
+keepjumps 60
+normal! 024|
 tabnext
-let s:save_splitbelow = &splitbelow
-let s:save_splitright = &splitright
-set splitbelow splitright
-wincmd _ | wincmd |
-vsplit
-1wincmd h
-wincmd w
-let &splitbelow = s:save_splitbelow
-let &splitright = s:save_splitright
-wincmd t
-let s:save_winminheight = &winminheight
-let s:save_winminwidth = &winminwidth
-set winminheight=0
-set winheight=1
-set winminwidth=0
-set winwidth=1
-exe 'vert 1resize ' . ((&columns * 90 + 95) / 190)
-exe 'vert 2resize ' . ((&columns * 99 + 95) / 190)
 argglobal
 if bufexists(fnamemodify("term://~/Repos/newspipe//148038:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//148038:/usr/bin/fish | else | edit term://~/Repos/newspipe//148038:/usr/bin/fish | endif
 if &buftype ==# 'terminal'
@@ -242,36 +252,12 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 1 - ((0 * winheight(0) + 17) / 35)
+let s:l = 1990 - ((0 * winheight(0) + 17) / 35)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 1
+keepjumps 1990
 normal! 035|
-wincmd w
-argglobal
-if bufexists(fnamemodify("term://~/Repos/newspipe//125731:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//125731:/usr/bin/fish | else | edit term://~/Repos/newspipe//125731:/usr/bin/fish | endif
-if &buftype ==# 'terminal'
-  silent file term://~/Repos/newspipe//125731:/usr/bin/fish
-endif
-balt term
-setlocal foldmethod=manual
-setlocal foldexpr=0
-setlocal foldmarker={{{,}}}
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldenable
-let s:l = 4 - ((3 * winheight(0) + 17) / 35)
-if s:l < 1 | let s:l = 1 | endif
-keepjumps exe s:l
-normal! zt
-keepjumps 4
-normal! 0
-wincmd w
-exe 'vert 1resize ' . ((&columns * 90 + 95) / 190)
-exe 'vert 2resize ' . ((&columns * 99 + 95) / 190)
 tabnext
 edit input_files/seed_urls.json
 let s:save_splitbelow = &splitbelow
@@ -293,9 +279,7 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe 'vert 1resize ' . ((&columns * 63 + 95) / 190)
-exe 'vert 2resize ' . ((&columns * 63 + 95) / 190)
-exe 'vert 3resize ' . ((&columns * 62 + 95) / 190)
+wincmd =
 argglobal
 balt input_files/relevance_policies.json
 setlocal foldmethod=manual
@@ -361,10 +345,8 @@ normal! zt
 keepjumps 6
 normal! 014|
 wincmd w
-exe 'vert 1resize ' . ((&columns * 63 + 95) / 190)
-exe 'vert 2resize ' . ((&columns * 63 + 95) / 190)
-exe 'vert 3resize ' . ((&columns * 62 + 95) / 190)
-tabnext 5
+wincmd =
+tabnext 3
 set stal=1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
   silent exe 'bwipe ' . s:wipebuf
