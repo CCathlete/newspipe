@@ -43,6 +43,7 @@ class DiscoveryService:
 
         
         # 1. Initialize infra and seeds
+        await self.kafka_consumer.start().awaitable()
         self.kafka_consumer.subscribe(topics)
         
         scraper_future: FutureResultE[list[str]] = self.scraper.initialize_and_seed(seeds, topics)
@@ -88,7 +89,6 @@ class DiscoveryService:
                             )
                             self.logger.info("waiting_for_inflight_tasks", count=len(self.active_tasks))
                             await self.wait_for_tasks()
-                            break
 
                         continue
 

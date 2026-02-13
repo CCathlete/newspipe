@@ -125,6 +125,15 @@ class KafkaConsumerAdapter(KafkaPort):
 
         await self._consumer.commit(formatted)
 
+    @future_safe
+    async def start(self) -> None:
+        await self._consumer.start()
+
+    @future_safe
+    async def stop(self) -> None:
+        await self._consumer.stop()
+
+
 
 
 @dataclass(slots=True, frozen=True)
@@ -135,6 +144,14 @@ class KafkaProducerAdapter(KafkaPort):
     @cached_property
     def _producer(self) -> AIOKafkaProducer:
         return AIOKafkaProducer(bootstrap_servers=self.bootstrap_servers)
+
+    @future_safe
+    async def start(self) -> None:
+        await self._producer.start()
+
+    @future_safe
+    async def stop(self) -> None:
+        await self._producer.stop()
 
     @future_safe
     async def send(

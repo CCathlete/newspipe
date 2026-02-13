@@ -42,6 +42,13 @@ class StoragePort(Protocol):
 
 
 class KafkaPort(Protocol):
+
+    @future_safe
+    async def start(self) -> None: ...
+
+    @future_safe
+    async def stop(self) -> None: ...
+
     @future_safe
     async def send(
         self,
