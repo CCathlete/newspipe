@@ -2,7 +2,7 @@ let SessionLoad = 1
 let s:so_save = &g:so | let s:siso_save = &g:siso | setg so=0 siso=0 | setl so=-1 siso=-1
 let v:this_session=expand("<sfile>:p")
 let NvimTreeSetup =  1 
-let TabbyTabNames = "{\"2\":\"Ingestion\",\"1\":\"General\",\"7\":\"Config\",\"6\":\"Logs\",\"5\":\"Interfaces\",\"4\":\"Dependencies\",\"3\":\"General2\"}"
+let TabbyTabNames = "{\"6\":\"Logs\",\"7\":\"Config\",\"1\":\"General\",\"2\":\"Ingestion\",\"3\":\"General2\",\"4\":\"Dependencies\",\"5\":\"Interfaces\"}"
 let NvimTreeRequired =  1 
 silent only
 silent tabonly
@@ -31,7 +31,7 @@ badd +1 control/dependency_layers.py
 badd +89 ~/Repos/newspipe.vim
 badd +22 ../input_files/seed_urls.json
 badd +14 ~/Repos/infra-stuff/nvim/lua/core/debuggerconfig.lua
-badd +9 src/control/main.py
+badd +49 src/control/main.py
 badd +72 src/domain/services/scraper.py
 badd +13 input_files/traversal_policies.json
 badd +271 src/control/dependency_layers.py
@@ -51,7 +51,7 @@ badd +135 src/infrastructure/litellm_client.py
 badd +1 ~/Repos/pipeline_infra/env.auto.tfvars
 badd +200 ~/Repos/pipeline_infra/variables.tf
 badd +1 \[dap-repl-48]
-badd +69 ~/Repos/newspipe/src/application/services/discovery_service.py
+badd +1 ~/Repos/newspipe/src/application/services/discovery_service.py
 badd +56 src/domain/interfaces.py
 badd +60 src/infrastructure/kafka.py
 badd +132 src/domain/services/data_ingestion.py
@@ -72,9 +72,9 @@ badd +79 ~/Repos/infra-stuff/nvim/lua/plugins/lsp.lua
 badd +32 term://~/Repos/newspipe//17173:/usr/bin/fish
 badd +1 \[dap-repl-77]
 badd +51 src/application/services/ingestion_service.py
-badd +0 term
-badd +0 term://~/Repos/newspipe//147748:/usr/bin/fish
-badd +0 term://~/Repos/newspipe//148038:/usr/bin/fish
+badd +1 term
+badd +1 term://~/Repos/newspipe//147748:/usr/bin/fish
+badd +1 term://~/Repos/newspipe//148038:/usr/bin/fish
 badd +10005 \[dap-terminal]\ Python:\ module\ src.control.main
 argglobal
 %argdel
@@ -88,6 +88,13 @@ tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabrewind
 edit src/control/main.py
+wincmd t
+let s:save_winminheight = &winminheight
+let s:save_winminwidth = &winminwidth
+set winminheight=0
+set winheight=1
+set winminwidth=0
+set winwidth=1
 argglobal
 balt src/domain/services/scraper.py
 setlocal foldmethod=manual
@@ -100,12 +107,12 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 102 - ((34 * winheight(0) + 17) / 35)
+let s:l = 49 - ((19 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 102
-normal! 0
+keepjumps 49
+normal! 066|
 tabnext
 edit ~/Repos/newspipe/src/application/services/discovery_service.py
 let s:save_splitbelow = &splitbelow
@@ -124,8 +131,7 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe 'vert 1resize ' . ((&columns * 28 + 95) / 190)
-exe 'vert 2resize ' . ((&columns * 161 + 95) / 190)
+wincmd =
 argglobal
 balt src/application/services/ingestion_service.py
 setlocal foldmethod=manual
@@ -138,7 +144,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 69 - ((12 * winheight(0) + 17) / 35)
+let s:l = 69 - ((2 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -161,24 +167,16 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 89 - ((34 * winheight(0) + 17) / 35)
+let s:l = 89 - ((27 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
 keepjumps 89
 normal! 0
 wincmd w
-exe 'vert 1resize ' . ((&columns * 28 + 95) / 190)
-exe 'vert 2resize ' . ((&columns * 161 + 95) / 190)
+wincmd =
 tabnext
 edit src/infrastructure/lakehouse.py
-wincmd t
-let s:save_winminheight = &winminheight
-let s:save_winminwidth = &winminwidth
-set winminheight=0
-set winheight=1
-set winminwidth=0
-set winwidth=1
 argglobal
 balt src/domain/services/data_ingestion.py
 setlocal foldmethod=manual
@@ -191,7 +189,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 83 - ((34 * winheight(0) + 17) / 35)
+let s:l = 83 - ((29 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -211,7 +209,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 271 - ((24 * winheight(0) + 17) / 35)
+let s:l = 271 - ((21 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -231,7 +229,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 60 - ((17 * winheight(0) + 17) / 35)
+let s:l = 60 - ((15 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -252,12 +250,12 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 1990 - ((0 * winheight(0) + 17) / 35)
+let s:l = 30 - ((29 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 1990
-normal! 035|
+keepjumps 30
+normal! 0
 tabnext
 edit input_files/seed_urls.json
 let s:save_splitbelow = &splitbelow
@@ -292,7 +290,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 19 - ((18 * winheight(0) + 17) / 35)
+let s:l = 19 - ((15 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -315,7 +313,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 6 - ((5 * winheight(0) + 17) / 35)
+let s:l = 6 - ((4 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -338,7 +336,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 6 - ((5 * winheight(0) + 17) / 35)
+let s:l = 6 - ((4 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -346,7 +344,7 @@ keepjumps 6
 normal! 014|
 wincmd w
 wincmd =
-tabnext 3
+tabnext 1
 set stal=1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
   silent exe 'bwipe ' . s:wipebuf
