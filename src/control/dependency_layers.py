@@ -1,5 +1,4 @@
 # src/control/dependency_layers.py
-
 import sys
 import httpx
 import logging
@@ -15,9 +14,9 @@ from dependency_injector import containers, providers
 from crawl4ai import (
     AsyncWebCrawler,
     BrowserConfig,
-    CrawlerRunConfig,
-    cache_context,
-    markdown_generation_strategy,
+    # CrawlerRunConfig,
+    # cache_context,
+    # markdown_generation_strategy,
     AdaptiveCrawler,
     AdaptiveConfig,
 )
@@ -73,13 +72,13 @@ def _resolve_and_validate_lakehouse_config(
     logger: structlog.stdlib.BoundLogger,
 ) -> dict[str, str]:
     assert isinstance(config['lakehouse'], dict)
-    endpoint = config['lakehouse']['endpoint']
-    access_key = config['lakehouse']['username']
-    secret_key = config['lakehouse']['password']
-    bronze_path = config['lakehouse']['bronze_path']
-    spark_mode = config['spark_mode']
+    endpoint: str = config['lakehouse']['endpoint']
+    access_key: str = config['lakehouse']['username']
+    secret_key: str = config['lakehouse']['password']
+    bronze_path: str = config['lakehouse']['bronze_path']
+    spark_mode: str = config['spark_mode']
     
-    missing = []
+    missing: list[str] = []
     if not endpoint: missing.append("lakehouse.endpoint")
     if not access_key: missing.append("lakehouse.username")
     if not secret_key: missing.append("lakehouse.password")
@@ -97,60 +96,51 @@ def _resolve_and_validate_lakehouse_config(
         "spark_mode": spark_mode
     }
 
-def _create_spark_session(resolved_lakehouse_cfg_dict) -> SparkSession:
+def _create_spark_session(resolved_lakehouse_cfg_dict: dict[str, str]) -> SparkSession:
     builder: SparkSession.Builder = SparkSession.Builder()
     return (
-            builder
-            .master(resolved_lakehouse_cfg_dict['spark_mode'])
-            .appName("NewsAnalysis")
-            .config(
-                "spark.jars.packages",
-                "org.apache.hadoop:hadoop-aws:3.3.4,"
-                "org.apache.hadoop:hadoop-common:3.3.4,"
-                "com.amazonaws:aws-java-sdk-bundle:1.12.262,"
-                "org.apache.spark:spark-hadoop-cloud_2.12:3.5.1"
-            )
-            # This tells Spark not to look for the "Magic" or "S3A" specific
-            # committers that are failing to find their class.
-            .config("spark.hadoop.fs.s3a.committer.name", "directory")
-            .config("spark.sql.sources.commitProtocolClass",
-                    "org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol")
-            # --- MinIO Specifics ---
-            .config("spark.hadoop.fs.s3a.endpoint", resolved_lakehouse_cfg_dict['endpoint'])
-            .config("spark.hadoop.fs.s3a.access.key", resolved_lakehouse_cfg_dict['access_key'])
-            .config("spark.hadoop.fs.s3a.secret.key", resolved_lakehouse_cfg_dict['secret_key'])
-            .config("spark.hadoop.fs.s3a.path.style.access", "true")
-            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-            .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
-            # --- S3A Retry/Timeout Configurations ---
-            .config("spark.hadoop.fs.s3a.attempts.maximum", "5")
-            .config("spark.hadoop.fs.s3a.retry.limit", "10")
-            .config("spark.hadoop.fs.s3a.retry.interval", "5000")
-            .config("spark.hadoop.fs.s3a.establish.timeout", "5000")
-            .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
-            # Memory config.
-            .config("spark.driver.cores", "1")
-            .config("spark.driver.memory", "1g")
-            .getOrCreate()
-                )
+        builder
+        .master(resolved_lakehouse_cfg_dict['spark_mode'])
+        .appName("NewsAnalysis")
+        .config(
+            "spark.jars.packages",
+            "org.apache.hadoop:hadoop-aws:3.3.4,"
+            "org.apache.hadoop:hadoop-common:3.3.4,"
+            "com.amazonaws:aws-java-sdk-bundle:1.12.262,"
+            "org.apache.spark:spark-hadoop-cloud_2.12:3.5.1"
+        )
+        .config("spark.hadoop.fs.s3a.committer.name", "directory")
+        .config("spark.sql.sources.commitProtocolClass",
+                "org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol")
+        .config("spark.hadoop.fs.s3a.endpoint", resolved_lakehouse_cfg_dict['endpoint'])
+        .config("spark.hadoop.fs.s3a.access.key", resolved_lakehouse_cfg_dict['access_key'])
+        .config("spark.hadoop.fs.s3a.secret.key", resolved_lakehouse_cfg_dict['secret_key'])
+        .config("spark.hadoop.fs.s3a.path.style.access", "true")
+        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+        .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+        .config("spark.hadoop.fs.s3a.attempts.maximum", "5")
+        .config("spark.hadoop.fs.s3a.retry.limit", "10")
+        .config("spark.hadoop.fs.s3a.retry.interval", "5000")
+        .config("spark.hadoop.fs.s3a.establish.timeout", "5000")
+        .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
+        .config("spark.driver.cores", "1")
+        .config("spark.driver.memory", "1g")
+        .getOrCreate()
+    )
 
-def setup_phoenix(endpoint: str, project: str, api_key:str) -> Generator[TracerProvider, None, None]:
-    # This registers Phoenix as the OTel collector
-    # auto_instrument=False since we're using httpx instead of the python SDK.
-    tracer_provider = register(
+def setup_phoenix(endpoint: str, project: str, api_key: str) -> Generator[TracerProvider, None, None]:
+    tracer_provider: TracerProvider = register(
         project_name=project,
         endpoint=endpoint,
         api_key=api_key
     )
-    
     yield tracer_provider
 
-
 async def init_kafka_producer(
-        bootstrap_servers: str,
-        logger: Any
+    bootstrap_servers: str,
+    logger: Any
 ) -> AsyncIterator[KafkaProducerAdapter]:
-    adapter = KafkaProducerAdapter(
+    adapter: KafkaProducerAdapter = KafkaProducerAdapter(
         bootstrap_servers=bootstrap_servers,
         logger=logger
     )
@@ -158,14 +148,13 @@ async def init_kafka_producer(
     yield adapter
     await adapter._producer.stop()
 
-
 async def init_kafka_consumer(
     bootstrap_servers: str, 
     group_id: str, 
     topics: tuple[str, ...], 
     logger: Any
 ) -> AsyncIterator[KafkaConsumerAdapter]:
-    adapter = KafkaConsumerAdapter(
+    adapter: KafkaConsumerAdapter = KafkaConsumerAdapter(
         bootstrap_servers=bootstrap_servers,
         group_id=group_id,
         topics=topics,
@@ -174,17 +163,90 @@ async def init_kafka_consumer(
     await adapter._consumer.start()
     yield adapter
     await adapter._consumer.stop()
-    
 
-
-class DataPlatformContainer(containers.DeclarativeContainer):
-    # One for ingestion and one for discovery.
+class BasePlatformContainer(containers.DeclarativeContainer):
     config = providers.Configuration()
-
-    # One for ingestion and one for discovery.
     logger_provider = providers.Singleton(structlog.get_logger)
 
-    # Ingestion
+class DiscoveryContainer(BasePlatformContainer):
+    kafka_producer = providers.Resource(
+        init_kafka_producer,
+        bootstrap_servers=BasePlatformContainer.config.kafka.bootstrap_servers,
+        logger=BasePlatformContainer.logger_provider
+    )
+
+    kafka_consumer = providers.Resource(
+        init_kafka_consumer,
+        bootstrap_servers=BasePlatformContainer.config.kafka.bootstrap_servers,
+        group_id=BasePlatformContainer.config.kafka.group_id,
+        topics=providers.Callable(lambda: ("discovery_queue",)),
+        logger=BasePlatformContainer.logger_provider
+    )
+
+    traversal_rules = providers.Factory(
+        TraversalRules,
+        required_path_segments=BasePlatformContainer.config.policy.traversal.required_path_segments,
+        blocked_path_segments=BasePlatformContainer.config.policy.traversal.blocked_path_segments,
+        max_depth=BasePlatformContainer.config.policy.traversal.max_depth
+    )
+
+    strategy = providers.Factory(
+        OverlappingWindowChunking,
+        window_size=BasePlatformContainer.config.stream_scraper.window_size,
+        overlap=BasePlatformContainer.config.stream_scraper.overlap,
+    )
+
+    browser_configuration = providers.Factory(
+        BrowserConfig,
+        headless=True,
+        browser_mode="builtin",
+    )
+
+    async_crawler = providers.Factory(
+        AsyncWebCrawler,
+        config=browser_configuration,
+    )
+
+    adaptive_config = providers.Factory(
+        AdaptiveConfig,
+        confidence_threshold=0.6,
+        max_pages=50,
+        top_k_links=10,
+        min_gain_threshold=0.0,
+        strategy="statistical",
+    )
+
+    scraping_provider = providers.Factory(
+        AdaptiveCrawler,
+        crawler=async_crawler,
+        config=adaptive_config
+    )
+
+    scraper = providers.Factory(
+        StreamScraper,
+        logger=BasePlatformContainer.logger_provider,
+        kafka_provider=kafka_producer,
+        crawler=scraping_provider,
+        traversal_rules=traversal_rules,
+        strategy=strategy,
+        query=BasePlatformContainer.config.policy.traversal.query,
+    )
+
+    discovery_semaphore = providers.Factory(
+        Semaphore,
+        BasePlatformContainer.config.litellm.max_concurrency
+    )
+
+    discovery_service = providers.Factory(
+        DiscoveryService,
+        scraper=scraper,
+        kafka_consumer=kafka_consumer,
+        visited_producer=kafka_producer,
+        logger=BasePlatformContainer.logger_provider,
+        semaphore=discovery_semaphore,
+    )
+
+class IngestionContainer(BasePlatformContainer):
     http_client = providers.Resource(
         httpx.AsyncClient,
         timeout=httpx.Timeout(60.0),
@@ -194,187 +256,75 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         }
     )
 
-    # Discovery
-    kafka_producer = providers.Resource(
-        init_kafka_producer,
-        bootstrap_servers=config.kafka.bootstrap_servers,
-        logger=logger_provider
-    )
-
-    ingestion_kafka_consumer = providers.Resource(
+    kafka_consumer = providers.Resource(
         init_kafka_consumer,
-        bootstrap_servers=config.kafka.bootstrap_servers,
-        group_id=config.kafka.group_id,
+        bootstrap_servers=BasePlatformContainer.config.kafka.bootstrap_servers,
+        group_id=BasePlatformContainer.config.kafka.group_id,
         topics=providers.Callable(lambda: ("relevant_chunks",)),
-        logger=logger_provider
+        logger=BasePlatformContainer.logger_provider
     )
 
-    discovery_kafka_consumer = providers.Resource(
-        init_kafka_consumer,
-        bootstrap_servers=config.kafka.bootstrap_servers,
-        group_id=config.kafka.group_id,
-        topics=providers.Callable(lambda: ("discovery_queue",)),
-        logger=logger_provider
-    )
-
-
-    # --- Domain Model Instantiation ---
-    # Discovery
-    traversal_rules = providers.Factory(
-        TraversalRules,
-        required_path_segments=config.policy.traversal.required_path_segments,
-        blocked_path_segments=config.policy.traversal.blocked_path_segments,
-        max_depth=config.policy.traversal.max_depth
-    )
-
-    # Ingestion
     relevance_policy = providers.Factory(
         RelevancePolicy,
-        name=config.policy.relevance.name,
-        description=config.policy.relevance.description,
-        include_terms=config.policy.relevance.include_terms,
-        exclude_terms=config.policy.relevance.exclude_terms
+        name=BasePlatformContainer.config.policy.relevance.name,
+        description=BasePlatformContainer.config.policy.relevance.description,
+        include_terms=BasePlatformContainer.config.policy.relevance.include_terms,
+        exclude_terms=BasePlatformContainer.config.policy.relevance.exclude_terms
     )
 
-    # Ingestion
     resolved_lakehouse_config = providers.Factory(
         _resolve_and_validate_lakehouse_config,
-        config=config,
-        logger=logger_provider
+        config=BasePlatformContainer.config,
+        logger=BasePlatformContainer.logger_provider
     )
 
-    # Ingestion
     spark = providers.Singleton(
         _create_spark_session,
         resolved_lakehouse_cfg_dict=resolved_lakehouse_config
     )
 
-    # Discovery
-    strategy = providers.Singleton(
-        OverlappingWindowChunking,
-        window_size=config.stream_scraper.window_size,
-        overlap=config.stream_scraper.overlap,
-    )
-
-    # Discovery
-    run_config = providers.Singleton(
-        CrawlerRunConfig,
-        cache_mode=cache_context.CacheMode.BYPASS,
-        chunking_strategy=strategy,
-        markdown_generator=markdown_generation_strategy.DefaultMarkdownGenerator(
-            options={"ignore_links": False}
-        ),
-        semaphore_count= config.litellm.max_concurrency,
-        # Anti-bot
-        simulate_user=True,
-        magic=True,
-    )
-
-    # Discovery
-    browser_configuration = providers.Singleton(
-        BrowserConfig,
-        headless=True,
-        browser_mode="builtin",
-    )
-
-    # Discovery
-    async_crawler = providers.Singleton(
-    # scraping_provider = providers.Factory(
-        AsyncWebCrawler,
-        config=browser_configuration,
-    )
-        
-    # Discovery
-    # Adaptive crawler configuration
-    adaptive_config = providers.Singleton(
-        AdaptiveConfig,
-        confidence_threshold=0.6,       # default threshold
-        max_pages=50,                    # safety limit
-        top_k_links=10,                   # links to follow per page
-        min_gain_threshold=0.0,          # minimum info gain to continue
-        strategy="statistical",          # default strategy; can be "embedding"
-    )
-
-    # Discovery
-    # Adaptive crawler provider
-    scraping_provider = providers.Singleton(
-        AdaptiveCrawler,
-        crawler=async_crawler,
-        config=adaptive_config
-    )
-
-    # Discovery
-    scraper = providers.Factory(
-        StreamScraper,
-        logger=logger_provider,
-        kafka_provider=kafka_producer,
-        crawler=scraping_provider,
-        traversal_rules=traversal_rules,
-        # Chunking strategy.
-        strategy=strategy,
-        query=config.policy.traversal.query, # Traversal query for adaptive crawling.
-    )
-
-    # Ingestion
-    # Telemetry object that monitors LLM performance (including embedding).
     telemetry = providers.Resource(
         setup_phoenix,
-        endpoint=config.litellm.telemetry_endpoint,
-        project=config.litellm.telemetry_project_name,
-        api_key=config.litellm.telemetry_api_key,
+        endpoint=BasePlatformContainer.config.litellm.telemetry_endpoint,
+        project=BasePlatformContainer.config.litellm.telemetry_project_name,
+        api_key=BasePlatformContainer.config.litellm.telemetry_api_key,
     )
 
-    # Ingestion
-    semaphore = providers.Singleton(
+    ingestion_semaphore = providers.Factory(
         Semaphore,
-        config.litellm.max_concurrency
+        BasePlatformContainer.config.litellm.max_concurrency
     )
 
-    # Ingestion
     litellm = providers.Factory(
         LitellmClient,
-        model=config.litellm.model,
-        api_key=config.litellm.api_key,
-        litellm_server_url=config.litellm.base_url,
+        model=BasePlatformContainer.config.litellm.model,
+        api_key=BasePlatformContainer.config.litellm.api_key,
+        litellm_server_url=BasePlatformContainer.config.litellm.base_url,
         client=http_client,
-        logger=logger_provider,
+        logger=BasePlatformContainer.logger_provider,
         telemetry_observer=telemetry,
-        semaphore=semaphore,
+        semaphore=ingestion_semaphore,
     )
 
-    # Ingestion
     lakehouse = providers.Factory(
         LakehouseConnector,
         spark=spark,
-        bucket_path=config.lakehouse.bronze_path,
-        logger=logger_provider
+        bucket_path=BasePlatformContainer.config.lakehouse.bronze_path,
+        logger=BasePlatformContainer.logger_provider
     )
 
-    # Ingestion
     pipeline = providers.Factory(
         IngestionPipeline,
         llm=litellm,
         lakehouse=lakehouse,
-        logger=logger_provider,
+        logger=BasePlatformContainer.logger_provider,
         buffer_size=5,
         relevance_policy=relevance_policy
     )
 
-    # Discovery
-    discovery_service = providers.Factory(
-        DiscoveryService,
-        scraper=scraper,
-        kafka_consumer=discovery_kafka_consumer,
-        visited_producer=kafka_producer,
-        logger=logger_provider,
-        semaphore=semaphore,
-    )
-
-    # Ingestion
     ingestion_service = providers.Factory(
         IngestionService,
         ingestion_pipeline=pipeline,
-        kafka_consumer=ingestion_kafka_consumer,
-        logger=logger_provider,
+        kafka_consumer=kafka_consumer,
+        logger=BasePlatformContainer.logger_provider,
     )
-
