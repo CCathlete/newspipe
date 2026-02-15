@@ -210,7 +210,7 @@ class DiscoveryContainer(BasePlatformContainer):
     adaptive_config = providers.Factory(
         AdaptiveConfig,
         confidence_threshold=0.6,
-        max_pages=50,
+        max_pages=500,
         top_k_links=10,
         min_gain_threshold=0.0,
         strategy="statistical",

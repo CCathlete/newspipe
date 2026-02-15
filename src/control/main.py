@@ -46,8 +46,8 @@ async def main_async(
     config: dict[str, Any],
     logger: structlog.typing.FilteringBoundLogger = Provide[BasePlatformContainer.logger_provider],
 ) -> None:
-    discovery_t: Thread = Thread(target=DiscoveryController, args=(seeds, config, logger))
-    ingestion_t: Thread = Thread(target=IngestionController, args=(config, logger))
+    discovery_t: Thread = Thread(target=DiscoveryController(seeds, config, logger))
+    ingestion_t: Thread = Thread(target=IngestionController(config, logger))
 
     discovery_t.start()
     ingestion_t.start()

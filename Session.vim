@@ -2,7 +2,7 @@ let SessionLoad = 1
 let s:so_save = &g:so | let s:siso_save = &g:siso | setg so=0 siso=0 | setl so=-1 siso=-1
 let v:this_session=expand("<sfile>:p")
 let NvimTreeSetup =  1 
-let TabbyTabNames = "{\"6\":\"Logs\",\"7\":\"Config\",\"1\":\"General\",\"2\":\"Ingestion\",\"3\":\"General2\",\"4\":\"Dependencies\",\"5\":\"Interfaces\"}"
+let TabbyTabNames = "{\"6\":\"Logs\",\"7\":\"Config\",\"1\":\"General\",\"2\":\"General2\",\"3\":\"Ingestion\",\"4\":\"Dependencies\",\"5\":\"Interfaces\"}"
 let NvimTreeRequired =  1 
 silent only
 silent tabonly
@@ -34,7 +34,7 @@ badd +14 ~/Repos/infra-stuff/nvim/lua/core/debuggerconfig.lua
 badd +49 src/control/main.py
 badd +72 src/domain/services/scraper.py
 badd +13 input_files/traversal_policies.json
-badd +271 src/control/dependency_layers.py
+badd +17 src/control/dependency_layers.py
 badd +50 src/domain/models.py
 badd +51 ~/.cache/nvim/dap.log
 badd +1 ~/.cache/nvim/dap-python-stderr.log
@@ -51,7 +51,7 @@ badd +135 src/infrastructure/litellm_client.py
 badd +1 ~/Repos/pipeline_infra/env.auto.tfvars
 badd +200 ~/Repos/pipeline_infra/variables.tf
 badd +1 \[dap-repl-48]
-badd +1 ~/Repos/newspipe/src/application/services/discovery_service.py
+badd +69 ~/Repos/newspipe/src/application/services/discovery_service.py
 badd +56 src/domain/interfaces.py
 badd +60 src/infrastructure/kafka.py
 badd +132 src/domain/services/data_ingestion.py
@@ -76,6 +76,8 @@ badd +1 term
 badd +1 term://~/Repos/newspipe//147748:/usr/bin/fish
 badd +1 term://~/Repos/newspipe//148038:/usr/bin/fish
 badd +10005 \[dap-terminal]\ Python:\ module\ src.control.main
+badd +1 src/control/discovery_controller.py
+badd +38 src/control/ingestion_controller.py
 argglobal
 %argdel
 $argadd infrastructure/lakehouse.py
@@ -88,13 +90,6 @@ tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabrewind
 edit src/control/main.py
-wincmd t
-let s:save_winminheight = &winminheight
-let s:save_winminwidth = &winminwidth
-set winminheight=0
-set winheight=1
-set winminwidth=0
-set winwidth=1
 argglobal
 balt src/domain/services/scraper.py
 setlocal foldmethod=manual
@@ -113,6 +108,33 @@ keepjumps exe s:l
 normal! zt
 keepjumps 49
 normal! 066|
+tabnext
+edit src/control/ingestion_controller.py
+wincmd t
+let s:save_winminheight = &winminheight
+let s:save_winminwidth = &winminwidth
+set winminheight=0
+set winheight=1
+set winminwidth=0
+set winwidth=1
+argglobal
+balt src/control/discovery_controller.py
+setlocal foldmethod=manual
+setlocal foldexpr=0
+setlocal foldmarker={{{,}}}
+setlocal foldignore=#
+setlocal foldlevel=0
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal foldenable
+silent! normal! zE
+let &fdl = &fdl
+let s:l = 38 - ((29 * winheight(0) + 15) / 30)
+if s:l < 1 | let s:l = 1 | endif
+keepjumps exe s:l
+normal! zt
+keepjumps 38
+normal! 037|
 tabnext
 edit ~/Repos/newspipe/src/application/services/discovery_service.py
 let s:save_splitbelow = &splitbelow
@@ -176,26 +198,6 @@ normal! 0
 wincmd w
 wincmd =
 tabnext
-edit src/infrastructure/lakehouse.py
-argglobal
-balt src/domain/services/data_ingestion.py
-setlocal foldmethod=manual
-setlocal foldexpr=0
-setlocal foldmarker={{{,}}}
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldenable
-silent! normal! zE
-let &fdl = &fdl
-let s:l = 83 - ((29 * winheight(0) + 15) / 30)
-if s:l < 1 | let s:l = 1 | endif
-keepjumps exe s:l
-normal! zt
-keepjumps 83
-normal! 09|
-tabnext
 edit src/control/dependency_layers.py
 argglobal
 balt src/control/main.py
@@ -209,12 +211,12 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 271 - ((21 * winheight(0) + 15) / 30)
+let s:l = 17 - ((16 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 271
-normal! 021|
+keepjumps 17
+normal! 023|
 tabnext
 edit src/infrastructure/kafka.py
 argglobal
@@ -250,12 +252,12 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 30 - ((29 * winheight(0) + 15) / 30)
+let s:l = 1 - ((0 * winheight(0) + 15) / 30)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 30
-normal! 0
+keepjumps 1
+normal! 035|
 tabnext
 edit input_files/seed_urls.json
 let s:save_splitbelow = &splitbelow
@@ -344,7 +346,7 @@ keepjumps 6
 normal! 014|
 wincmd w
 wincmd =
-tabnext 1
+tabnext 2
 set stal=1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
   silent exe 'bwipe ' . s:wipebuf
@@ -360,7 +362,6 @@ if filereadable(s:sx)
 endif
 let &g:so = s:so_save | let &g:siso = s:siso_save
 set hlsearch
-nohlsearch
 doautoall SessionLoadPost
 unlet SessionLoad
 " vim: set ft=vim :

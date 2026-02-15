@@ -1,7 +1,7 @@
 # src/infrastructure/lakehouse.py
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from structlog.typing import FilteringBoundLogger
 from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.types import Row
@@ -26,6 +26,8 @@ def _url_base_part(url: str) -> str:
 class LakehouseConnector:
     spark: SparkSessionInterface
     logger: FilteringBoundLogger
+    # Adding a lock to serialize Spark Gateway access.
+    _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     bucket_path: str = "s3a://lakehouse/bronze/tagged_chunks"
 
     @property
@@ -48,31 +50,33 @@ class LakehouseConnector:
         if not records:
             return 0
 
-        log: Final = self.logger.bind(records_count=len(records))
-        log.info("writing_to_lakehouse")
+        async with self._lock:
+            log: Final = self.logger.bind(records_count=len(records))
+            log.info("writing_to_lakehouse")
 
-        data: Final = [Row(**r.model_dump()) for r in records]
-        schema: Final = BronzeRecord.model_spark_schema()
-        
-        df: Final = self.spark.createDataFrame(data=data, schema=schema)
-        df_partitioned: Final = df.withColumn(
-            "ingested_date",
-            F.from_unixtime(F.col("ingested_at"), "yyyy-MM-dd")
-        )
+            data: Final = [Row(**r.model_dump()) for r in records]
+            schema: Final = BronzeRecord.model_spark_schema()
+            
+            df: Final = self.spark.createDataFrame(data=data, schema=schema)
+            df_partitioned: Final = df.withColumn(
+                "ingested_date",
+                F.from_unixtime(F.col("ingested_at"), "yyyy-MM-dd")
+            )
 
-        base_part: Final = _url_base_part(records[0].source_url)
-        target_dir: Final = f"{self.path}{base_part}/"
+            base_part: Final = _url_base_part(records[0].source_url)
+            target_dir: Final = f"{self.path}{base_part}/"
 
-        # TODO: Consider creating a threadpool.
-        # Spark write is synchronous so we call each write in a separate thread.
-        await asyncio.to_thread(
-            self._execute_spark_write,
-            df_partitioned,
-            target_dir
-        )
+            # TODO: Consider creating a threadpool.
+            # Spark write is synchronous so we call each write in a separate thread.
+            # The thread locks spark using self._lock until it finishes.
+            await asyncio.to_thread(
+                self._execute_spark_write,
+                df_partitioned,
+                target_dir
+            )
 
-        log.info("records_written", path=target_dir)
-        return len(records)
+            log.info("records_written", path=target_dir)
+            return len(records)
 
     def _execute_spark_write(self, df: DataFrame, target_dir: str) -> None:
         (
