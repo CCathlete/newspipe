@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 from threading import Thread
+import signal # Added import
 from typing import Any
 
 import structlog
@@ -44,19 +45,55 @@ def _get_seed_urls(seeds_file_path: Path) -> dict[str, list[str]]:
 async def main_async(
     seeds: dict[str, list[str]],
     config: dict[str, Any],
+    app_shutdown_event: asyncio.Event,
     logger: structlog.typing.FilteringBoundLogger = Provide[BasePlatformContainer.logger_provider],
 ) -> None:
-    discovery_t: Thread = Thread(target=DiscoveryController(seeds, config, logger))
-    ingestion_t: Thread = Thread(target=IngestionController(config, logger))
+    logger.debug(f"main_async(): app_shutdown_event ID (received): {id(app_shutdown_event)}")
+    discovery_finished_event: asyncio.Event = asyncio.Event()
+
+
+    discovery_controller_instance = DiscoveryController(seeds, config, logger, discovery_finished_event)
+    ingestion_controller_instance = IngestionController(config, logger, app_shutdown_event) # Ingestion now listens to app_shutdown_event
+
+    discovery_t: Thread = Thread(target=discovery_controller_instance)
+    ingestion_t: Thread = Thread(target=ingestion_controller_instance)
+
+    loop = asyncio.get_running_loop()
+    def signal_handler():
+        logger.info("Shutdown signal received. Initiating graceful application shutdown.")
+        logger.debug(f"signal_handler(): app_shutdown_event ID: {id(app_shutdown_event)}")
+        logger.debug(f"signal_handler(): IngestionController instance event ID: {id(ingestion_controller_instance.ingestion_shutdown_event)}")
+        
+        if ingestion_controller_instance.event_loop:
+            ingestion_controller_instance.event_loop.call_soon_threadsafe(
+                ingestion_controller_instance.ingestion_shutdown_event.set
+            )
+        
+        app_shutdown_event.set() 
+        
+    loop.add_signal_handler(signal.SIGTERM, signal_handler)
+    loop.add_signal_handler(signal.SIGINT, signal_handler)
 
     discovery_t.start()
     ingestion_t.start()
 
-    while discovery_t.is_alive() or ingestion_t.is_alive():
-        await asyncio.sleep(1)
+    done, pending = await asyncio.wait([
+        asyncio.create_task(discovery_finished_event.wait()),
+        asyncio.create_task(app_shutdown_event.wait())
+    ], return_when=asyncio.FIRST_COMPLETED)
 
-    discovery_t.join()
-    ingestion_t.join()
+    if app_shutdown_event.is_set():
+        logger.info("Application shutdown event triggered. Waiting for threads to join.")
+    elif discovery_finished_event.is_set():
+        logger.info("Discovery finished signal received. Waiting for ingestion to process remaining data and then shutdown via app_shutdown_event.")
+        # If discovery finished, we want ingestion to continue until app_shutdown_event is set.
+        # This implies that the application will run until explicitly shut down by a signal,
+        # or some other mechanism not yet fully defined if ingestion is meant to stop on its own after discovery.
+        # For now, it means ingestion will keep consuming until a signal.
+        pass
+
+    await loop.run_in_executor(None, discovery_t.join)
+    await loop.run_in_executor(None, ingestion_t.join)
 
 def main() -> None:
     input_dir: Path = root_path / "input_files"
@@ -91,11 +128,13 @@ def main() -> None:
         "spark_mode": "local[*]" if os.getenv("LOCAL_SPARK_MODE") else "spark://localhost:7077",
     }
 
+    app_shutdown_event: asyncio.Event = asyncio.Event() # Create event here
+
     container: BasePlatformContainer = BasePlatformContainer()
     container.config.from_dict(config)
     container.wire(modules=[__name__])
     
-    asyncio.run(main_async(seeds, config))
+    asyncio.run(main_async(seeds, config, app_shutdown_event))
 
 if __name__ == "__main__":
     main()

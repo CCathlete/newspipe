@@ -39,9 +39,11 @@ class DiscoveryService:
     async def run(self, seeds: dict[str, list[str]]) -> None:
         topics: list[str] = ["discovery_queue", "visited_urls"]
         idle_polls: int = 0
-        IDLE_THRESHOLD: int = 10
+        IDLE_THRESHOLD: int = 15
 
-        scraper_future: FutureResultE[list[str]] = self.scraper.initialize_and_seed(seeds, topics)
+        scraper_future: FutureResultE[list[str]] = self.scraper.initialize_and_seed(
+            seeds, topics
+        )
         scraper_io: IOResultE[list[str]] = await scraper_future.awaitable()
         
         match scraper_io:
@@ -86,6 +88,7 @@ class DiscoveryService:
                             )
                             self.logger.info("waiting_for_inflight_tasks", count=len(self.active_tasks))
                             await self.wait_for_tasks()
+                            break
 
                         continue
 

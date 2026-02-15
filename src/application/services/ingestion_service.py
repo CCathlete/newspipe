@@ -20,14 +20,20 @@ class IngestionService:
     ingestion_pipeline: IngestionPipeline
     kafka_consumer: KafkaPort
     logger: FilteringBoundLogger
+    ingestion_shutdown_event: asyncio.Event
+
+    def __post_init__(self):
+        self.logger.debug(f"IngestionService initialized with event: {self.ingestion_shutdown_event}")
 
     @future_safe
     async def run(self) -> None:
         topics = ["relevant_chunks"]
         self.kafka_consumer.subscribe(topics)
         self.logger.info("Ingestion service starting", topics=topics)
+        self.logger.debug(f"IngestionService event ID at start: {id(self.ingestion_shutdown_event)}")
 
-        while True:
+        while not self.ingestion_shutdown_event.is_set():
+            self.logger.debug(f"IngestionService loop: event is_set={self.ingestion_shutdown_event.is_set()}")
             messages_future: FutureResultE[
                 dict[TopicPartition, list[ConsumerRecord[Any, Any]]]
             ] = self.kafka_consumer.getmany(timeout_ms=1000, max_records=50)

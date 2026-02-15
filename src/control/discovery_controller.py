@@ -16,6 +16,7 @@ class DiscoveryController:
     seeds: dict[str, list[str]]
     config: dict[str, Any]
     logger: Any
+    discovery_finished_event: asyncio.Event
 
     @inject
     async def _run_flow(
@@ -43,6 +44,7 @@ class DiscoveryController:
                     match inner:
                         case Success(_):
                             self.logger.info("Discovery controller completed gracefully")
+                            self.discovery_finished_event.set()
                         case Failure(e):
                             self.logger.error("Discovery controller logic failure", error=str(e))
                 case IOFailure(inner_failure):

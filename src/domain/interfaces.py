@@ -147,7 +147,7 @@ class ScraperPort(Protocol):
     async def initialize_and_seed(
             self,
             seeds: dict[str, list[str]],
-            topics: list[str]
+            topics: list[str],
     ) -> list[str]:
         ...
 

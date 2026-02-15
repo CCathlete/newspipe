@@ -14,13 +14,13 @@ from domain.interfaces import ChunkingStrategy, AdaptiveCrawler, KafkaPort
 from domain.models import BronzeRecord, TraversalRules
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(frozen=False)
 class StreamScraper:
     logger: FilteringBoundLogger
     kafka_provider: KafkaPort
     crawler: AdaptiveCrawler
-    traversal_rules: TraversalRules
     strategy: ChunkingStrategy
+    traversal_rules: TraversalRules
     query: str
 
     # ------------------------------------------------------------------ #
@@ -34,7 +34,7 @@ class StreamScraper:
         topics: list[str],
         discovery_topic_name: str = "discovery_queue",
     ) -> list[str]:
-
+        self.logger.info("Initializing and seeding", seeds=seeds, topics=topics)
         infra_future: FutureResultE[list[str]] = self.kafka_provider.ensure_topics_exist(topics)
         infra_res: IOResultE[list[str]] = await infra_future.awaitable()
 
@@ -42,8 +42,9 @@ class StreamScraper:
             case IOSuccess(Success(_)):
                 for language, urls in seeds.items():
                     for url in urls:
-
+                        self.logger.info("Processing seed url", url=url)
                         if not self.traversal_rules.is_path_allowed(url=url, current_depth=0):
+                            self.logger.warn("Url is not allowed by traversal rules", url=url)
                             continue
 
                         payload: bytes = json.dumps({
@@ -51,6 +52,7 @@ class StreamScraper:
                             "language": language,
                         }).encode()
 
+                        self.logger.info("Sending url to discovery queue", url=url)
                         send_future: FutureResultE[None] = self.kafka_provider.send(
                             topic=discovery_topic_name,
                             value=payload,

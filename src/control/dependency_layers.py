@@ -4,11 +4,14 @@ import httpx
 import logging
 import structlog
 from asyncio import Semaphore
+import asyncio
 from phoenix.otel import register
 from pyspark.sql import SparkSession
 from logging.handlers import RotatingFileHandler
 from typing import Generator, Any, AsyncIterator
 from openinference.instrumentation import TracerProvider
+
+print("DEBUG: dependency_layers.py loaded")
 
 from dependency_injector import containers, providers
 from crawl4ai import (
@@ -20,6 +23,7 @@ from crawl4ai import (
     AdaptiveCrawler,
     AdaptiveConfig,
 )
+from crawl4ai.async_crawler_strategy import AsyncCrawlerStrategy, AsyncPlaywrightCrawlerStrategy
 from crawl4ai.chunking_strategy import OverlappingWindowChunking
 from structlog.processors import JSONRenderer, TimeStamper, StackInfoRenderer, format_exc_info
 
@@ -33,7 +37,7 @@ from infrastructure.lakehouse import LakehouseConnector
 from infrastructure.kafka import KafkaProducerAdapter, KafkaConsumerAdapter
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 
@@ -61,7 +65,7 @@ structlog.configure(
         format_exc_info,
         JSONRenderer(),
     ],
-    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+    wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
     cache_logger_on_first_use=True,
@@ -96,9 +100,9 @@ def _resolve_and_validate_lakehouse_config(
         "spark_mode": spark_mode
     }
 
-def _create_spark_session(resolved_lakehouse_cfg_dict: dict[str, str]) -> SparkSession:
+def _create_spark_session(resolved_lakehouse_cfg_dict: dict[str, str]) -> Generator[SparkSession, None, None]:
     builder: SparkSession.Builder = SparkSession.Builder()
-    return (
+    spark = (
         builder
         .master(resolved_lakehouse_cfg_dict['spark_mode'])
         .appName("NewsAnalysis")
@@ -122,11 +126,14 @@ def _create_spark_session(resolved_lakehouse_cfg_dict: dict[str, str]) -> SparkS
         .config("spark.hadoop.fs.s3a.retry.limit", "10")
         .config("spark.hadoop.fs.s3a.retry.interval", "5000")
         .config("spark.hadoop.fs.s3a.establish.timeout", "5000")
-        .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
         .config("spark.driver.cores", "1")
         .config("spark.driver.memory", "1g")
         .getOrCreate()
     )
+    try:
+        yield spark
+    finally:
+        spark.stop() # Ensure spark session is stopped during teardown
 
 def setup_phoenix(endpoint: str, project: str, api_key: str) -> Generator[TracerProvider, None, None]:
     tracer_provider: TracerProvider = register(
@@ -164,9 +171,31 @@ async def init_kafka_consumer(
     yield adapter
     await adapter._consumer.stop()
 
+async def init_async_web_crawler(
+    config: BrowserConfig,
+    crawler_strategy: AsyncCrawlerStrategy
+) -> AsyncIterator[AsyncWebCrawler]:
+    crawler = AsyncWebCrawler(
+        config=config,
+        crawler_strategy=crawler_strategy
+    )
+    await crawler.start()
+    try:
+        yield crawler
+    finally:
+        await crawler.close()
+
 class BasePlatformContainer(containers.DeclarativeContainer):
     config = providers.Configuration()
     logger_provider = providers.Singleton(structlog.get_logger)
+
+    relevance_policy = providers.Factory(
+        RelevancePolicy,
+        name=config.policy.relevance.name,
+        description=config.policy.relevance.description,
+        include_terms=config.policy.relevance.include_terms,
+        exclude_terms=config.policy.relevance.exclude_terms
+    )
 
 class DiscoveryContainer(BasePlatformContainer):
     kafka_producer = providers.Resource(
@@ -202,9 +231,12 @@ class DiscoveryContainer(BasePlatformContainer):
         browser_mode="builtin",
     )
 
-    async_crawler = providers.Factory(
-        AsyncWebCrawler,
+    crawler_strategy = providers.Factory(AsyncPlaywrightCrawlerStrategy)
+
+    async_crawler = providers.Resource(
+        init_async_web_crawler,
         config=browser_configuration,
+        crawler_strategy=crawler_strategy
     )
 
     adaptive_config = providers.Factory(
@@ -229,7 +261,7 @@ class DiscoveryContainer(BasePlatformContainer):
         crawler=scraping_provider,
         traversal_rules=traversal_rules,
         strategy=strategy,
-        query=BasePlatformContainer.config.policy.traversal.query,
+        query=BasePlatformContainer.config.policy.relevance.query,
     )
 
     discovery_semaphore = providers.Factory(
@@ -247,6 +279,8 @@ class DiscoveryContainer(BasePlatformContainer):
     )
 
 class IngestionContainer(BasePlatformContainer):
+
+
     http_client = providers.Resource(
         httpx.AsyncClient,
         timeout=httpx.Timeout(60.0),
@@ -278,7 +312,7 @@ class IngestionContainer(BasePlatformContainer):
         logger=BasePlatformContainer.logger_provider
     )
 
-    spark = providers.Singleton(
+    spark = providers.Resource(
         _create_spark_session,
         resolved_lakehouse_cfg_dict=resolved_lakehouse_config
     )
@@ -287,7 +321,7 @@ class IngestionContainer(BasePlatformContainer):
         setup_phoenix,
         endpoint=BasePlatformContainer.config.litellm.telemetry_endpoint,
         project=BasePlatformContainer.config.litellm.telemetry_project_name,
-        api_key=BasePlatformContainer.config.litellm.telemetry_api_key,
+        api_key=BasePlatformContainer.config.litellm.api_key,
     )
 
     ingestion_semaphore = providers.Factory(
@@ -319,7 +353,7 @@ class IngestionContainer(BasePlatformContainer):
         lakehouse=lakehouse,
         logger=BasePlatformContainer.logger_provider,
         buffer_size=5,
-        relevance_policy=relevance_policy
+        relevance_policy=BasePlatformContainer.relevance_policy,
     )
 
     ingestion_service = providers.Factory(
@@ -327,4 +361,5 @@ class IngestionContainer(BasePlatformContainer):
         ingestion_pipeline=pipeline,
         kafka_consumer=kafka_consumer,
         logger=BasePlatformContainer.logger_provider,
+        ingestion_shutdown_event=BasePlatformContainer.config.ingestion_shutdown_event,
     )

@@ -2,7 +2,7 @@ let SessionLoad = 1
 let s:so_save = &g:so | let s:siso_save = &g:siso | setg so=0 siso=0 | setl so=-1 siso=-1
 let v:this_session=expand("<sfile>:p")
 let NvimTreeSetup =  1 
-let TabbyTabNames = "{\"6\":\"Logs\",\"7\":\"Config\",\"1\":\"General\",\"2\":\"General2\",\"3\":\"Ingestion\",\"4\":\"Dependencies\",\"5\":\"Interfaces\"}"
+let TabbyTabNames = "{\"7\":\"Config\",\"1\":\"General\",\"2\":\"General2\",\"3\":\"Ingestion\",\"4\":\"Dependencies\",\"5\":\"Interfaces\",\"6\":\"Logs\"}"
 let NvimTreeRequired =  1 
 silent only
 silent tabonly
@@ -51,7 +51,7 @@ badd +135 src/infrastructure/litellm_client.py
 badd +1 ~/Repos/pipeline_infra/env.auto.tfvars
 badd +200 ~/Repos/pipeline_infra/variables.tf
 badd +1 \[dap-repl-48]
-badd +69 ~/Repos/newspipe/src/application/services/discovery_service.py
+badd +1 ~/Repos/newspipe/src/application/services/discovery_service.py
 badd +56 src/domain/interfaces.py
 badd +60 src/infrastructure/kafka.py
 badd +132 src/domain/services/data_ingestion.py
@@ -74,10 +74,11 @@ badd +1 \[dap-repl-77]
 badd +51 src/application/services/ingestion_service.py
 badd +1 term
 badd +1 term://~/Repos/newspipe//147748:/usr/bin/fish
-badd +1 term://~/Repos/newspipe//148038:/usr/bin/fish
+badd +2707 term://~/Repos/newspipe//148038:/usr/bin/fish
 badd +10005 \[dap-terminal]\ Python:\ module\ src.control.main
 badd +1 src/control/discovery_controller.py
 badd +38 src/control/ingestion_controller.py
+badd +0 term://~/Repos/newspipe//45850:/usr/bin/fish
 argglobal
 %argdel
 $argadd infrastructure/lakehouse.py
@@ -102,14 +103,23 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 49 - ((19 * winheight(0) + 15) / 30)
+let s:l = 49 - ((20 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
 keepjumps 49
 normal! 066|
 tabnext
-edit src/control/ingestion_controller.py
+edit src/infrastructure/litellm_client.py
+let s:save_splitbelow = &splitbelow
+let s:save_splitright = &splitright
+set splitbelow splitright
+wincmd _ | wincmd |
+vsplit
+1wincmd h
+wincmd w
+let &splitbelow = s:save_splitbelow
+let &splitright = s:save_splitright
 wincmd t
 let s:save_winminheight = &winminheight
 let s:save_winminwidth = &winminwidth
@@ -117,8 +127,23 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
+exe 'vert 1resize ' . ((&columns * 30 + 71) / 142)
+exe 'vert 2resize ' . ((&columns * 111 + 71) / 142)
 argglobal
-balt src/control/discovery_controller.py
+enew
+file NvimTree_2
+balt src/control/ingestion_controller.py
+setlocal foldmethod=manual
+setlocal foldexpr=0
+setlocal foldmarker={{{,}}}
+setlocal foldignore=#
+setlocal foldlevel=0
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal nofoldenable
+wincmd w
+argglobal
+balt src/control/ingestion_controller.py
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -129,12 +154,15 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 38 - ((29 * winheight(0) + 15) / 30)
+let s:l = 1 - ((0 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 38
-normal! 037|
+keepjumps 1
+normal! 0
+wincmd w
+exe 'vert 1resize ' . ((&columns * 30 + 71) / 142)
+exe 'vert 2resize ' . ((&columns * 111 + 71) / 142)
 tabnext
 edit ~/Repos/newspipe/src/application/services/discovery_service.py
 let s:save_splitbelow = &splitbelow
@@ -153,7 +181,8 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-wincmd =
+exe 'vert 1resize ' . ((&columns * 71 + 71) / 142)
+exe 'vert 2resize ' . ((&columns * 70 + 71) / 142)
 argglobal
 balt src/application/services/ingestion_service.py
 setlocal foldmethod=manual
@@ -166,7 +195,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 69 - ((2 * winheight(0) + 15) / 30)
+let s:l = 69 - ((2 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -189,14 +218,15 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 89 - ((27 * winheight(0) + 15) / 30)
+let s:l = 89 - ((25 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
 keepjumps 89
 normal! 0
 wincmd w
-wincmd =
+exe 'vert 1resize ' . ((&columns * 71 + 71) / 142)
+exe 'vert 2resize ' . ((&columns * 70 + 71) / 142)
 tabnext
 edit src/control/dependency_layers.py
 argglobal
@@ -211,7 +241,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 17 - ((16 * winheight(0) + 15) / 30)
+let s:l = 17 - ((16 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -231,13 +261,52 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 60 - ((15 * winheight(0) + 15) / 30)
+let s:l = 60 - ((16 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
 keepjumps 60
 normal! 024|
 tabnext
+let s:save_splitbelow = &splitbelow
+let s:save_splitright = &splitright
+set splitbelow splitright
+wincmd _ | wincmd |
+vsplit
+1wincmd h
+wincmd w
+let &splitbelow = s:save_splitbelow
+let &splitright = s:save_splitright
+wincmd t
+let s:save_winminheight = &winminheight
+let s:save_winminwidth = &winminwidth
+set winminheight=0
+set winheight=1
+set winminwidth=0
+set winwidth=1
+exe 'vert 1resize ' . ((&columns * 20 + 71) / 142)
+exe 'vert 2resize ' . ((&columns * 121 + 71) / 142)
+argglobal
+if bufexists(fnamemodify("term://~/Repos/newspipe//45850:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//45850:/usr/bin/fish | else | edit term://~/Repos/newspipe//45850:/usr/bin/fish | endif
+if &buftype ==# 'terminal'
+  silent file term://~/Repos/newspipe//45850:/usr/bin/fish
+endif
+balt term://~/Repos/newspipe//148038:/usr/bin/fish
+setlocal foldmethod=manual
+setlocal foldexpr=0
+setlocal foldmarker={{{,}}}
+setlocal foldignore=#
+setlocal foldlevel=0
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal foldenable
+let s:l = 7 - ((0 * winheight(0) + 16) / 32)
+if s:l < 1 | let s:l = 1 | endif
+keepjumps exe s:l
+normal! zt
+keepjumps 7
+normal! 020|
+wincmd w
 argglobal
 if bufexists(fnamemodify("term://~/Repos/newspipe//148038:/usr/bin/fish", ":p")) | buffer term://~/Repos/newspipe//148038:/usr/bin/fish | else | edit term://~/Repos/newspipe//148038:/usr/bin/fish | endif
 if &buftype ==# 'terminal'
@@ -252,12 +321,16 @@ setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
 setlocal foldenable
-let s:l = 1 - ((0 * winheight(0) + 15) / 30)
+let s:l = 5559 - ((0 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 1
-normal! 035|
+keepjumps 5559
+normal! 045|
+wincmd w
+2wincmd w
+exe 'vert 1resize ' . ((&columns * 20 + 71) / 142)
+exe 'vert 2resize ' . ((&columns * 121 + 71) / 142)
 tabnext
 edit input_files/seed_urls.json
 let s:save_splitbelow = &splitbelow
@@ -279,7 +352,9 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-wincmd =
+exe 'vert 1resize ' . ((&columns * 47 + 71) / 142)
+exe 'vert 2resize ' . ((&columns * 47 + 71) / 142)
+exe 'vert 3resize ' . ((&columns * 46 + 71) / 142)
 argglobal
 balt input_files/relevance_policies.json
 setlocal foldmethod=manual
@@ -292,7 +367,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 19 - ((15 * winheight(0) + 15) / 30)
+let s:l = 19 - ((16 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -315,7 +390,7 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 6 - ((4 * winheight(0) + 15) / 30)
+let s:l = 6 - ((4 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
@@ -338,15 +413,17 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 6 - ((4 * winheight(0) + 15) / 30)
+let s:l = 6 - ((4 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
 keepjumps 6
 normal! 014|
 wincmd w
-wincmd =
-tabnext 2
+exe 'vert 1resize ' . ((&columns * 47 + 71) / 142)
+exe 'vert 2resize ' . ((&columns * 47 + 71) / 142)
+exe 'vert 3resize ' . ((&columns * 46 + 71) / 142)
+tabnext 6
 set stal=1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
   silent exe 'bwipe ' . s:wipebuf
