@@ -95,6 +95,14 @@ async def main_async(
     discovery_thread.start()
     ingestion_thread.start()
 
+    # Blocking the main coroutine until threads finish to prevent premature shutdown.
+    while discovery_thread.is_alive() or ingestion_thread.is_alive():
+        await asyncio.sleep(1)
+
+    # Safe cleanup of resources from both threads after they've finished.
+    discovery_thread.join()
+    ingestion_thread.join()
+
 
     if (shutdown_task := container.shutdown_resources()) is not None:
         await shutdown_task

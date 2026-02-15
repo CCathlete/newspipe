@@ -178,10 +178,13 @@ async def init_kafka_consumer(
 
 
 class DataPlatformContainer(containers.DeclarativeContainer):
+    # One for ingestion and one for discovery.
     config = providers.Configuration()
 
+    # One for ingestion and one for discovery.
     logger_provider = providers.Singleton(structlog.get_logger)
 
+    # Ingestion
     http_client = providers.Resource(
         httpx.AsyncClient,
         timeout=httpx.Timeout(60.0),
@@ -191,6 +194,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         }
     )
 
+    # Discovery
     kafka_producer = providers.Resource(
         init_kafka_producer,
         bootstrap_servers=config.kafka.bootstrap_servers,
@@ -215,6 +219,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
 
 
     # --- Domain Model Instantiation ---
+    # Discovery
     traversal_rules = providers.Factory(
         TraversalRules,
         required_path_segments=config.policy.traversal.required_path_segments,
@@ -222,6 +227,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         max_depth=config.policy.traversal.max_depth
     )
 
+    # Ingestion
     relevance_policy = providers.Factory(
         RelevancePolicy,
         name=config.policy.relevance.name,
@@ -230,23 +236,27 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         exclude_terms=config.policy.relevance.exclude_terms
     )
 
+    # Ingestion
     resolved_lakehouse_config = providers.Factory(
         _resolve_and_validate_lakehouse_config,
         config=config,
         logger=logger_provider
     )
 
+    # Ingestion
     spark = providers.Singleton(
         _create_spark_session,
         resolved_lakehouse_cfg_dict=resolved_lakehouse_config
     )
 
+    # Discovery
     strategy = providers.Singleton(
         OverlappingWindowChunking,
         window_size=config.stream_scraper.window_size,
         overlap=config.stream_scraper.overlap,
     )
 
+    # Discovery
     run_config = providers.Singleton(
         CrawlerRunConfig,
         cache_mode=cache_context.CacheMode.BYPASS,
@@ -260,18 +270,21 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         magic=True,
     )
 
+    # Discovery
     browser_configuration = providers.Singleton(
         BrowserConfig,
         headless=True,
         browser_mode="builtin",
     )
 
+    # Discovery
     async_crawler = providers.Singleton(
     # scraping_provider = providers.Factory(
         AsyncWebCrawler,
         config=browser_configuration,
     )
         
+    # Discovery
     # Adaptive crawler configuration
     adaptive_config = providers.Singleton(
         AdaptiveConfig,
@@ -282,6 +295,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         strategy="statistical",          # default strategy; can be "embedding"
     )
 
+    # Discovery
     # Adaptive crawler provider
     scraping_provider = providers.Singleton(
         AdaptiveCrawler,
@@ -289,6 +303,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         config=adaptive_config
     )
 
+    # Discovery
     scraper = providers.Factory(
         StreamScraper,
         logger=logger_provider,
@@ -300,6 +315,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         query=config.policy.traversal.query, # Traversal query for adaptive crawling.
     )
 
+    # Ingestion
     # Telemetry object that monitors LLM performance (including embedding).
     telemetry = providers.Resource(
         setup_phoenix,
@@ -308,11 +324,13 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         api_key=config.litellm.telemetry_api_key,
     )
 
+    # Ingestion
     semaphore = providers.Singleton(
         Semaphore,
         config.litellm.max_concurrency
     )
 
+    # Ingestion
     litellm = providers.Factory(
         LitellmClient,
         model=config.litellm.model,
@@ -324,6 +342,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         semaphore=semaphore,
     )
 
+    # Ingestion
     lakehouse = providers.Factory(
         LakehouseConnector,
         spark=spark,
@@ -331,6 +350,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         logger=logger_provider
     )
 
+    # Ingestion
     pipeline = providers.Factory(
         IngestionPipeline,
         llm=litellm,
@@ -340,6 +360,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         relevance_policy=relevance_policy
     )
 
+    # Discovery
     discovery_service = providers.Factory(
         DiscoveryService,
         scraper=scraper,
@@ -349,6 +370,7 @@ class DataPlatformContainer(containers.DeclarativeContainer):
         semaphore=semaphore,
     )
 
+    # Ingestion
     ingestion_service = providers.Factory(
         IngestionService,
         ingestion_pipeline=pipeline,
