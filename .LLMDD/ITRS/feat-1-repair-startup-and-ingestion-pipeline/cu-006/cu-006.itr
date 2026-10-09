@@ -1,0 +1,17 @@
+# CU-ID: cu-006
+# CU-TYPE: RegularCU
+# TIMESTAMP: 2026-10-09T18:03:34.011822772Z
+# DTR-COORDINATES: MOD.src.domain.services.linguistic_model.LinguisticService, MOD.src.infrastructure.lakehouse.LakehouseConnector
+
+REQUIREMENTS
+Fix two data-layer defects: (a) LinguisticService.generate_semantic_records in src/domain/services/linguistic_model.py passes non-existent control_action/gram_type kwargs to BronzeRecord (silently dropped by pydantic) u2014 remove them; (b) LakehouseConnector._convert_embedding in src/infrastructure/lakehouse.py pattern-matches `value in [None, Never]` (comparison against the typing.Never object, and Maybe unwrap mishandled) u2014 rewrite with explicit Nothing check + unwrap. Touch ONLY these two files.
+COORDINATES
+MOD.src.domain.services.linguistic_model.LinguisticService (edits generate_semantic_records), MOD.src.infrastructure.lakehouse.LakehouseConnector (edits _convert_embedding + imports).
+IMPLEMENTATION_STEPS
+1. linguistic_model.py: delete the `control_action="NONE",` and `gram_type="GM3"` kwargs from the BronzeRecord(...) construction. Keep chunk_id/source_url/content/language/embedding=Some(vector). Do NOT add new model fields.
+2. lakehouse.py imports: replace `from returns.maybe import Maybe` with `from returns.maybe import Maybe, Nothing`; replace `from typing import Never, Final` with `from typing import Final`.
+3. lakehouse.py: replace the whole _convert_embedding match block with: `if embedding is Nothing or embedding == Nothing: return None`; try `value = embedding.unwrap()` except (AttributeError, ValueError, TypeError) -> None; `if value is None: return None`; try assert isinstance(value, list) + float coercion except (TypeError, ValueError, AssertionError) -> None. Keep the method signature.
+4. Prove: compileall exit 0; `PYTHONPATH=src .venv/bin/python -c "from infrastructure.lakehouse import LakehouseConnector; c=LakehouseConnector.__new__(LakehouseConnector); from returns.maybe import Nothing, Some; assert c._convert_embedding(Nothing) is None; assert c._convert_embedding(Some([1, 2.5]))==[1.0, 2.5]; print('LAKEHOUSE OK')"`; and generate_semantic_records with a fake ai_provider returns BronzeRecords without TypeError. Stop when green; Spark session wiring untouched.
+ACCEPTANCE
+A11: Maybe-conversion probe prints LAKEHOUSE OK. COMMAND: step-4 inline check. EXPECTED: exit 0 + LAKEHOUSE OK.
+A12: `rg -n 'control_action|gram_type' src/domain/services/linguistic_model.py` is empty and `rg -n 'Never' src/infrastructure/lakehouse.py` is empty. COMMAND: both rg calls. EXPECTED: exit 1 each (no matches).

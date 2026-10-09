@@ -1,0 +1,13 @@
+# CU-ID: legend
+# CU-TYPE: LegendCU
+# TIMESTAMP: 2026-10-09T18:03:34.003864924Z
+# DTR-COORDINATES: 
+
+LEGEND for feat-1 ITR frames.
+
+CU-ID: arch = shared architecture context (this file). legend = this legend. cu-001..cu-008 = regular implementation units, zero-padded sequence numbers.
+DTR-COORDINATES use MOD.<repo-relative-module-path> style (no baseline .dtr exists yet in .LLMDD/DTRS; coordinates are documentation + traceability keys). A coordinate naming a non-existent symbol means the CU creates it.
+Frame header keys: CU-ID, CU-TYPE (ArchCU/LegendCU/RegularCU), TIMESTAMP, DTR-COORDINATES.
+Feature spec: .LLMDD/spec-driven/features/feat-1-repair-startup-and-ingestion-pipeline.md. Status flow: Proposed -> In Progress -> Implemented.
+Retry: coders retry a failing verification until MAX_ATTEMPTS from root SYNOPSIS.itr, then set STATUS=ESCALATED with ESCALATION_REASON/DETAIL (never silently skip).
+Feedback: per-CU <app>.feedback/cu-<id>.feedback.txt inside the ITR folder (gitignored runtime state).

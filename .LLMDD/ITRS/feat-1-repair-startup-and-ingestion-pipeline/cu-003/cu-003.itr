@@ -1,0 +1,17 @@
+# CU-ID: cu-003
+# CU-TYPE: RegularCU
+# TIMESTAMP: 2026-10-09T18:03:34.010410706Z
+# DTR-COORDINATES: MOD.src.application.services.discovery_service.DiscoveryService
+
+REQUIREMENTS
+Fix the discovery consumer loop in src/application/services/discovery_service.py: (a) the quiescent branch (idle_polls >= IDLE_THRESHOLD with no active tasks) awaits wait_for_tasks then `continue`s forever u2014 the thread never terminates; break instead. (b) log calls slice raw bytes (`record.value[:100]`) inside printf-style structlog args; switch to a decoded _preview helper with key-value logging. (c) add missing IOSuccess(Failure) arms. Touch ONLY src/application/services/discovery_service.py.
+COORDINATES
+MOD.src.application.services.discovery_service.DiscoveryService (edits run loop tail, per-record handling; creates _preview).
+IMPLEMENTATION_STEPS
+1. In run(), inside the `if idle_polls >= IDLE_THRESHOLD:` block after `await self.wait_for_tasks()`, add `break` so the loop exits when quiescent with zero in-flight tasks. The outer `continue` stays for the below-threshold idle path. Do NOT change IDLE_THRESHOLD (10), timeout_ms (1000), or max_records (5).
+2. Replace the per-record match body: compute `preview: str = self._preview(record.value)` once, then three arms u2014 IOSuccess(Success(_)) -> self.logger.info("Record passed to discovery queue.", record_preview=preview); IOSuccess(Failure(e)) -> error log with record_preview + error=str(e); IOFailure(Failure(e)) -> error log likewise. Delete the `assert record.value` lines and printf-style `record.value[:100]` args.
+3. Add `@staticmethod def _preview(value: bytes | None, limit: int = 100) -> str` returning "<empty>" for None else value.decode("utf-8", errors="replace")[:limit]. Place directly after _safe_decode.
+4. Prove: PYTHONPATH=src .venv/bin/python -m compileall -q src (exit 0) and `PYTHONPATH=src .venv/bin/python -c "import inspect; from application.services.discovery_service import DiscoveryService; s=inspect.getsource(DiscoveryService.run); assert s.count('break')>=1; print('break OK')"`. Stop when green; ingestion-side handling is cu-004, scraper internals cu-005.
+ACCEPTANCE
+A5 [feat-1 criterion 4]: run() source contains a loop exit on the quiescent path. COMMAND: step-4 inline check. EXPECTED: prints `break OK`, exit 0.
+A6: no `record.value[:100]` printf-style log args remain in the module. COMMAND: `rg -n 'value\[:100\]' src/application/services/discovery_service.py; echo $?`. EXPECTED: exit 1 (no matches).

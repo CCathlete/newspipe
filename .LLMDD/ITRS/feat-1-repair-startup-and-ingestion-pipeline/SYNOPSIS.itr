@@ -1,0 +1,38 @@
+# SYNOPSIS.itr — feat-1-repair-startup-and-ingestion-pipeline
+# Shared run context for all Coders in this feature. Read with ARCH.itr + LEGEND.itr.
+# Feature spec: .LLMDD/spec-driven/features/feat-1-repair-startup-and-ingestion-pipeline.md
+# Batch source (recompile with --force after edits, never hand-edit cu-*/ frames):
+#   .LLMDD/ITRS/feat-1-repair-startup-and-ingestion-pipeline/batch.json
+
+FEATURE=feat-1-repair-startup-and-ingestion-pipeline
+GOAL=Make NewsPipe start on a fresh checkout and deliver crawled chunks to the lakehouse.
+MAX_ATTEMPTS=3
+
+# WHY (diagnosis summary — all verified read-only against HEAD, no code changed yet):
+# 1. input_files/ missing+ignored -> main() raises ValueError on startup.
+# 2. IngestionPipeline buffers by unique chunk_id -> buffer_size never reached -> 0 lakehouse writes.
+# 3. Bare `case _: raise` -> RuntimeError on record-creation failure.
+# 4. Discovery quiescent branch `continue`s forever; bytes-slice log args; missing match arms.
+# 5. Ingestion consumer: data["source_url"] KeyError risk; poison pills redeliver forever.
+# 6. Scraper missing IOSuccess(Failure) arms; CrawlerResult protocol lacks url.
+# 7. LinguisticService passes phantom control_action/gram_type kwargs; lakehouse Maybe-match broken.
+# 8. Notebook imports non-existent DataPlatformContainer; dotenv shim dep; max_tokens 5 truncates verdicts.
+# 9. README is a 32-line placeholder.
+
+# CU MAP (file ownership — wave planner: same-file CUs MUST serialize across waves):
+# cu-001: repo root + input_files/ + .env.example + .gitignore (no code; no dependencies)
+# cu-002: src/domain/services/data_ingestion.py (depends: cu-001 samples for prove step)
+# cu-003: src/application/services/discovery_service.py (independent of cu-002)
+# cu-004: src/application/services/ingestion_service.py (independent of cu-002/cu-003)
+# cu-005: src/domain/services/scraper.py + src/domain/interfaces.py (independent)
+# cu-006: src/domain/services/linguistic_model.py + src/infrastructure/lakehouse.py (independent)
+# cu-007: notebooks/python/silver_layer.py + .ipynb + pyproject.toml/uv.lock + src/infrastructure/litellm_client.py (independent)
+# cu-008: README.md (depends: ALL of cu-001..cu-007 — docs describe fixed behavior; runs alone, last)
+
+# E2E VERIFY (code lead, after all waves green):
+# PYTHONPATH=src .venv/bin/python -m compileall -q src
+# cp input_files/*.example.json to working names; run pipeline flush + poison-pill + config-load probes from spec Tests.
+# python3 .LLMDD/tools/test_synopsis_budget.py .LLMDD/ITRS/feat-1-repair-startup-and-ingestion-pipeline/SYNOPSIS.itr  # expect BUDGET_OK 3
+
+# RETRY POLICY: retry a failing ACCEPTANCE command until MAX_ATTEMPTS, then STATUS=ESCALATED
+# with ESCALATION_REASON/DETAIL. Never skip a red test. One commit per wave task by the lead only.

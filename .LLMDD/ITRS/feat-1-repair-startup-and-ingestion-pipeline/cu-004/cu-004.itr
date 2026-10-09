@@ -1,0 +1,17 @@
+# CU-ID: cu-004
+# CU-TYPE: RegularCU
+# TIMESTAMP: 2026-10-09T18:03:34.010833576Z
+# DTR-COORDINATES: MOD.src.application.services.ingestion_service.IngestionService
+
+REQUIREMENTS
+Fix ingestion consumer handling in src/application/services/ingestion_service.py: (a) `data["source_url"]` in the Chunk-written log raises KeyError on malformed payloads u2014 use .get; (b) decode failures and pipeline failures have no match arms, so poison-pill records are retried forever without commit u2014 log + commit the offset to skip; (c) commit-failure arm missing for IOSuccess(Failure). Touch ONLY src/application/services/ingestion_service.py.
+COORDINATES
+MOD.src.application.services.ingestion_service.IngestionService (edits _handle_ingestion only).
+IMPLEMENTATION_STEPS
+1. Change `self.logger.info("Chunk written", url=data["source_url"])` to `url=data.get("source_url")`.
+2. In the commit-result match, add `case IOSuccess(Failure(exception))` logging "Chunk commit failed" with url=data.get("source_url"). Keep the existing IOFailure arm.
+3. After the `case IOSuccess(Success(data)):` block, add `case IOSuccess(Failure(exception)):` logging "Skipping undecodable record" then `await self.kafka_consumer.commit({tp: record.offset}).awaitable()`, and `case IOFailure(Failure(exception)):` logging "Record decode IO failure" then committing likewise. This preserves at-least-once progress on poison pills. Do NOT change subscribe topics (["relevant_chunks"]), getmany args, or the success-path commit.
+4. Prove: PYTHONPATH=src .venv/bin/python -m compileall -q src (exit 0) plus a fake-KafkaPort harness: feed one undecodable record then one good record; expect the good record still processed and both offsets committed. Stop when green; pipeline internals are cu-002.
+ACCEPTANCE
+A7 [feat-1 criterion 5]: poison-pill record is skipped via commit and the next record processes. COMMAND: ephemeral fake-consumer harness from step 4. EXPECTED: exit 0, both offsets committed, good record reaches the pipeline.
+A8: no `data["source_url"]` subscript remains in the module. COMMAND: `rg -n 'data\["source_url"\]' src/application/services/ingestion_service.py; echo $?`. EXPECTED: exit 1 (no matches).

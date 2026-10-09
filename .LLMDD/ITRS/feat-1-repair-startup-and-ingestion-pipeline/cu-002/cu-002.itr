@@ -1,0 +1,19 @@
+# CU-ID: cu-002
+# CU-TYPE: RegularCU
+# TIMESTAMP: 2026-10-09T18:03:34.009860808Z
+# DTR-COORDINATES: MOD.src.domain.services.data_ingestion.IngestionPipeline
+
+REQUIREMENTS
+Fix the ingestion write path in src/domain/services/data_ingestion.py: (a) the buffer is keyed by chunk_id, which is unique per chunk (f"{url}::{idx}" in scraper.py), so `len(group) >= buffer_size (5)` can never trigger and zero records ever reach the lakehouse; (b) bare `case _: raise` re-raises with no active exception (RuntimeError) on record-creation failure; (c) the `did_it_flush == 0` branch logs logger.error for the normal buffered state. Regroup buffering by source_url, add flush_all for shutdown tails, make failure matches exhaustive, demote the buffered log to debug. Touch ONLY src/domain/services/data_ingestion.py.
+COORDINATES
+MOD.src.domain.services.data_ingestion.IngestionPipeline (edits ingest_if_relevant, _check_and_flush_group, _flush_group; creates flush_all).
+IMPLEMENTATION_STEPS
+1. In ingest_if_relevant, replace `self._buffer.setdefault(bronzerecord.chunk_id, []).append(bronzerecord)` and the following `_check_and_flush_group(bronzerecord.chunk_id, log)` call with grouping by `group_key: str = bronzerecord.source_url`. Keep the surrounding match structure; keep buffer_size semantics (flush when a group reaches buffer_size).
+2. Replace `case _: raise` with two explicit arms: `case IOSuccess(Failure(e))` (log "Failed to create bronze record" + `raise e`) and `case IOFailure(Failure(e))` (log + `raise e`). IOSuccess/Success and IOFailure are already imported in the module u2014 do NOT add imports.
+3. In _check_and_flush_group add the missing `case IOSuccess(Failure(error)): raise error` arm. In _flush_group add the same missing arm and delete the trailing unreachable `return 0` after the match.
+4. Add `@future_safe async def flush_all(self) -> int` that iterates list(self._buffer.keys()), awaits _flush_group per key with self.logger, sums counts, and re-raises on IOSuccess(Failure)/IOFailure(Failure) arms. Place after _check_and_flush_group.
+5. Change the `else: self.logger.error("Record buffer is empty.")` branch to self.logger.debug("Record buffered, awaiting flush threshold.").
+6. Prove: PYTHONPATH=src .venv/bin/python -m compileall -q src (exit 0), then run the ephemeral check: feed 5 same-source relevant chunks through IngestionPipeline with fake AIPort (is_relevant -> True) and fake StoragePort, buffer_size=5 u2014 expect 5 written; feed 1 other-source chunk u2014 expect still 5; await flush_all() u2014 expect 6 total. Stop when green; Kafka/service-loop behavior belongs to cu-003/cu-004, Spark I/O to cu-006.
+ACCEPTANCE
+A3 [feat-1 criterion 2]: five same-source chunks yield exactly 5 lakehouse writes; flush_all writes the tail. COMMAND: ephemeral script from step 6 (paste into `PYTHONPATH=src .venv/bin/python -c`, fakes inline). EXPECTED: counts 5 then 6, exit 0.
+A4 [feat-1 criterion 3]: forced _create_record failure raises the original error, never "No active exception to reraise". COMMAND: same harness with a record missing source_url. EXPECTED: raised error mentions the missing key, not bare-raise RuntimeError.

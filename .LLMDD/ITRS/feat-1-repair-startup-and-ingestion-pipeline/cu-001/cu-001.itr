@@ -1,0 +1,20 @@
+# CU-ID: cu-001
+# CU-TYPE: RegularCU
+# TIMESTAMP: 2026-10-09T18:03:34.009340316Z
+# DTR-COORDINATES: MOD.input_files.seed_urls, MOD.input_files.traversal_policies, MOD.input_files.relevance_policies, MOD.dot-env-example, MOD.dot-gitignore
+
+REQUIREMENTS
+Unblock application startup: `control.main:main` currently raises ValueError/FileNotFound because input_files/ (seed_urls.json, traversal_policies.json, relevance_policies.json) is missing and git-ignored, and no .env.example exists. This CU ships tracked sample configs plus env template so a fresh checkout plus documented copy steps reaches config build. This CU touches repo root and input_files/ only u2014 no Python code.
+COORDINATES
+MOD.input_files.seed_urls(.example).json (creates), MOD.input_files.traversal_policies(.example).json (creates), MOD.input_files.relevance_policies(.example).json (creates), MOD.dot-env-example (creates), MOD.dot-gitignore (edits negation lines only).
+IMPLEMENTATION_STEPS
+1. Create input_files/seed_urls.example.json exactly: {"include": ["en"], "exclude": [], "en": ["https://example.com/news"]}. Schema contract from src/control/main.py::_get_seed_urls: top-level "include"/"exclude" language lists plus <lang> -> [urls] mappings; only included, non-excluded languages are crawled. Do NOT touch main.py.
+2. Create input_files/traversal_policies.example.json as a one-element list, last-active-wins per _get_active_config (filters dicts with "active" is True, takes last): [{"active": true, "query": "latest news articles", "required_path_segments": [], "blocked_path_segments": ["login", "signup", "cart", "checkout"], "max_depth": 2}]. Field contract from domain.models.TraversalRules plus the container's config.policy.traversal.query usage. Do NOT add a query field to the TraversalRules model (out of scope, cu-005 area).
+3. Create input_files/relevance_policies.example.json as a one-element list: [{"active": true, "name": "news-v1", "description": "News article content about current events, politics, technology, science or the economy. Navigation chrome, ads, cookie banners and login walls are NOT relevant.", "include_terms": ["news", "report", "article", "government", "technology", "science", "economy", "election", "climate"], "exclude_terms": ["<html", "stylesheet", "cookie consent", "subscribe to continue"]}]. Field contract from domain.models.RelevancePolicy.
+4. Create working copies input_files/seed_urls.json, traversal_policies.json, relevance_policies.json (byte-identical to the .example files) so this checkout runs. Do NOT rename main.py's expected filenames.
+5. Create .env.example with keys read in src/control/main.py: LITELLM_API_KEY, PHOENIX_COLLECTOR_ENDPOINT, PHOENIX_API_KEY, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, HOST_IP, LOCAL_SPARK_MODE. Placeholder values only, never real secrets.
+6. Edit .gitignore minimally: under the `**/input_files/**` line add `!**/input_files/*.example.json`; under `*.*env*` add `!.env.example`. Do NOT remove any existing ignore line.
+7. Prove: PYTHONPATH=src .venv/bin/python -c "from pathlib import Path; from control.main import _get_seed_urls, _get_active_config; s=_get_seed_urls(Path('input_files/seed_urls.json')); t=_get_active_config(Path('input_files/traversal_policies.json')); r=_get_active_config(Path('input_files/relevance_policies.json')); print(s, t['max_depth'], r['name'])" u2014 expect `{'en': ['https://example.com/news']} 2 news-v1`. Stop when this prints; Python source fixes belong to cu-002..cu-007.
+ACCEPTANCE
+A1 [feat-1 criterion 1]: the prove command in step 7 prints the expected line. COMMAND: same as step 7. EXPECTED: exit 0 + expected output.
+A2: `git status --short` shows input_files/*.example.json and .env.example as untracked-but-addable (not ignored). COMMAND: `git check-ignore input_files/seed_urls.example.json .env.example; echo $?`. EXPECTED: exit 1 (nothing ignored).
