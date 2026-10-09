@@ -69,13 +69,13 @@ at `~/.config/git/hooks/pre-push`). Only interactive terminal users may push.
 
 ## Commit protocol
 
-Every commit in this repo must be accompanied by a summary of the changes
-tracked in the `~/Repos/llmdd-book` repo:
+Commits in this repo are NOT mirrored to the `~/Repos/llmdd-book` repo —
+newspipe is a consumer repo, and its routine commits stay local. The only
+exception is findings about the LLMDD toolchain itself (e.g. opening a bug
+in `~/Repos/llm-driven-design`): those may be recorded in the book with a
+separate `docs:` commit there.
 
-1. After committing here, record what changed in the book — typically a new
-   subsection under the current-version section of
-   `docs/building-llm-driven-design.md` (workspace, skills, features, ITR
-   layout, lessons learned).
-2. Commit the book change separately in `~/Repos/llmdd-book` with a `docs:`
-   message.
-3. Never push from either repo — the Designer pushes.
+1. Commit here with a concise message matching repo style; stage only
+   intended files, never commit secrets.
+2. Never push from any repo — the Designer pushes (a global pre-push hook
+   blocks AI assistants anyway).
