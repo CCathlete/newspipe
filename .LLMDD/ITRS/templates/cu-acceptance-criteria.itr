@@ -1,0 +1,11 @@
+# TEMPLATE: cu-acceptance-criteria
+# USAGE: copy into the criteria section of <cu-id>/ACCEPTANCE.itr and replace
+# <...> placeholders. One numbered, testable condition per line; every
+# criterion links to a test id defined in cu-acceptance-tests.itr.
+
+# CRITERION: <CU-ID>
+# FEATURE: <feat-N>
+1. <observable condition> [test: <T-ID>]
+2. <observable condition> [test: <T-ID>]
+
+RETRY_POLICY=Retry until MAX_ATTEMPTS from root SYNOPSIS.itr, then escalate to code lead.

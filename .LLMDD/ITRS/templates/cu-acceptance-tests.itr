@@ -1,0 +1,16 @@
+# TEMPLATE: cu-acceptance-tests
+# USAGE: copy into the tests section of <cu-id>/ACCEPTANCE.itr and replace
+# <...> placeholders. Each test proves one criterion from
+# cu-acceptance-criteria.itr; include regression tests for previously fixed
+# bugs touching this CU.
+
+# TEST: <T-ID> (criterion <N>)
+# COMMAND: <exact command>
+# EXPECTED: <expected result>
+# EVIDENCE: <failing-before / passing-after output>
+
+# REGRESSION:
+# TEST: <T-ID> (bug <bug-N>)
+# COMMAND: <exact command>
+# EXPECTED: <expected result>
+# EVIDENCE: <failing-before / passing-after output>
