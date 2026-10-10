@@ -119,6 +119,12 @@ Each CU frame is compiled by `itr-compiler` from CU content + baseline DTR.
 - Severity taxonomy: CRITICAL / MAJOR / MINOR / TRIVIAL (`SEVERITY`)
 - One ITR directory per app, tracked in git (`ITR_LIFECYCLE`)
 - Hard fail on constraint violation (`HARD_FAIL`)
+- Fixed layer partition: application → services/ports/useCases,
+  infrastructure → one folder per port + Env singleton,
+  domain → models/valueObjects only,
+  control → dependencyInjection/entryPoint (`LAYER_LAYOUT`)
+- No files in layer roots, only in nested folders (`NO_LAYER_ROOT_FILES`)
+- Infra Env adapter singleton loads config + env variables (`ENV_ADAPTER`)
 
 See the system tensor at `system_tensors/llm-driven-design-sys-prompt.itr` for
 the complete specification.
