@@ -25,7 +25,8 @@ hs_err_pid*
 replay_pid*
 .vscode
 .metals
-project
+project/*
+!project/build.properties
 target
 .bloop
 .bsp
@@ -49,3 +50,8 @@ nohup.out
 **/silver_layer_files/**
 
 **/nohup*
+
+# LLMDD run-waves runtime state (never commit; see run-waves skill)
+.LLMDD/ITRS/*/*.feedback/
+.LLMDD/ITRS/*/*.logs/
+.LLMDD/ITRS/*/*.convergence.json

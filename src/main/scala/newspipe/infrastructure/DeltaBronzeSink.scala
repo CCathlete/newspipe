@@ -1,0 +1,50 @@
+package newspipe.infrastructure
+
+import newspipe.domain.{BronzeSink, BronzeUnit}
+import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.types.*
+
+final class DeltaBronzeSink(spark: SparkSession, bronzePath: String) extends BronzeSink:
+
+  def write(units: List[BronzeUnit]): Int =
+    if units.isEmpty then 0
+    else
+      val rows = units.map { u =>
+        Row(
+          u.id,
+          u.feedUrl,
+          u.articleUrl,
+          u.title,
+          u.content,
+          u.publishedAt.map(_.toString).orNull,
+          u.ingestedAt.toString,
+          u.summary,
+          u.countries.toArray,
+          u.geoArea,
+          u.topics.toArray,
+          u.actors.toArray,
+          u.urgency,
+          u.language,
+          u.ingestedAt.atZone(java.time.ZoneOffset.UTC).toLocalDate.toString
+        )
+      }
+      val schema = StructType(Array(
+        StructField("id", StringType, nullable = false),
+        StructField("feed_url", StringType, nullable = false),
+        StructField("article_url", StringType, nullable = false),
+        StructField("title", StringType, nullable = false),
+        StructField("content", StringType, nullable = false),
+        StructField("published_at", StringType, nullable = true),
+        StructField("ingested_at", StringType, nullable = false),
+        StructField("summary", StringType, nullable = false),
+        StructField("countries", ArrayType(StringType, containsNull = false), nullable = false),
+        StructField("geo_area", StringType, nullable = false),
+        StructField("topics", ArrayType(StringType, containsNull = false), nullable = false),
+        StructField("actors", ArrayType(StringType, containsNull = false), nullable = false),
+        StructField("urgency", StringType, nullable = false),
+        StructField("language", StringType, nullable = false),
+        StructField("ingested_date", StringType, nullable = false)
+      ))
+      val df = spark.createDataFrame(spark.sparkContext.parallelize(rows), schema)
+      df.write.format("delta").mode("append").partitionBy("ingested_date").save(bronzePath)
+      units.size

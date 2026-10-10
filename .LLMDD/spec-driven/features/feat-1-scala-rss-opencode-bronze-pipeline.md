@@ -1,6 +1,6 @@
 # feat-1: Scala RSS opencode bronze pipeline
 
-- Status: Proposed
+- Status: Implemented
 - Created: 2026-10-10
 - Feature ID: feat-1-scala-rss-opencode-bronze-pipeline
 
@@ -29,9 +29,10 @@ until the Scala pipeline is E2E green).
 
 ## Implementation status
 
-Not implemented. Status moves Proposed → In Progress when CUs are
-assigned to a Coder, → Implemented when all waves are done and E2E
-verify is green. Baseline DTR of the Python codebase (design input):
+Implemented. All 7 CUs (cu-001..cu-007) implemented across 4 waves and E2E
+verified green: `sbt clean test` 5/5 and `sbt run` boots (wave-4 report,
+`.LLMDD/ITRS/scala-rss-opencode-bronze-pipeline/newspipe.feedback/wave-4-verification.txt`;
+convergence CONVERGED). Baseline DTR of the Python codebase (design input):
 `.LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr`.
 
 ## Acceptance criteria
