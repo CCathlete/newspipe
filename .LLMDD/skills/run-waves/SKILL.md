@@ -73,7 +73,7 @@ otherwise the Advisor must write an explicit waves file.
 
 | Option | Default | Notes |
 |--------|---------|-------|
-| `--coder-model` | `z-ai/glm-5.3-flash` | fast, parallel execution |
+| `--coder-model` | `nvidia/z-ai/glm-5.3-flash` | fast, parallel execution |
 | `--lead-model` | `nvidia/nvidia/nemotron-3.5-lightning-30b-a3B` | smarter, reviews and fixes |
 | `--coder-fallbacks` | `opencode/big-pickle` | repeatable |
 | `--max-fix-iterations` | `3` | lead repairs per wave |
