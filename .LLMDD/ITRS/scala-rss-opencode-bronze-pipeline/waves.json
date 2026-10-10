@@ -1,0 +1,6 @@
+[
+  {"description": "Foundation: sbt scaffold plus domain models and ports (build.sbt and types everything else needs)", "cus": ["cu-001"], "wave": 1},
+  {"description": "Independent infrastructure leaves in parallel: Rome RSS, opencode CLI enrichment, Delta bronze sink", "cus": ["cu-002", "cu-003", "cu-004"], "wave": 2},
+  {"description": "Orchestration and wiring in parallel (distinct files): Kafka plus IngestionService, Main plus config", "cus": ["cu-005", "cu-006"], "wave": 3},
+  {"description": "Verification last and alone: full ScalaTest suite proving feat-1 criteria 1-7", "cus": ["cu-007"], "wave": 4}
+]
