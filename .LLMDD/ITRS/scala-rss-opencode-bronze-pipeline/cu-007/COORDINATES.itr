@@ -1,0 +1,3 @@
+# COORDINATES: cu-007
+
+FILE.domain/models.py, FILE.domain/services/scraper.py, FILE.infrastructure/litellm_client.py, FILE.infrastructure/lakehouse.py, FILE.infrastructure/kafka.py, FILE.control/main.py. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr.

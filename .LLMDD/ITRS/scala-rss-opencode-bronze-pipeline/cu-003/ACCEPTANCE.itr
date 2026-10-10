@@ -1,0 +1,4 @@
+# ACCEPTANCE: cu-003
+
+- feat-1 criterion 3: parser unit test (cu-007) over a canned NDJSON stream asserts summary/countries/geoArea/tags.
+- feat-1 criterion 4: `grep -rli litellm src/main/scala` returns nothing.

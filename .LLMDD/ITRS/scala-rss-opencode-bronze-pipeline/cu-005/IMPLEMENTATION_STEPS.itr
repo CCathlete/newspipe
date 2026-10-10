@@ -1,0 +1,5 @@
+# IMPLEMENTATION_STEPS: cu-005
+
+1. Create src/main/scala/newspipe/infrastructure/KafkaRawPublisher.scala implementing newspipe.domain.RawPublisher with kafka-clients producer: bootstrapServers + topic constructor args, value = circe JSON of RssItem, key = guid; close producer on JVM shutdown hook. Do NOT touch bronze/Main. Prove: `sbt compile`.
+2. Create src/main/scala/newspipe/application/IngestionService.scala: final class IngestionService(rss: RssSource, enrich: EnrichmentPort, sink: BronzeSink, raw: RawPublisher, seen: mutable.Set[String]): def runOnce(now: Instant): Int — fetch, publish raw, drop items whose stable id is in seen (dedup), enrich remainder (Left -> Enrichment.empty with logged warning, never fail batch), BronzeUnit.fromRss, sink.write, record ids in seen, return written count. Depends ONLY on domain ports + models. Do NOT import infrastructure/kafka/spark/rome. Prove: `sbt compile`.
+Stop when `sbt compile` is green; Main/config/tests belong to cu-006/cu-007.

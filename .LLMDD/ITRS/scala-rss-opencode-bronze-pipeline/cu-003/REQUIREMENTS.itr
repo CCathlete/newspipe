@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-003
+
+CU-003 implements enrichment via CLI calls to opencode, replacing LitellmClient.is_relevant/embed_text HTTP calls: one `opencode run --format json` subprocess per article whose prompt demands strict JSON (summary, countries, geoArea, topics, actors, urgency, language), parsing concatenated `type=text` event payloads into Enrichment. This CU satisfies feat-1 criteria 3 (per-item CLI + JSON parse) and 4 (no LLM HTTP on the Scala path).

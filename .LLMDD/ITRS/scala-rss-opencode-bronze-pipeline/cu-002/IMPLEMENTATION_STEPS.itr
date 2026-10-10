@@ -1,0 +1,5 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. Create src/main/scala/newspipe/infrastructure/RomeRssClient.scala: final class RomeRssClient(feedUrls: List[String], timeout) extends newspipe.domain.RssSource using com.rometools.rome.io.SyndFeedInput + Java HttpClient (User-Agent newspipe-scala/0.2, 20s timeout, follow redirects); map entries to RssItem (guid=uri-or-link, title, link, publishedAt from getPublishedDate, description from getDescription.getValue); harden SAXBuilder against XXE (disallow-doctype-decl); per-feed failure yields Nil (never throw). Do NOT touch domain/ or add LLM code. Prove: `sbt compile`.
+2. Feed list comes from constructor arg only (conf file wiring is cu-006); add conf/feeds.conf sample with 2-3 geopolitics RSS URLs as documentation, NOT parsed yet. Do NOT implement polling loops/actors (cu-005 owns orchestration). Prove: `sbt compile`.
+Stop when `sbt compile` is green; enrichment/sink/kafka/main belong to other CUs.

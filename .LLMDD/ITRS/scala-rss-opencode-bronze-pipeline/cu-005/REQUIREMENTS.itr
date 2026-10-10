@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-005
+
+CU-005 keeps Kafka between stages and orchestrates the pipeline: RawPublisher publishes fetched RssItems to the raw Kafka topic; the application service consumes, dedups by BronzeUnit id, enriches via EnrichmentPort, and appends BronzeUnits via BronzeSink. This CU satisfies feat-1 criterion 6 (Kafka + Spark preserved between stages).

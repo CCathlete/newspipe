@@ -1,0 +1,4 @@
+# ACCEPTANCE: cu-006
+
+- feat-1 criterion 1: `sbt compile` exits 0 and `sbt run` boots.
+- feat-1 criterion 7: layering grep (cu-007) still clean for domain/.

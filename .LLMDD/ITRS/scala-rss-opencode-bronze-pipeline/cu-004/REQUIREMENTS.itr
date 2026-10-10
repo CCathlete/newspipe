@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-004
+
+CU-004 implements the Delta Lake bronze sink via Spark, replacing LakehouseConnector JSON writes: BronzeSink.write appends each BronzeUnit (raw article data + enrichment metadata) as ONE Delta row. This CU satisfies feat-1 criterion 5 (data + metadata as one unit in bronze).

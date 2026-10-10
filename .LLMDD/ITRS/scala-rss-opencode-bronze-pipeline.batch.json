@@ -1,0 +1,94 @@
+[
+  {
+    "cu-id": "arch",
+    "cu-type": "arch",
+    "dtr-coordinates": [],
+    "content": "Architecture rules (binding on every CU in this batch): hexagonal layout under src/main/scala/newspipe/ with layers domain > application > infrastructure > control; dependency inversion via domain ports (traits); no cross-layer imports (domain imports nothing outside domain + stdlib); port flow outbound→inbound; Scala 3.3.4, sbt 1.10.7, Java 21; Spark 3.5.1 + Delta 3.1.0 for the bronze sink; Kafka clients 3.7.0 kept between stages; enrichment ONLY via `opencode run --format json` subprocess (no LLM HTTP clients)."
+  },
+  {
+    "cu-id": "legend",
+    "cu-type": "legend",
+    "dtr-coordinates": [],
+    "content": "Legend: CU-ID is the unit id (cu-001..); CU-TYPE is arch|legend|feature|fix; DTR-COORDINATES are baseline keys the CU traces into (a key absent from the baseline means the CU creates it); REQUIREMENTS states the slice of feat-1 delivered; IMPLEMENTATION_STEPS are ordered file-level actions each with a proving command; ACCEPTANCE maps feat-1 test IDs to exact commands + expected results; per-CU feedback status is PENDING|DONE|ESCALATION."
+  },
+  {
+    "cu-id": "cu-001",
+    "dtr-coordinates": [
+      "FILE.domain/models.py",
+      "TYPE.domain.models.py.class BronzeRecord",
+      "FILE.domain/interfaces.py",
+      "TYPE.domain.interfaces.py.class AIPort",
+      "TYPE.domain.interfaces.py.class StoragePort",
+      "TYPE.domain.interfaces.py.class KafkaPort",
+      "TYPE.domain.interfaces.py.class ScraperPort"
+    ],
+    "content": "REQUIREMENTS\nCU-001 scaffolds the Scala 3 + sbt project and ports the domain layer of feat-1: RssItem (replaces crawl4ai page chunks), Enrichment (summary + countries + geo-area + tags from the opencode CLI), BronzeUnit (ONE bronze row = raw data + enrichment metadata), and the ports RssSource, EnrichmentPort, BronzeSink, RawPublisher (replacing ScraperPort/AIPort/StoragePort/KafkaPort). This CU satisfies feat-1 criteria 1 (build compiles) and the domain half of 7 (ports live in domain, no infra imports).\n\nCOORDINATES\nFILE.domain/models.py, TYPE.domain.models.py.class BronzeRecord, FILE.domain/interfaces.py, TYPE.domain.interfaces.py.class AIPort, TYPE.domain.interfaces.py.class StoragePort, TYPE.domain.interfaces.py.class KafkaPort, TYPE.domain.interfaces.py.class ScraperPort. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the Scala files are new creations traced from them.\n\nIMPLEMENTATION_STEPS\n1. Create project/build.properties with `sbt.version=1.10.7` (only new file under project/; do NOT touch .opencode/, .LLMDD/, src/*.py). Prove: `cat project/build.properties`.\n2. Create build.sbt at repo root (coexists with pyproject.toml): Scala 3.3.4, deps rome 2.1.0, circe 0.14.10 (core/generic/parser), cats-effect 3.5.4, scala-logging + logback, typesafe config 1.4.3, kafka-clients 3.7.0, spark-sql 3.5.1 (Provided), delta-spark 3.1.0, scalatest + cats-effect-testing-scalatest (Test). Do NOT add litellm/crawl4ai/python deps. Prove: `sbt compile` compiles the empty project.\n3. Create src/main/scala/newspipe/domain/models.scala with final case classes RssItem(guid, feedUrl, title, link, publishedAt: Option[Instant], description), Enrichment(summary, countries: List[String], geoArea: String, topics, actors: List[String], urgency, language) + Enrichment.empty, BronzeUnit(id, feedUrl, articleUrl, title, content, publishedAt, ingestedAt, summary, countries, geoArea, topics, actors, urgency, language) + BronzeUnit.fromRss(item, enrichment, now) and stableId (feed+guid/link hash). Do NOT add Spark/Kafka/Rome imports here. Prove: `sbt compile`.\n4. Create src/main/scala/newspipe/domain/ports.scala with traits RssSource { def fetch(): List[RssItem] }, EnrichmentPort { def enrich(item: RssItem): Either[Throwable, Enrichment] }, BronzeSink { def write(units: List[BronzeUnit]): Int }, RawPublisher { def publish(items: List[RssItem]): Unit }. Do NOT reference infrastructure packages. Prove: `sbt compile`.\nStop when `sbt compile` is green; RSS/CLI/Delta/Kafka/Main belong to cu-002..cu-006.\n\nACCEPTANCE\n- feat-1 criterion 1: `sbt compile` exits 0.\n- feat-1 criterion 7 (domain half): `grep -rn \"^import\" src/main/scala/newspipe/domain/` shows no infrastructure, kafka, spark, delta, or rome imports."
+  },
+  {
+    "cu-id": "cu-002",
+    "dtr-coordinates": [
+      "FILE.domain/services/scraper.py",
+      "TYPE.domain.services.scraper.py.class StreamScraper",
+      "TYPE.domain.interfaces.py.class ScraperPort"
+    ],
+    "content": "REQUIREMENTS\nCU-002 implements RSS ingestion for geopolitics feeds, replacing the crawl4ai StreamScraper deep_crawl/chunk path with feed polling that yields RssItem lists. This CU satisfies feat-1 criterion 2 (all configured feeds pulled with guid/title/link/date/description; no website scraping on the Scala path).\n\nCOORDINATES\nFILE.domain/services/scraper.py, TYPE.domain.services.scraper.py.class StreamScraper, TYPE.domain.interfaces.py.class ScraperPort. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the Scala client is a new creation traced from them.\n\nIMPLEMENTATION_STEPS\n1. Create src/main/scala/newspipe/infrastructure/RomeRssClient.scala: final class RomeRssClient(feedUrls: List[String], timeout) extends newspipe.domain.RssSource using com.rometools.rome.io.SyndFeedInput + Java HttpClient (User-Agent newspipe-scala/0.2, 20s timeout, follow redirects); map entries to RssItem (guid=uri-or-link, title, link, publishedAt from getPublishedDate, description from getDescription.getValue); harden SAXBuilder against XXE (disallow-doctype-decl); per-feed failure yields Nil (never throw). Do NOT touch domain/ or add LLM code. Prove: `sbt compile`.\n2. Feed list comes from constructor arg only (conf file wiring is cu-006); add conf/feeds.conf sample with 2-3 geopolitics RSS URLs as documentation, NOT parsed yet. Do NOT implement polling loops/actors (cu-005 owns orchestration). Prove: `sbt compile`.\nStop when `sbt compile` is green; enrichment/sink/kafka/main belong to other CUs.\n\nACCEPTANCE\n- feat-1 criterion 2: RssClientSpec (cu-007) parses a fixture feed asserting item fields, plus a live dry run against one real feed asserting non-empty items; `grep -rli crawl4ai src/main/scala` returns nothing."
+  },
+  {
+    "cu-id": "cu-003",
+    "dtr-coordinates": [
+      "FILE.infrastructure/litellm_client.py",
+      "TYPE.infrastructure.litellm_client.py.class LitellmClient",
+      "TYPE.domain.interfaces.py.class AIPort"
+    ],
+    "content": "REQUIREMENTS\nCU-003 implements enrichment via CLI calls to opencode, replacing LitellmClient.is_relevant/embed_text HTTP calls: one `opencode run --format json` subprocess per article whose prompt demands strict JSON (summary, countries, geoArea, topics, actors, urgency, language), parsing concatenated `type=text` event payloads into Enrichment. This CU satisfies feat-1 criteria 3 (per-item CLI + JSON parse) and 4 (no LLM HTTP on the Scala path).\n\nCOORDINATES\nFILE.infrastructure/litellm_client.py, TYPE.infrastructure.litellm_client.py.class LitellmClient, TYPE.domain.interfaces.py.class AIPort. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the Scala client is a new creation traced from them.\n\nIMPLEMENTATION_STEPS\n1. Create src/main/scala/newspipe/infrastructure/OpenCodeCliClient.scala: final class OpenCodeCliClient(model: String, timeout) extends newspipe.domain.EnrichmentPort; build prompt from item title/link/description requesting ONLY a JSON object with keys summary/countries/geoArea/topics/actors/urgency/language; run ProcessBuilder(\"opencode\", \"run\", \"--format\", \"json\", \"--model\", model, prompt); read stdout lines as NDJSON with circe, concat parts where type==\"text\" via part.text, then parse the concatenated string as the enrichment JSON (countries/topics/actors default Nil, geoArea default \"unknown\", urgency default \"low\"); non-zero exit or parse failure returns Left (caller decides fallback), never throws. Observed event shape (verified 2026-10-10): {\"type\":\"text\",...,\"part\":{\"type\":\"text\",\"text\":\"...\"}}. Do NOT add httpx/litellm/http-client LLM code. Prove: `sbt compile`.\n2. Store the exact prompt template in prompts/enrich.txt (documentation of the contract the parser relies on). Do NOT touch domain/ or bronze/kafka code. Prove: `sbt compile`.\nStop when `sbt compile` is green; sink/kafka/main/tests belong to other CUs.\n\nACCEPTANCE\n- feat-1 criterion 3: parser unit test (cu-007) over a canned NDJSON stream asserts summary/countries/geoArea/tags.\n- feat-1 criterion 4: `grep -rli litellm src/main/scala` returns nothing."
+  },
+  {
+    "cu-id": "cu-004",
+    "dtr-coordinates": [
+      "FILE.infrastructure/lakehouse.py",
+      "TYPE.infrastructure.lakehouse.py.class LakehouseConnector",
+      "TYPE.domain.interfaces.py.class StoragePort",
+      "TYPE.domain.interfaces.py.class SparkSessionInterface"
+    ],
+    "content": "REQUIREMENTS\nCU-004 implements the Delta Lake bronze sink via Spark, replacing LakehouseConnector JSON writes: BronzeSink.write appends each BronzeUnit (raw article data + enrichment metadata) as ONE Delta row. This CU satisfies feat-1 criterion 5 (data + metadata as one unit in bronze).\n\nCOORDINATES\nFILE.infrastructure/lakehouse.py, TYPE.infrastructure.lakehouse.py.class LakehouseConnector, TYPE.domain.interfaces.py.class StoragePort, TYPE.domain.interfaces.py.class SparkSessionInterface. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the Scala sink is a new creation traced from them.\n\nIMPLEMENTATION_STEPS\n1. Create src/main/scala/newspipe/infrastructure/DeltaBronzeSink.scala: final class DeltaBronzeSink(spark: SparkSession, bronzePath: String) extends newspipe.domain.BronzeSink; map List[BronzeUnit] to a DataFrame with columns id, feed_url, article_url, title, content, published_at (ISO string, nullable), ingested_at, summary, countries (array), geo_area, topics (array), actors (array), urgency, language + ingested_date partition col (yyyy-MM-dd from ingested_at); write .format(\"delta\").mode(\"append\").partitionBy(\"ingested_date\").save(bronzePath); empty input returns 0 without touching Spark; enable Delta extensions via spark config keys delta.io and spark.sql.extensions in Main (cu-006), NOT here. Do NOT touch RSS/CLI/Kafka code. Prove: `sbt compile`.\n2. Keep JSON-out fallback OUT of scope (Delta only per Designer decision). Prove: `sbt compile`.\nStop when `sbt compile` is green; orchestration/main/tests belong to other CUs.\n\nACCEPTANCE\n- feat-1 criterion 5: Delta round-trip test (cu-007) writes 2 units to a temp path and reads back asserting every row carries raw columns (title, content/article_url) AND metadata columns (summary, countries, geo_area, tags/topics) with count 2."
+  },
+  {
+    "cu-id": "cu-005",
+    "dtr-coordinates": [
+      "FILE.infrastructure/kafka.py",
+      "TYPE.infrastructure.kafka.py.class KafkaProducerAdapter",
+      "TYPE.infrastructure.kafka.py.class KafkaConsumerAdapter",
+      "TYPE.domain.interfaces.py.class KafkaPort",
+      "FILE.application/services/ingestion_service.py",
+      "TYPE.application.services.ingestion_service.py.class IngestionService",
+      "FILE.application/services/discovery_service.py",
+      "TYPE.application.services.discovery_service.py.class DiscoveryService",
+      "FILE.domain/services/data_ingestion.py",
+      "TYPE.domain.services.data_ingestion.py.class IngestionPipeline"
+    ],
+    "content": "REQUIREMENTS\nCU-005 keeps Kafka between stages and orchestrates the pipeline: RawPublisher publishes fetched RssItems to the raw Kafka topic; the application service consumes, dedups by BronzeUnit id, enriches via EnrichmentPort, and appends BronzeUnits via BronzeSink. This CU satisfies feat-1 criterion 6 (Kafka + Spark preserved between stages).\n\nCOORDINATES\nFILE.infrastructure/kafka.py, TYPE.infrastructure.kafka.py.class KafkaProducerAdapter, TYPE.infrastructure.kafka.py.class KafkaConsumerAdapter, TYPE.domain.interfaces.py.class KafkaPort, FILE.application/services/ingestion_service.py, TYPE.application.services.ingestion_service.py.class IngestionService, FILE.application/services/discovery_service.py, TYPE.application.services.discovery_service.py.class DiscoveryService, FILE.domain/services/data_ingestion.py, TYPE.domain.services.data_ingestion.py.class IngestionPipeline. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; Scala files are new creations traced from them.\n\nIMPLEMENTATION_STEPS\n1. Create src/main/scala/newspipe/infrastructure/KafkaRawPublisher.scala implementing newspipe.domain.RawPublisher with kafka-clients producer: bootstrapServers + topic constructor args, value = circe JSON of RssItem, key = guid; close producer on JVM shutdown hook. Do NOT touch bronze/Main. Prove: `sbt compile`.\n2. Create src/main/scala/newspipe/application/IngestionService.scala: final class IngestionService(rss: RssSource, enrich: EnrichmentPort, sink: BronzeSink, raw: RawPublisher, seen: mutable.Set[String]): def runOnce(now: Instant): Int — fetch, publish raw, drop items whose stable id is in seen (dedup), enrich remainder (Left -> Enrichment.empty with logged warning, never fail batch), BronzeUnit.fromRss, sink.write, record ids in seen, return written count. Depends ONLY on domain ports + models. Do NOT import infrastructure/kafka/spark/rome. Prove: `sbt compile`.\nStop when `sbt compile` is green; Main/config/tests belong to cu-006/cu-007.\n\nACCEPTANCE\n- feat-1 criterion 6: pipeline dry-run test (cu-007) RSS -> Kafka (stubbed RawPublisher) -> enrich (stubbed EnrichmentPort) -> Delta temp path asserting topic flow and Spark write; dedup asserted by running runOnce twice with same feed."
+  },
+  {
+    "cu-id": "cu-006",
+    "dtr-coordinates": [
+      "FILE.control/main.py",
+      "FILE.control/dependency_layers.py",
+      "TYPE.control.dependency_layers.py.class BasePlatformContainer",
+      "TYPE.control.dependency_layers.py.class IngestionContainer",
+      "TYPE.control.dependency_layers.py.class DiscoveryContainer"
+    ],
+    "content": "REQUIREMENTS\nCU-006 wires the app: Typesafe-config-driven control layer (feeds, opencode model, Kafka, bronze path, Spark master) constructing RomeRssClient, OpenCodeCliClient, DeltaBronzeSink, KafkaRawPublisher, IngestionService and running the poll loop. This CU closes feat-1 criteria 1 (runnable app compiles) and 7 (control owns all infra imports; domain stays clean).\n\nCOORDINATES\nFILE.control/main.py, FILE.control/dependency_layers.py, TYPE.control.dependency_layers.py.class BasePlatformContainer, TYPE.control.dependency_layers.py.class IngestionContainer, TYPE.control.dependency_layers.py.class DiscoveryContainer. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; Scala control files are new creations traced from them.\n\nIMPLEMENTATION_STEPS\n1. Create src/main/resources/application.conf (feeds: [urls], opencode.model default \"opencode/muse-spark-1.3-contributor-free\", kafka.bootstrap-servers + raw-topic, bronze.path, spark.master) and conf/feeds.conf sample geopolitics feed list (documented, parsed via config fallback). Do NOT hardcode secrets. Prove: `sbt compile`.\n2. Create src/main/scala/newspipe/control/Wiring.scala (manual constructor wiring from config: SparkSession with delta extensions io.delta.spark.DeltaSparkSessionExtension + DeltaCatalog, clients, service) and src/main/scala/newspipe/control/Main.scala (load config, build graph, call runOnce on a scheduler/poll interval, log counts). Python src/ and DI containers stay untouched (legacy path). Prove: `sbt compile` then `sbt \"run\"` boots and polls once (feeds may be stubbed via config for the smoke run).\nStop when boot + single poll is green; full test matrix is cu-007.\n\nACCEPTANCE\n- feat-1 criterion 1: `sbt compile` exits 0 and `sbt run` boots.\n- feat-1 criterion 7: layering grep (cu-007) still clean for domain/."
+  },
+  {
+    "cu-id": "cu-007",
+    "dtr-coordinates": [
+      "FILE.domain/models.py",
+      "FILE.domain/services/scraper.py",
+      "FILE.infrastructure/litellm_client.py",
+      "FILE.infrastructure/lakehouse.py",
+      "FILE.infrastructure/kafka.py",
+      "FILE.control/main.py"
+    ],
+    "content": "REQUIREMENTS\nCU-007 proves feat-1 done: ScalaTest suite mapping one-to-one onto the 7 acceptance criteria (compile, RSS fields + no-scrape, CLI parse + no-LLM-HTTP, Delta data+metadata unit, Kafka+Spark flow, layering). No production code except test fixtures.\n\nCOORDINATES\nFILE.domain/models.py, FILE.domain/services/scraper.py, FILE.infrastructure/litellm_client.py, FILE.infrastructure/lakehouse.py, FILE.infrastructure/kafka.py, FILE.control/main.py. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr.\n\nIMPLEMENTATION_STEPS\n1. Create src/test/scala/newspipe/RssClientSpec.scala (fixture-feed parse asserting guid/title/link/date/description) + src/test/resources/fixture-feed.xml (2 geopolitics items). Do NOT touch prod code. Prove: `sbt \"testOnly newspipe.RssClientSpec\"` green.\n2. Create src/test/scala/newspipe/OpenCodeParserSpec.scala with canned NDJSON (`type:text` events) asserting summary/countries/geoArea/topics parse; create src/test/scala/newspipe/DeltaBronzeSpec.scala writing 2 BronzeUnits to temp Delta path and asserting raw+metadata columns with count 2 (local Spark master); create src/test/scala/newspipe/PipelineSpec.scala with stubbed ports asserting raw publish + dedup (runOnce twice) + sink count. Do NOT touch prod code. Prove: `sbt test` fully green.\n3. Encode shell assertions as test comments (grep -rli crawl4ai/litellm empty; domain import grep clean) so the code lead can run them in E2E verify. Stop when `sbt test` is green with zero prod diffs.\n\nACCEPTANCE\n- `sbt test` exits 0 covering feat-1 criteria 1-7 per the Tests section of .LLMDD/spec-driven/features/feat-1-scala-rss-opencode-bronze-pipeline.md."
+  }
+]

@@ -1,0 +1,5 @@
+# IMPLEMENTATION_STEPS: cu-004
+
+1. Create src/main/scala/newspipe/infrastructure/DeltaBronzeSink.scala: final class DeltaBronzeSink(spark: SparkSession, bronzePath: String) extends newspipe.domain.BronzeSink; map List[BronzeUnit] to a DataFrame with columns id, feed_url, article_url, title, content, published_at (ISO string, nullable), ingested_at, summary, countries (array), geo_area, topics (array), actors (array), urgency, language + ingested_date partition col (yyyy-MM-dd from ingested_at); write .format("delta").mode("append").partitionBy("ingested_date").save(bronzePath); empty input returns 0 without touching Spark; enable Delta extensions via spark config keys delta.io and spark.sql.extensions in Main (cu-006), NOT here. Do NOT touch RSS/CLI/Kafka code. Prove: `sbt compile`.
+2. Keep JSON-out fallback OUT of scope (Delta only per Designer decision). Prove: `sbt compile`.
+Stop when `sbt compile` is green; orchestration/main/tests belong to other CUs.

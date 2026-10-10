@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-007
+
+CU-007 proves feat-1 done: ScalaTest suite mapping one-to-one onto the 7 acceptance criteria (compile, RSS fields + no-scrape, CLI parse + no-LLM-HTTP, Delta data+metadata unit, Kafka+Spark flow, layering). No production code except test fixtures.

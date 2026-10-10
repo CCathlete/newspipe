@@ -1,0 +1,5 @@
+# IMPLEMENTATION_STEPS: cu-003
+
+1. Create src/main/scala/newspipe/infrastructure/OpenCodeCliClient.scala: final class OpenCodeCliClient(model: String, timeout) extends newspipe.domain.EnrichmentPort; build prompt from item title/link/description requesting ONLY a JSON object with keys summary/countries/geoArea/topics/actors/urgency/language; run ProcessBuilder("opencode", "run", "--format", "json", "--model", model, prompt); read stdout lines as NDJSON with circe, concat parts where type=="text" via part.text, then parse the concatenated string as the enrichment JSON (countries/topics/actors default Nil, geoArea default "unknown", urgency default "low"); non-zero exit or parse failure returns Left (caller decides fallback), never throws. Observed event shape (verified 2026-10-10): {"type":"text",...,"part":{"type":"text","text":"..."}}. Do NOT add httpx/litellm/http-client LLM code. Prove: `sbt compile`.
+2. Store the exact prompt template in prompts/enrich.txt (documentation of the contract the parser relies on). Do NOT touch domain/ or bronze/kafka code. Prove: `sbt compile`.
+Stop when `sbt compile` is green; sink/kafka/main/tests belong to other CUs.

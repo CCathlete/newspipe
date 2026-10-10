@@ -1,0 +1,3 @@
+# COORDINATES: cu-001
+
+FILE.domain/models.py, TYPE.domain.models.py.class BronzeRecord, FILE.domain/interfaces.py, TYPE.domain.interfaces.py.class AIPort, TYPE.domain.interfaces.py.class StoragePort, TYPE.domain.interfaces.py.class KafkaPort, TYPE.domain.interfaces.py.class ScraperPort. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the Scala files are new creations traced from them.

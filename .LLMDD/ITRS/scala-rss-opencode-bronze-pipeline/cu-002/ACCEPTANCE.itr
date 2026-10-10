@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-002
+
+- feat-1 criterion 2: RssClientSpec (cu-007) parses a fixture feed asserting item fields, plus a live dry run against one real feed asserting non-empty items; `grep -rli crawl4ai src/main/scala` returns nothing.

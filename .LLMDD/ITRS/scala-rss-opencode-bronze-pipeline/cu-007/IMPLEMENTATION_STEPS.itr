@@ -1,0 +1,5 @@
+# IMPLEMENTATION_STEPS: cu-007
+
+1. Create src/test/scala/newspipe/RssClientSpec.scala (fixture-feed parse asserting guid/title/link/date/description) + src/test/resources/fixture-feed.xml (2 geopolitics items). Do NOT touch prod code. Prove: `sbt "testOnly newspipe.RssClientSpec"` green.
+2. Create src/test/scala/newspipe/OpenCodeParserSpec.scala with canned NDJSON (`type:text` events) asserting summary/countries/geoArea/topics parse; create src/test/scala/newspipe/DeltaBronzeSpec.scala writing 2 BronzeUnits to temp Delta path and asserting raw+metadata columns with count 2 (local Spark master); create src/test/scala/newspipe/PipelineSpec.scala with stubbed ports asserting raw publish + dedup (runOnce twice) + sink count. Do NOT touch prod code. Prove: `sbt test` fully green.
+3. Encode shell assertions as test comments (grep -rli crawl4ai/litellm empty; domain import grep clean) so the code lead can run them in E2E verify. Stop when `sbt test` is green with zero prod diffs.

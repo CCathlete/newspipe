@@ -1,0 +1,4 @@
+# ACCEPTANCE: cu-001
+
+- feat-1 criterion 1: `sbt compile` exits 0.
+- feat-1 criterion 7 (domain half): `grep -rn "^import" src/main/scala/newspipe/domain/` shows no infrastructure, kafka, spark, delta, or rome imports.

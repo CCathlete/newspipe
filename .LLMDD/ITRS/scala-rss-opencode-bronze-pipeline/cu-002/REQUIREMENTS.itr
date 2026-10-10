@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+CU-002 implements RSS ingestion for geopolitics feeds, replacing the crawl4ai StreamScraper deep_crawl/chunk path with feed polling that yields RssItem lists. This CU satisfies feat-1 criterion 2 (all configured feeds pulled with guid/title/link/date/description; no website scraping on the Scala path).

@@ -1,0 +1,6 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-10T08:50:09.137236610Z
+# DTR-COORDINATES: 
+
+Architecture rules (binding on every CU in this batch): hexagonal layout under src/main/scala/newspipe/ with layers domain > application > infrastructure > control; dependency inversion via domain ports (traits); no cross-layer imports (domain imports nothing outside domain + stdlib); port flow outbound→inbound; Scala 3.3.4, sbt 1.10.7, Java 21; Spark 3.5.1 + Delta 3.1.0 for the bronze sink; Kafka clients 3.7.0 kept between stages; enrichment ONLY via `opencode run --format json` subprocess (no LLM HTTP clients).

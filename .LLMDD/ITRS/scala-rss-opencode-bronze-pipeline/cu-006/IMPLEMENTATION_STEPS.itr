@@ -1,0 +1,5 @@
+# IMPLEMENTATION_STEPS: cu-006
+
+1. Create src/main/resources/application.conf (feeds: [urls], opencode.model default "opencode/muse-spark-1.3-contributor-free", kafka.bootstrap-servers + raw-topic, bronze.path, spark.master) and conf/feeds.conf sample geopolitics feed list (documented, parsed via config fallback). Do NOT hardcode secrets. Prove: `sbt compile`.
+2. Create src/main/scala/newspipe/control/Wiring.scala (manual constructor wiring from config: SparkSession with delta extensions io.delta.spark.DeltaSparkSessionExtension + DeltaCatalog, clients, service) and src/main/scala/newspipe/control/Main.scala (load config, build graph, call runOnce on a scheduler/poll interval, log counts). Python src/ and DI containers stay untouched (legacy path). Prove: `sbt compile` then `sbt "run"` boots and polls once (feeds may be stubbed via config for the smoke run).
+Stop when boot + single poll is green; full test matrix is cu-007.

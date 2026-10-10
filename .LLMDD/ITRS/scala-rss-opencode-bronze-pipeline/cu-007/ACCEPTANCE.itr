@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-007
+
+- `sbt test` exits 0 covering feat-1 criteria 1-7 per the Tests section of .LLMDD/spec-driven/features/feat-1-scala-rss-opencode-bronze-pipeline.md.

@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-004
+
+- feat-1 criterion 5: Delta round-trip test (cu-007) writes 2 units to a temp path and reads back asserting every row carries raw columns (title, content/article_url) AND metadata columns (summary, countries, geo_area, tags/topics) with count 2.

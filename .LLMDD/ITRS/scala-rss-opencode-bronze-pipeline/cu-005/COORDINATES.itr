@@ -1,0 +1,3 @@
+# COORDINATES: cu-005
+
+FILE.infrastructure/kafka.py, TYPE.infrastructure.kafka.py.class KafkaProducerAdapter, TYPE.infrastructure.kafka.py.class KafkaConsumerAdapter, TYPE.domain.interfaces.py.class KafkaPort, FILE.application/services/ingestion_service.py, TYPE.application.services.ingestion_service.py.class IngestionService, FILE.application/services/discovery_service.py, TYPE.application.services.discovery_service.py.class DiscoveryService, FILE.domain/services/data_ingestion.py, TYPE.domain.services.data_ingestion.py.class IngestionPipeline. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; Scala files are new creations traced from them.
