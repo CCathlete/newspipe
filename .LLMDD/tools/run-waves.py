@@ -23,7 +23,7 @@ from typing import Generic, TypeVar, Any
 
 # ── Defaults ───────────────────────────────────────────────────────
 
-DEFAULT_CODER_MODEL = "groq/openai/gpt-oss-120b"
+DEFAULT_CODER_MODEL = "z-ai/glm-5.3-flash"
 DEFAULT_LEAD_MODEL = "nvidia/nvidia/nemotron-3.5-lightning-30b-a3b"
 DEFAULT_CU_TIMEOUT = 300
 DEFAULT_LEAD_TIMEOUT = 600

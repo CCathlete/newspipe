@@ -15,7 +15,7 @@ python3 .LLMDD/tools/run-waves.py --itr <itr-path> --app <app-name> [--waves <wa
 | `--itr <path>` | Path to compiled ITR directory | Required |
 | `--app <name>` | Application name | Required |
 | `--waves <json>` | Wave definition file | Auto-detect |
-| `--coder-model <m>` | Model for coders | groq/openai/gpt-oss-120B |
+| `--coder-model <m>` | Model for coders | z-ai/glm-5.3-flash |
 | `--lead-model <m>` | Model for code lead | nvidia/nvidia/nemotron-3.5-lightning-30b-a3B |
 | `--coder-fallbacks <m>` | Fallback models if primary fails | opencode/big-pickle |
 | `--max-fix-iterations <n>` | Max fix iterations per wave | 3 |
