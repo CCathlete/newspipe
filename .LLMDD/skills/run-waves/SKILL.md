@@ -73,8 +73,8 @@ otherwise the Advisor must write an explicit waves file.
 
 | Option | Default | Notes |
 |--------|---------|-------|
-| `--coder-model` | `opencode/muse-spark-1.3-contributor-free` | fast, parallel execution |
-| `--lead-model` | `opencode/big-pickle` | smarter, reviews and fixes |
+| `--coder-model` | `groq/openai/gpt-oss-120B` | fast, parallel execution |
+| `--lead-model` | `nvidia/nvidia/nemotron-3.5-lightning-30b-a3B` | smarter, reviews and fixes |
 | `--coder-fallbacks` | `opencode/big-pickle` | repeatable |
 | `--max-fix-iterations` | `3` | lead repairs per wave |
 | `--cu-timeout` | `300s` | activity timeout per CU |
