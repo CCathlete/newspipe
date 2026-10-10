@@ -1,5 +1,69 @@
 # IMPLEMENTATION_STEPS: cu-006
 
-1. Create src/main/resources/application.conf (feeds: [urls], opencode.model default "opencode/muse-spark-1.3-contributor-free", kafka.bootstrap-servers + raw-topic, bronze.path, spark.master) and conf/feeds.conf sample geopolitics feed list (documented, parsed via config fallback). Do NOT hardcode secrets. Prove: `sbt compile`.
-2. Create src/main/scala/newspipe/control/Wiring.scala (manual constructor wiring from config: SparkSession with delta extensions io.delta.spark.DeltaSparkSessionExtension + DeltaCatalog, clients, service) and src/main/scala/newspipe/control/Main.scala (load config, build graph, call runOnce on a scheduler/poll interval, log counts). Python src/ and DI containers stay untouched (legacy path). Prove: `sbt compile` then `sbt "run"` boots and polls once (feeds may be stubbed via config for the smoke run).
+1. Create src/main/resources/application.conf with exactly this content (no secrets — hosts/paths only; feeds list is empty by default and filled per deployment):
+```hocon
+newspipe {
+  feeds = []
+  poll-interval-seconds = 300
+  opencode {
+    model = "opencode/muse-spark-1.3-contributor-free"
+    timeout-seconds = 120
+  }
+  kafka {
+    bootstrap-servers = "localhost:9092"
+    raw-topic = "raw_rss"
+  }
+  bronze {
+    path = "s3a://lakehouse/bronze/news"
+  }
+  spark {
+    master = "local[*]"
+  }
+}
+```
+Prove: `cat src/main/resources/application.conf` prints the content above.
+2. Create src/main/scala/newspipe/control/Main.scala with exactly this content (object Main with main method; single-threaded loop honoring poll-interval-seconds; a failed iteration logs and continues — it never kills the loop):
+```scala
+package newspipe.control
+
+import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.LazyLogging
+import newspipe.application.IngestionService
+import newspipe.infrastructure.{DeltaBronzeSink, KafkaRawPublisher, OpenCodeCliClient, RomeRssClient}
+import org.apache.spark.sql.SparkSession
+
+import java.time.{Duration, Instant}
+import scala.concurrent.duration.FiniteDuration
+import scala.jdk.CollectionConverters.*
+
+object Main extends LazyLogging:
+  def main(args: Array[String]): Unit =
+    val cfg = ConfigFactory.load().getConfig("newspipe")
+    val feeds = cfg.getStringList("feeds").asScala.toList
+    val spark = SparkSession.builder()
+      .appName("newspipe")
+      .master(cfg.getString("spark.master"))
+      .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+      .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+      .getOrCreate()
+    val rss = new RomeRssClient(feeds)
+    val enrich = new OpenCodeCliClient(
+      cfg.getString("opencode.model"),
+      FiniteDuration(cfg.getLong("opencode.timeout-seconds"), java.util.concurrent.TimeUnit.SECONDS)
+    )
+    val sink = new DeltaBronzeSink(spark, cfg.getString("bronze.path"))
+    val raw = new KafkaRawPublisher(cfg.getString("kafka.bootstrap-servers"), cfg.getString("kafka.raw-topic"))
+    val service = new IngestionService(rss, enrich, sink, raw)
+    sys.addShutdownHook { raw.close(); spark.stop() }
+    val poll = Duration.ofSeconds(cfg.getLong("poll-interval-seconds"))
+    logger.info(s"newspipe polling ${feeds.size} feeds every $poll")
+    while true do
+      try
+        val n = service.runOnce(Instant.now())
+        logger.info(s"poll wrote $n bronze units")
+      catch case e: Exception => logger.error("poll iteration failed", e)
+      Thread.sleep(poll.toMillis)
+```
+Prove: `sbt compile` exits 0, then `sbt run` boots (with empty feeds it logs the poll line and writes 0 — that is the expected smoke result).
+Do NOT touch: domain/, application/, infrastructure/ code, src/*.py. Do NOT hardcode feed URLs or model names in Scala — config only.
 Stop when boot + single poll is green; full test matrix is cu-007.

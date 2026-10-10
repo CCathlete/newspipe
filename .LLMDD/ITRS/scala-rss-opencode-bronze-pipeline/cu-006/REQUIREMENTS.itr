@@ -1,3 +1,3 @@
 # REQUIREMENTS: cu-006
 
-CU-006 wires the app: Typesafe-config-driven control layer (feeds, opencode model, Kafka, bronze path, Spark master) constructing RomeRssClient, OpenCodeCliClient, DeltaBronzeSink, KafkaRawPublisher, IngestionService and running the poll loop. This CU closes feat-1 criteria 1 (runnable app compiles) and 7 (control owns all infra imports; domain stays clean).
+CU-006 wires the app: src/main/resources/application.conf carries feeds, poll interval, opencode model/timeout, Kafka bootstrap/topic, bronze path, and Spark master; control.Main builds the SparkSession (Delta extensions), the four infrastructure clients, and IngestionService, then runs the single-threaded poll loop with a per-iteration try/catch and JVM shutdown hooks. Requires cu-001..cu-005. This CU closes feat-1 criteria 1 (runnable app compiles) and 7 (control owns all infra imports; domain stays clean). Python src/ and DI containers stay untouched (legacy path).

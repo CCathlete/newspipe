@@ -1,3 +1,3 @@
 # COORDINATES: cu-003
 
-FILE.infrastructure/litellm_client.py, TYPE.infrastructure.litellm_client.py.class LitellmClient, TYPE.domain.interfaces.py.class AIPort. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the Scala client is a new creation traced from them.
+FILE.infrastructure/litellm_client.py, TYPE.infrastructure.litellm_client.py.class LitellmClient, TYPE.domain.interfaces.py.class AIPort. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the two files below are new creations traced from them.

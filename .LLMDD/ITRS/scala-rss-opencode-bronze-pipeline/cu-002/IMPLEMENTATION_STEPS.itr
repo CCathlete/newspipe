@@ -1,5 +1,65 @@
 # IMPLEMENTATION_STEPS: cu-002
 
-1. Create src/main/scala/newspipe/infrastructure/RomeRssClient.scala: final class RomeRssClient(feedUrls: List[String], timeout) extends newspipe.domain.RssSource using com.rometools.rome.io.SyndFeedInput + Java HttpClient (User-Agent newspipe-scala/0.2, 20s timeout, follow redirects); map entries to RssItem (guid=uri-or-link, title, link, publishedAt from getPublishedDate, description from getDescription.getValue); harden SAXBuilder against XXE (disallow-doctype-decl); per-feed failure yields Nil (never throw). Do NOT touch domain/ or add LLM code. Prove: `sbt compile`.
-2. Feed list comes from constructor arg only (conf file wiring is cu-006); add conf/feeds.conf sample with 2-3 geopolitics RSS URLs as documentation, NOT parsed yet. Do NOT implement polling loops/actors (cu-005 owns orchestration). Prove: `sbt compile`.
+1. Create src/main/scala/newspipe/infrastructure/RomeRssClient.scala with exactly this content (per-feed failure yields Nil and never throws; feed list comes from the constructor arg only — conf wiring is cu-006; polling loops are cu-005):
+```scala
+package newspipe.infrastructure
+
+import com.rometools.rome.io.{SyndFeedInput, XmlReader}
+import newspipe.domain.{RssItem, RssSource}
+
+import java.io.ByteArrayInputStream
+import java.net.URI
+import java.net.http.{HttpClient, HttpRequest, HttpResponse}
+import java.nio.charset.StandardCharsets
+import java.time.{Duration, Instant}
+import scala.jdk.CollectionConverters.*
+import scala.util.Try
+
+final class RomeRssClient(feedUrls: List[String], timeout: Duration = Duration.ofSeconds(20))
+    extends RssSource:
+
+  private val http: HttpClient =
+    HttpClient.newBuilder.connectTimeout(timeout).followRedirects(HttpClient.Redirect.NORMAL).build()
+
+  def fetch(): List[RssItem] =
+    feedUrls.flatMap(fetchFeed)
+
+  private def fetchFeed(feedUrl: String): List[RssItem] =
+    fetchXml(feedUrl).toList.flatMap(parse(_, feedUrl))
+
+  private def fetchXml(feedUrl: String): Option[String] =
+    Try {
+      val req = HttpRequest.newBuilder(URI.create(feedUrl))
+        .timeout(timeout)
+        .header("User-Agent", "newspipe-scala/0.2")
+        .GET()
+        .build()
+      val res = http.send(req, HttpResponse.BodyHandlers.ofString())
+      if res.statusCode() == 200 then Some(res.body()) else None
+    }.toOption.flatten
+
+  private def parse(xml: String, feedUrl: String): List[RssItem] =
+    Try {
+      val stream = new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8))
+      val feed = new SyndFeedInput().build(new XmlReader(stream))
+      feed.getEntries.asScala.toList.map { e =>
+        RssItem(
+          guid = Option(e.getUri).filter(_.nonEmpty).getOrElse(Option(e.getLink).getOrElse("")),
+          feedUrl = feedUrl,
+          title = Option(e.getTitle).getOrElse(""),
+          link = Option(e.getLink).getOrElse(""),
+          publishedAt = Option(e.getPublishedDate).map(d => Instant.ofEpochMilli(d.getTime)),
+          description = Option(e.getDescription).map(_.getValue).getOrElse("")
+        )
+      }
+    }.toOption.getOrElse(Nil)
+```
+Prove: `sbt compile` exits 0.
+2. Create conf/feeds.conf documenting the feed list (NOT parsed yet — parsing is cu-006) with exactly this content:
+```hocon
+# Sample geopolitics RSS feeds. cu-006 reads these via application.conf.
+feeds = []
+```
+Prove: `cat conf/feeds.conf` prints the content above.
+Do NOT touch: domain/, prompts/, bronze/kafka/main code, src/*.py. Do NOT add LLM code, polling loops, or config parsing.
 Stop when `sbt compile` is green; enrichment/sink/kafka/main belong to other CUs.

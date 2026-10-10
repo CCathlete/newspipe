@@ -1,5 +1,78 @@
 # IMPLEMENTATION_STEPS: cu-005
 
-1. Create src/main/scala/newspipe/infrastructure/KafkaRawPublisher.scala implementing newspipe.domain.RawPublisher with kafka-clients producer: bootstrapServers + topic constructor args, value = circe JSON of RssItem, key = guid; close producer on JVM shutdown hook. Do NOT touch bronze/Main. Prove: `sbt compile`.
-2. Create src/main/scala/newspipe/application/IngestionService.scala: final class IngestionService(rss: RssSource, enrich: EnrichmentPort, sink: BronzeSink, raw: RawPublisher, seen: mutable.Set[String]): def runOnce(now: Instant): Int — fetch, publish raw, drop items whose stable id is in seen (dedup), enrich remainder (Left -> Enrichment.empty with logged warning, never fail batch), BronzeUnit.fromRss, sink.write, record ids in seen, return written count. Depends ONLY on domain ports + models. Do NOT import infrastructure/kafka/spark/rome. Prove: `sbt compile`.
+1. Create src/main/scala/newspipe/infrastructure/KafkaRawPublisher.scala with exactly this content (bootstrapServers + topic come from constructor args — values are cu-006; register a JVM shutdown hook closing the producer — shown in cu-006 Main, NOT here):
+```scala
+package newspipe.infrastructure
+
+import io.circe.Encoder
+import io.circe.generic.semiauto.deriveEncoder
+import io.circe.syntax.*
+import newspipe.domain.{RawPublisher, RssItem}
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
+
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.util.Properties
+
+object KafkaCodecs:
+  given Encoder[Instant] = Encoder.encodeString.contramap(DateTimeFormatter.ISO_INSTANT.format)
+  given Encoder[RssItem] = deriveEncoder[RssItem]
+
+final class KafkaRawPublisher(bootstrapServers: String, topic: String) extends RawPublisher with AutoCloseable:
+  private val producer = new KafkaProducer[String, String](KafkaRawPublisher.props(bootstrapServers))
+
+  def publish(items: List[RssItem]): Unit =
+    import KafkaCodecs.given
+    items.foreach { it =>
+      producer.send(new ProducerRecord[String, String](topic, it.guid, it.asJson.noSpaces))
+    }
+    producer.flush()
+
+  def close(): Unit = producer.close()
+
+object KafkaRawPublisher:
+  def props(bootstrapServers: String): Properties =
+    val p = new Properties()
+    p.put("bootstrap.servers", bootstrapServers)
+    p.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    p.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    p.put("acks", "all")
+    p.put("enable.idempotence", "true")
+    p
+```
+Prove: `sbt compile` exits 0.
+2. Create src/main/scala/newspipe/application/IngestionService.scala with exactly this content (single-threaded poll loop assumption: runOnce is called by one thread in cu-006 Main, hence the plain mutable set; do NOT import infrastructure, kafka, spark, or rome packages):
+```scala
+package newspipe.application
+
+import com.typesafe.scalalogging.LazyLogging
+import newspipe.domain.*
+
+import java.time.Instant
+import scala.collection.mutable
+
+final class IngestionService(
+    rss: RssSource,
+    enrich: EnrichmentPort,
+    sink: BronzeSink,
+    raw: RawPublisher
+) extends LazyLogging:
+  private val seen = mutable.HashSet.empty[String]
+
+  def runOnce(now: Instant): Int =
+    val items = rss.fetch()
+    raw.publish(items)
+    val fresh = items.filter(it => seen.add(BronzeUnit.idFor(it)))
+    val units = fresh.map { it =>
+      val e = enrich.enrich(it) match
+        case Right(en) => en
+        case Left(err) =>
+          logger.warn(s"enrichment failed for ${it.link}: ${err.getMessage}; using empty enrichment")
+          Enrichment.empty
+      BronzeUnit.fromRss(it, e, now)
+    }
+    if units.isEmpty then 0 else sink.write(units)
+```
+Prove: `sbt compile` exits 0.
+Do NOT touch: domain/, RSS/CLI/Delta/Main code, src/*.py. Do NOT parse config here and do NOT create threads.
 Stop when `sbt compile` is green; Main/config/tests belong to cu-006/cu-007.

@@ -1,5 +1,185 @@
 # IMPLEMENTATION_STEPS: cu-007
 
-1. Create src/test/scala/newspipe/RssClientSpec.scala (fixture-feed parse asserting guid/title/link/date/description) + src/test/resources/fixture-feed.xml (2 geopolitics items). Do NOT touch prod code. Prove: `sbt "testOnly newspipe.RssClientSpec"` green.
-2. Create src/test/scala/newspipe/OpenCodeParserSpec.scala with canned NDJSON (`type:text` events) asserting summary/countries/geoArea/topics parse; create src/test/scala/newspipe/DeltaBronzeSpec.scala writing 2 BronzeUnits to temp Delta path and asserting raw+metadata columns with count 2 (local Spark master); create src/test/scala/newspipe/PipelineSpec.scala with stubbed ports asserting raw publish + dedup (runOnce twice) + sink count. Do NOT touch prod code. Prove: `sbt test` fully green.
-3. Encode shell assertions as test comments (grep -rli crawl4ai/litellm empty; domain import grep clean) so the code lead can run them in E2E verify. Stop when `sbt test` is green with zero prod diffs.
+1. Create src/test/resources/fixture-feed.xml with exactly this content (2 geopolitics items with RFC-822 pubDates):
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Fixture Geo Feed</title>
+    <link>https://example.com/geo</link>
+    <item>
+      <guid>geo-1</guid>
+      <title>Summit on strait security</title>
+      <link>https://example.com/geo/1</link>
+      <pubDate>Fri, 09 Oct 2026 12:00:00 GMT</pubDate>
+      <description>Naval drills near the strait raise energy prices.</description>
+    </item>
+    <item>
+      <guid>geo-2</guid>
+      <title>Election observers deployed</title>
+      <link>https://example.com/geo/2</link>
+      <pubDate>Fri, 09 Oct 2026 13:30:00 GMT</pubDate>
+      <description>Observers arrive ahead of Sunday elections.</description>
+    </item>
+  </channel>
+</rss>
+```
+Prove: `cat src/test/resources/fixture-feed.xml` prints the content above.
+2. Create src/test/scala/newspipe/RssClientSpec.scala with exactly this content (JDK built-in HttpServer serves the fixture on an ephemeral port — no new test deps; asserts all RssItem fields; second test hits one real feed URL from conf and asserts non-empty — mark it with `ignore` if offline):
+```scala
+package newspipe
+
+import com.sun.net.httpserver.HttpServer
+import newspipe.infrastructure.RomeRssClient
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+import java.net.InetSocketAddress
+import java.nio.file.{Files, Paths}
+import java.util.concurrent.Executors
+
+class RssClientSpec extends AnyFunSpec with Matchers:
+  describe("RomeRssClient") {
+    it("parses guid/title/link/date/description from a fixture feed") {
+      val bytes = Files.readAllBytes(Paths.get("src/test/resources/fixture-feed.xml"))
+      val server = HttpServer.create(new InetSocketAddress(0), 0)
+      server.createContext(
+        "/geo.xml",
+        ex => {
+          ex.getResponseHeaders.add("Content-Type", "application/rss+xml")
+          ex.sendResponseHeaders(200, bytes.length)
+          val os = ex.getResponseBody
+          os.write(bytes)
+          os.close()
+        }
+      )
+      server.setExecutor(Executors.newSingleThreadExecutor())
+      server.start()
+      try
+        val url = s"http://localhost:${server.getAddress.getPort}/geo.xml"
+        val items = new RomeRssClient(List(url)).fetch()
+        items should have size 2
+        items.map(_.guid) shouldBe List("geo-1", "geo-2")
+        items.head.title shouldBe "Summit on strait security"
+        items.head.link shouldBe "https://example.com/geo/1"
+        items.head.publishedAt.isDefined shouldBe true
+        items.head.description should include("Naval drills")
+        items.foreach(_.feedUrl shouldBe url)
+      finally server.stop(0)
+    }
+  }
+```
+Prove: `sbt "testOnly newspipe.RssClientSpec"` exits 0.
+3. Create src/test/scala/newspipe/OpenCodeParserSpec.scala with exactly this content (canned NDJSON in the real `opencode run --format json` shape — a text event plus a step_finish event without part.text, which must be skipped; asserts parsed fields AND fallback defaults on a minimal JSON object):
+```scala
+package newspipe
+
+import newspipe.infrastructure.OpenCodeCliClient
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+class OpenCodeParserSpec extends AnyFunSpec with Matchers:
+  private val events =
+    """{"type":"step_start","part":{"type":"step-start"}}
+       |{"type":"text","part":{"type":"text","text":"{\\"summary\\":\\"Strait drills.\\",\\"countries\\":[\\"Iran\\"],\\"geoArea\\":\\"Middle East\\",\\"topics\\":[\\"energy\\"],\\"actors\\":[],\\"urgency\\":\\"high\\",\\"language\\":\\"en\\"}"}}
+       |{"type":"step_finish","part":{"type":"step-finish","reason":"stop"}}""".stripMargin
+  describe("OpenCodeCliClient.parseEvents") {
+    it("concats text parts and parses summary/countries/geoArea/tags") {
+      val e = OpenCodeCliClient.parseEvents(events)
+      e.summary shouldBe "Strait drills."
+      e.countries shouldBe List("Iran")
+      e.geoArea shouldBe "Middle East"
+      e.topics shouldBe List("energy")
+      e.urgency shouldBe "high"
+    }
+    it("defaults missing keys") {
+      val e = OpenCodeCliClient.parseEnrichment("{\\"summary\\":\\"x\\"}")
+      e.countries shouldBe Nil
+      e.geoArea shouldBe "unknown"
+      e.urgency shouldBe "low"
+      e.language shouldBe "en"
+    }
+  }
+```
+Prove: `sbt "testOnly newspipe.OpenCodeParserSpec"` exits 0.
+4. Create src/test/scala/newspipe/DeltaBronzeSpec.scala with exactly this content (local Spark with Delta extensions from cu-001 javaOptions; writes 2 BronzeUnits to a temp Delta path and asserts raw + metadata columns with count 2):
+```scala
+package newspipe
+
+import newspipe.domain.{BronzeUnit, Enrichment, RssItem}
+import newspipe.infrastructure.DeltaBronzeSink
+import org.apache.spark.sql.SparkSession
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+import java.nio.file.Files
+import java.time.Instant
+
+class DeltaBronzeSpec extends AnyFunSpec with Matchers with BeforeAndAfterAll:
+  private var spark: SparkSession = _
+  override def beforeAll(): Unit =
+    spark = SparkSession.builder()
+      .appName("newspipe-test")
+      .master("local[2]")
+      .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+      .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+      .getOrCreate()
+    spark.sparkContext.setLogLevel("ERROR")
+  override def afterAll(): Unit = spark.stop()
+  describe("DeltaBronzeSink") {
+    it("writes data + metadata as one unit per row") {
+      val now = Instant.parse("2026-10-10T10:00:00Z")
+      val item = RssItem("g1", "https://feed/x", "T", "https://a/1", None, "Body text")
+      val en = Enrichment("Sum.", List("Iran"), "Middle East", List("energy"), Nil, "high", "en")
+      val units = List(BronzeUnit.fromRss(item, en, now), BronzeUnit.fromRss(item.copy(guid = "g2"), en, now))
+      val path = Files.createTempDirectory("bronze-test").toString
+      new DeltaBronzeSink(spark, path).write(units) shouldBe 2
+      val df = spark.read.format("delta").load(path)
+      df.count() shouldBe 2
+      df.columns should contain allOf ("title", "content", "article_url", "summary", "countries", "geo_area", "topics")
+      df.select("summary").as[String].collect().toList.distinct shouldBe List("Sum.")
+    }
+  }
+```
+Prove: `sbt "testOnly newspipe.DeltaBronzeSpec"` exits 0.
+5. Create src/test/scala/newspipe/PipelineSpec.scala with exactly this content (stubbed ports; asserts raw publish happened, sink count 2 on first run, 0 on second identical run proving dedup, and Enrichment.empty fallback on CLI failure):
+```scala
+package newspipe
+
+import newspipe.application.IngestionService
+import newspipe.domain.*
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+import java.time.Instant
+
+class PipelineSpec extends AnyFunSpec with Matchers:
+  private def item(g: String) = RssItem(g, "https://feed/x", s"T$g", s"https://a/$g", None, "Body")
+  describe("IngestionService.runOnce") {
+    it("publishes raw, enriches, writes bronze, dedups second run, falls back on CLI failure") {
+      var published: List[RssItem] = Nil
+      var written: List[BronzeUnit] = Nil
+      val rss = new RssSource:
+        def fetch(): List[RssItem] = List(item("g1"), item("g2"))
+      val raw = new RawPublisher:
+        def publish(items: List[RssItem]): Unit = published = items
+      val enrich = new EnrichmentPort:
+        def enrich(i: RssItem): Either[Throwable, Enrichment] =
+          if i.guid == "g2" then Left(new RuntimeException("boom")) else Right(Enrichment("S", Nil, "Global", Nil, Nil, "low", "en"))
+      val sink = new BronzeSink:
+        def write(units: List[BronzeUnit]): Int =
+          written = units
+          units.size
+      val svc = new IngestionService(rss, enrich, sink, raw)
+      val now = Instant.parse("2026-10-10T10:00:00Z")
+      svc.runOnce(now) shouldBe 2
+      published.map(_.guid) shouldBe List("g1", "g2")
+      written.map(_.summary) shouldBe List("S", "")
+      svc.runOnce(now) shouldBe 0
+    }
+  }
+```
+Prove: `sbt test` exits 0 fully green with zero production diffs.
+Do NOT touch: any file under src/main/, src/*.py. Encode shell assertions as comments at the top of PipelineSpec (run by the code lead in E2E verify): `grep -rli crawl4ai src/main/scala` empty; `grep -rli litellm src/main/scala` empty; `grep -rn "^import" src/main/scala/newspipe/domain/` shows no infrastructure/kafka/spark/delta/rome imports.
+Stop when `sbt test` is green.

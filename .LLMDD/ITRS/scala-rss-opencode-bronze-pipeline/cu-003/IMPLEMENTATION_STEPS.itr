@@ -1,5 +1,79 @@
 # IMPLEMENTATION_STEPS: cu-003
 
-1. Create src/main/scala/newspipe/infrastructure/OpenCodeCliClient.scala: final class OpenCodeCliClient(model: String, timeout) extends newspipe.domain.EnrichmentPort; build prompt from item title/link/description requesting ONLY a JSON object with keys summary/countries/geoArea/topics/actors/urgency/language; run ProcessBuilder("opencode", "run", "--format", "json", "--model", model, prompt); read stdout lines as NDJSON with circe, concat parts where type=="text" via part.text, then parse the concatenated string as the enrichment JSON (countries/topics/actors default Nil, geoArea default "unknown", urgency default "low"); non-zero exit or parse failure returns Left (caller decides fallback), never throws. Observed event shape (verified 2026-10-10): {"type":"text",...,"part":{"type":"text","text":"..."}}. Do NOT add httpx/litellm/http-client LLM code. Prove: `sbt compile`.
-2. Store the exact prompt template in prompts/enrich.txt (documentation of the contract the parser relies on). Do NOT touch domain/ or bronze/kafka code. Prove: `sbt compile`.
+1. Create src/main/resources/prompts/enrich.txt with exactly this content (single source of the prompt contract; {{TITLE}} {{LINK}} {{DESCRIPTION}} are literal placeholders replaced in code):
+```text
+You are a geopolitics news analyst. Reply with ONLY a JSON object, no prose, with exactly these keys: summary (2-3 sentences), countries (array of ISO country names mentioned), geoArea (one of: Middle East, Europe, Indo-Pacific, Africa, Americas, Central Asia, Global), topics (array of short tags), actors (array of people/orgs), urgency (one of: low, medium, high), language (ISO code of the article).
+TITLE: {{TITLE}}
+LINK: {{LINK}}
+DESCRIPTION: {{DESCRIPTION}}
+```
+Prove: `cat src/main/resources/prompts/enrich.txt` prints the content above.
+2. Create src/main/scala/newspipe/infrastructure/OpenCodeCliClient.scala with exactly this content (non-zero exit, timeout, or unparsable output returns Left and never throws out of enrich; model/timeout come from constructor args — config wiring is cu-006):
+```scala
+package newspipe.infrastructure
+
+import io.circe.parser.*
+import newspipe.domain.{Enrichment, EnrichmentPort, RssItem}
+
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
+
+final class OpenCodeCliClient(model: String, timeout: FiniteDuration) extends EnrichmentPort:
+
+  def enrich(item: RssItem): Either[Throwable, Enrichment] =
+    Try {
+      val prompt = OpenCodeCliClient.promptFor(item)
+      val proc = new ProcessBuilder("opencode", "run", "--format", "json", "--model", model, prompt)
+        .redirectErrorStream(false)
+        .start()
+      val secs = timeout.toSeconds
+      val finished = proc.waitFor(secs, TimeUnit.SECONDS)
+      val stdout = new String(proc.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+      if !finished then
+        proc.destroyForcibly()
+        throw new RuntimeException(s"opencode run timed out after $secs s")
+      if proc.exitValue() != 0 then
+        throw new RuntimeException(s"opencode run exited ${proc.exitValue()}")
+      OpenCodeCliClient.parseEvents(stdout)
+    }.toEither
+
+object OpenCodeCliClient:
+  def promptFor(item: RssItem): String =
+    val stream = getClass.getClassLoader.getResourceAsStream("prompts/enrich.txt")
+    require(stream != null, "prompts/enrich.txt missing from classpath")
+    val template =
+      try scala.io.Source.fromInputStream(stream, "UTF-8").mkString
+      finally stream.close()
+    template
+      .replace("{{TITLE}}", item.title)
+      .replace("{{LINK}}", item.link)
+      .replace("{{DESCRIPTION}}", item.description)
+
+  def parseEvents(ndjson: String): Enrichment =
+    val text = ndjson.linesIterator.flatMap { line =>
+      parse(line).toOption.flatMap(_.hcursor.downField("part").downField("text").as[String].toOption)
+    }.mkString
+    val start = text.indexOf('{')
+    val end = text.lastIndexOf('}')
+    if start < 0 || end <= start then
+      throw new RuntimeException(s"no JSON object in opencode output: ${text.take(200)}")
+    parseEnrichment(text.substring(start, end + 1))
+
+  def parseEnrichment(json: String): Enrichment =
+    val doc = parse(json).getOrElse(throw new RuntimeException(s"invalid enrichment JSON: ${json.take(200)}"))
+    val c = doc.hcursor
+    Enrichment(
+      summary = c.downField("summary").as[String].getOrElse(""),
+      countries = c.downField("countries").as[List[String]].getOrElse(Nil),
+      geoArea = c.downField("geoArea").as[String].getOrElse("unknown"),
+      topics = c.downField("topics").as[List[String]].getOrElse(Nil),
+      actors = c.downField("actors").as[List[String]].getOrElse(Nil),
+      urgency = c.downField("urgency").as[String].getOrElse("low"),
+      language = c.downField("language").as[String].getOrElse("en")
+    )
+```
+Prove: `sbt compile` exits 0.
+Do NOT touch: domain/, bronze/kafka/main code, src/*.py. Do NOT add httpx/litellm/HTTP-client LLM code; the ONLY external AI call is the ProcessBuilder command above.
 Stop when `sbt compile` is green; sink/kafka/main/tests belong to other CUs.
