@@ -30,7 +30,6 @@ alongside features — each bug flows through reproduction, fix (via
 - Created: <YYYY-MM-DD>
 - Resolved: <YYYY-MM-DD or "-">
 - Bug ID: bug-<n>-<short-name>
-- Related features: <feat-N ids or "-">
 
 ## Bug detail
 
@@ -64,9 +63,9 @@ Leave as "Pending" while Open.
   reports stay Open with cause marked unknown.
 - The bug ID (serial int) is assigned at creation and never changes.
 - If the fix needs code changes, implement via the normal pipeline
-  (`compile-itr` → `run-waves`) and reference the feature/CUs in
-  Related features.
-```
+  (`compile-itr` → `run-waves`). Linkage flows fix → bugs only: the fix
+  feature lists this bug's ID, never the reverse — a bug file must not
+  point at its fix.
 
 ## Output
 
