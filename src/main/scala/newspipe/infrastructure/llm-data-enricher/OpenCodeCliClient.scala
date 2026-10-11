@@ -1,4 +1,4 @@
-package newspipe.infrastructure.enrichment
+package newspipe.infrastructure.llmdataenricher
 
 import io.circe.parser.*
 import newspipe.application.ports.EnrichmentPort

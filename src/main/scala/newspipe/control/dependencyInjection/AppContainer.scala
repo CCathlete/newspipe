@@ -2,9 +2,9 @@ package newspipe.control.dependencyInjection
 
 import newspipe.application.services.IngestionService
 import newspipe.infrastructure.bronze.DeltaBronzeSink
-import newspipe.infrastructure.enrichment.OpenCodeCliClient
+import newspipe.infrastructure.llmdataenricher.OpenCodeCliClient
 import newspipe.infrastructure.env.EnvConfig
-import newspipe.infrastructure.raw.KafkaRawPublisher
+import newspipe.infrastructure.messagequeue.KafkaRawPublisher
 import newspipe.infrastructure.rss.RomeRssClient
 import org.apache.spark.sql.SparkSession
 

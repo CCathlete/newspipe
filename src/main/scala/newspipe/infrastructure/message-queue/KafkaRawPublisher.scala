@@ -1,4 +1,4 @@
-package newspipe.infrastructure.raw
+package newspipe.infrastructure.messagequeue
 
 import io.circe.Encoder
 import io.circe.generic.semiauto.deriveEncoder

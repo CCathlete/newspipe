@@ -1,12 +1,13 @@
 # Scala 3 compliance checklist
 - Feature: bugfix-feature-2-arch-scala3-compliance
 - Layout restructure: bugfix-feature-3-scala-layer-layout
+- Rename: feat-4-infra-port-folder-rename (raw to message-queue, enrichment to llm-data-enricher)
 - Fixes: bug-1-arch-scala3-compliance, bug-2-scala-layer-layout
 - Scala: 3.3.4, sbt 1.10.7, Java 21
 
 ## 1. given resolution under Scala 3
 Verdict: PASS.
-Evidence: givens live in object KafkaCodecs in src/main/scala/newspipe/infrastructure/raw/KafkaRawPublisher.scala as Encoder[Instant] plus Encoder[RssItem]. Call site imports them explicitly with import KafkaCodecs.given in publish. No package-object givens remain on the Scala path. No implicit keyword remains in src/main/scala.
+Evidence: givens live in object KafkaCodecs in src/main/scala/newspipe/infrastructure/message-queue/KafkaRawPublisher.scala as Encoder[Instant] plus Encoder[RssItem]. Call site imports them explicitly with import KafkaCodecs.given in publish. No package-object givens remain on the Scala path. No implicit keyword remains in src/main/scala.
 Criterion: scalafixAll reports no given-in-module ambiguity.
 
 ## 2. Trait form for domain ports
@@ -21,7 +22,7 @@ Criterion: sbt compile exits 0 with shim in place.
 
 ## 4. Scala 3 boundary audit
 Verdict: PASS under v2 partition.
-Evidence: domain/models plus domain/valueObjects import stdlib plus java.time only. application/services/IngestionService.scala imports application.ports plus domain.models plus logging only. infrastructure port folders plus env/ own all external imports. control/dependencyInjection/AppContainer.scala owns construction; control/entryPoint/Main.scala reads config only via Env. No .scala file sits directly in any layer root.
+Evidence: domain/models plus domain/valueObjects import stdlib plus java.time only. application/services/IngestionService.scala imports application.ports plus domain.models plus logging only. infrastructure port folders (rss, message-queue, llm-data-enricher, bronze) plus env/ own all external imports. control/dependencyInjection/AppContainer.scala owns construction; control/entryPoint/Main.scala reads config only via Env. No .scala file sits directly in any layer root.
 Criterion: find maxdepth 1 under each layer root prints zero files; sbt compile green.
 
 ## 5. then-do control syntax consistency

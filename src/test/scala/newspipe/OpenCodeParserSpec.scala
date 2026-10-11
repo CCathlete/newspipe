@@ -1,7 +1,7 @@
 package newspipe
 
 import newspipe.domain.valueObjects.{GeoArea, Urgency}
-import newspipe.infrastructure.enrichment.OpenCodeCliClient
+import newspipe.infrastructure.llmdataenricher.OpenCodeCliClient
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
