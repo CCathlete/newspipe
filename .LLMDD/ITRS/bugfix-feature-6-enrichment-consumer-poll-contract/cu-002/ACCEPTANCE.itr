@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-002
+
+AC-2 (criterion 2): `sbt test` passes all suites with workdir pipelines/enrichment, including ConsumerPropsSpec and the unaffected merge/service suites.

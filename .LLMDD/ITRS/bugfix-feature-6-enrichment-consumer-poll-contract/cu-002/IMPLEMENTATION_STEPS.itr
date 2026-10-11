@@ -1,0 +1,25 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. Create pipelines/enrichment/src/test/scala/newspipe/ConsumerPropsSpec.scala with exactly the content in the scala fence below.
+```scala
+package newspipe
+
+import newspipe.infrastructure.kafka.KafkaRawConsumer
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+class ConsumerPropsSpec extends AnyFunSpec with Matchers:
+  describe("KafkaRawConsumer.props") {
+    it("disables auto commit and bounds batch cost within the poll interval") {
+      val p = KafkaRawConsumer.props("localhost:9092", "test-group")
+      p.getProperty("enable.auto.commit") shouldBe "false"
+      p.getProperty("auto.offset.reset") shouldBe "earliest"
+      p.getProperty("max.poll.interval.ms") shouldBe "3600000"
+      p.getProperty("max.poll.records") shouldBe "20"
+    }
+  }
+```
+Prove: `grep -n 'max.poll.records") shouldBe "20"' pipelines/enrichment/src/test/scala/newspipe/ConsumerPropsSpec.scala` prints the assertion line.
+Prove: `sbt test` passes all suites when run with workdir pipelines/enrichment.
+Do NOT touch: build.sbt, src/main, src/test, pipelines/ingestion, pipelines/enrichment/src/main, .LLMDD.
+Stop when the spec exists and sbt test passes inside pipelines/enrichment.

@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+CU-001 adds max.poll.interval.ms=3600000 and max.poll.records=20 to KafkaRawConsumer.props in the enrichment pipeline, keeping manual commits and earliest reset. Requires nothing; consumed by cu-002. This CU satisfies bugfix-feature-6 criterion 1.

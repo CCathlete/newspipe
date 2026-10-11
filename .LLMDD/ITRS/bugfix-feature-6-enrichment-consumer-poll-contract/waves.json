@@ -1,0 +1,4 @@
+[
+  {"wave": 1, "description": "Consumer props first (test spec asserts them next wave)", "cus": ["cu-001"]},
+  {"wave": 2, "description": "Props spec plus full suite green", "cus": ["cu-002"]}
+]

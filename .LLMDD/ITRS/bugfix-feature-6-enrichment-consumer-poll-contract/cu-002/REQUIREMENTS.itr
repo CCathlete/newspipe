@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+CU-002 adds ConsumerPropsSpec asserting the four contract props without touching a broker, and proves the full enrichment suite green. Requires cu-001. This CU satisfies bugfix-feature-6 criterion 2.

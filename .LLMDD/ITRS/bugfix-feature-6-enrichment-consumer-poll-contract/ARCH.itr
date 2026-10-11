@@ -1,0 +1,6 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-11T17:16:52.703984027Z
+# DTR-COORDINATES: 
+
+Architecture rules (binding on every CU in this batch): enrichment pipeline only; consumer contract sized to batch cost u2014 max.poll.interval.ms=3600000 covers a full batch at the 120s CLI timeout per record, max.poll.records=20 bounds batch cost, manual commits retained; no behavior change to poll, commit, decode, merge, or service logic; v2 layer partition holds.

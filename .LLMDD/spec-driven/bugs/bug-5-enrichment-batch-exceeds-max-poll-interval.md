@@ -1,8 +1,8 @@
 # bug-5: enrichment-batch-exceeds-max-poll-interval
 
-- Status: Open
+- Status: Resolved
 - Created: 2026-10-11
-- Resolved: -
+- Resolved: 2026-10-11
 - Bug ID: bug-5-enrichment-batch-exceeds-max-poll-interval
 - Related features: -
 
@@ -34,17 +34,20 @@ Environment: repo checkout,
 
 ## Resolution status
 
-Open. No fix merged.
+Resolved in f118337.
 
 ## Fix summary (Resolved only)
 
-Pending. Suggested direction: set `max.poll.interval.ms` to cover a full
+`max.poll.interval.ms=3600000` plus `max.poll.records=20` in
+`KafkaRawConsumer.props` (manual commits retained), per
+bugfix-feature-6-enrichment-consumer-poll-contract. Fix commit: f118337. Suggested direction: set `max.poll.interval.ms` to cover a full
 batch (e.g. 3600000) and/or `max.poll.records` to bound batch cost, so a
 slow batch commits instead of looping; longer term, parallelize per-item
 enrichment or commit incrementally with interim polls.
 
 ## Tests proving resolution (Resolved only)
 
-Pending. Suggested: stubbed slow-enrich batch test asserting commit is
-reached, plus e2e run showing `poll merged N` with N > 0 on a 30+ record
-topic.
+Proven by commit f118337: `ConsumerPropsSpec` asserts all four prop
+values without a broker; full `sbt test` green in pipelines/enrichment
+(3 suites, 6/6); merge/service suites unaffected. E2E re-run with
+`poll merged N` on a 30+ record topic remains as follow-up proof.

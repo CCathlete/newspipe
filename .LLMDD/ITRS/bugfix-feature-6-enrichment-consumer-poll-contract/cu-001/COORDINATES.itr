@@ -1,0 +1,3 @@
+# COORDINATES: cu-001
+
+FILE.infrastructure/kafka.py, FILE.control/main.py. Both keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the file below is an in-place update traced from them.
