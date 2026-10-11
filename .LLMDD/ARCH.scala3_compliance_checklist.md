@@ -2,7 +2,8 @@
 - Feature: bugfix-feature-2-arch-scala3-compliance
 - Layout restructure: bugfix-feature-3-scala-layer-layout
 - Rename: feat-4-infra-port-folder-rename (raw to message-queue, enrichment to llm-data-enricher)
-- Fixes: bug-1-arch-scala3-compliance, bug-2-scala-layer-layout
+- Split: bugfix-feature-5-split-standalone-pipelines (pipelines/ingestion fast path, pipelines/enrichment slow path)
+- Fixes: bug-1-arch-scala3-compliance, bug-2-scala-layer-layout, bug-4-dedup-before-sink-write-loses-data
 - Scala: 3.3.4, sbt 1.10.7, Java 21
 
 ## 1. given resolution under Scala 3
@@ -21,9 +22,9 @@ Evidence: build.sbt loads spark-sql 3.5.1 Provided plus delta-spark 3.1.0 throug
 Criterion: sbt compile exits 0 with shim in place.
 
 ## 4. Scala 3 boundary audit
-Verdict: PASS under v2 partition.
-Evidence: domain/models plus domain/valueObjects import stdlib plus java.time only. application/services/IngestionService.scala imports application.ports plus domain.models plus logging only. infrastructure port folders (rss, message-queue, llm-data-enricher, bronze) plus env/ own all external imports. control/dependencyInjection/AppContainer.scala owns construction; control/entryPoint/Main.scala reads config only via Env. No .scala file sits directly in any layer root.
-Criterion: find maxdepth 1 under each layer root prints zero files; sbt compile green.
+Verdict: PASS under v2 partition, mirrored per pipeline.
+Evidence: domain/models plus domain/valueObjects import stdlib plus java.time only. application/services/IngestionService.scala imports application.ports plus domain.models plus logging only. infrastructure port folders (rss, message-queue, llm-data-enricher, bronze) plus env/ own all external imports. control/dependencyInjection/AppContainer.scala owns construction; control/entryPoint/Main.scala reads config only via Env. No .scala file sits directly in any layer root. pipelines/ingestion and pipelines/enrichment mirror the same partition with duplicated sources and no shared modules: ingestion drops the enrich step and marks seen only after write; enrichment adds RawConsumer plus BronzeMergeSink ports with KafkaRawConsumer plus DeltaMergeSink adapters.
+Criterion: find maxdepth 1 under each layer root prints zero files; sbt compile green in root plus both pipeline directories.
 
 ## 5. then-do control syntax consistency
 Verdict: PASS.
