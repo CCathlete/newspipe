@@ -6,6 +6,10 @@ ThisBuild / scalaVersion := "3.3.4"
 // CrossVersion.for3Use2_13) and pull scala-xml_2.13. ScalaTest pulls
 // scala-xml_3, which would clash on cross-version suffix; exclude it so the
 // binary-compatible scala-xml_2.13 satisfies both.
+// Scala 3 compliance (bugfix-feature-2, fixes bug-1-arch-scala3-compliance):
+// Spark 3.5.1 plus Delta 3.1.0 publish Scala 2.13 artifacts only, loaded here
+// through CrossVersion.for3Use2_13. Native Scala 3 artifacts are unavailable.
+// Full audit: .LLMDD/ARCH.scala3_compliance_checklist.md section 3.
 ThisBuild / excludeDependencies += ExclusionRule("org.scala-lang.modules", "scala-xml_3")
 
 lazy val root = (project in file("."))

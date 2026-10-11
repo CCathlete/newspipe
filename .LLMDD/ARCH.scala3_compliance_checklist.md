@@ -1,0 +1,29 @@
+# Scala 3 compliance checklist
+- Feature: bugfix-feature-2-arch-scala3-compliance
+- Fixes: bug-1-arch-scala3-compliance
+- Scala: 3.3.4, sbt 1.10.7, Java 21
+
+## 1. given resolution under Scala 3
+Verdict: PASS.
+Evidence: givens live in object KafkaCodecs in src/main/scala/newspipe/infrastructure/KafkaRawPublisher.scala lines 13-15 as Encoder[Instant] plus Encoder[RssItem]. Call site imports them explicitly with import KafkaCodecs.given in publish at line 21. No package-object givens remain on the Scala path. No implicit keyword remains in src/main/scala.
+Criterion: scalafixAll reports no given-in-module ambiguity.
+
+## 2. Trait form for domain ports
+Verdict: ACCEPT.
+Evidence: ports RssSource, EnrichmentPort, BronzeSink, RawPublisher stay traits in src/main/scala/newspipe/domain/ports.scala (13 lines). Traits keep dependency inversion with zero infrastructure imports. No change to abstract classes; rationale recorded here per bug-1 item 2.
+Criterion: grep over src/main/scala/newspipe/domain shows no infrastructure, kafka, spark, delta, rome imports.
+
+## 3. Cross-version dependency shim
+Verdict: DOCUMENTED.
+Evidence: build.sbt loads spark-sql 3.5.1 Provided plus delta-spark 3.1.0 through CrossVersion.for3Use2_13. Upstream publishes Scala 2.13 artifacts only. ExclusionRule removes scala-xml_3 so scala-xml_2.13 satisfies both Spark and ScalaTest. build.sbt comment lines added in cu-002 point here.
+Criterion: sbt compile exits 0 with shim in place.
+
+## 4. Scala 3 boundary audit
+Verdict: PASS.
+Evidence: layering domain over application over infrastructure over control holds under src/main/scala/newspipe. Application IngestionService in src/main/scala/newspipe/application/IngestionService.scala imports newspipe.domain plus stdlib only. Control Main in src/main/scala/newspipe/control/Main.scala owns all infrastructure imports. Domain files import java.time plus stdlib only.
+Criterion: domain grep clean; sbt compile green.
+
+## 5. then-do control syntax consistency
+Verdict: PASS.
+Evidence: control flow uses Scala 3 form at src/main/scala/newspipe/control/Main.scala line 34 (while true do) with try/catch case, plus src/main/scala/newspipe/application/IngestionService.scala lines 22-25 (match with case) and line 29 (if units.isEmpty then). No while-paren form found in src/main/scala.
+Criterion: search for paren-while returns zero hits.
