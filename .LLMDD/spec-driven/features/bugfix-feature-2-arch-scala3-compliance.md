@@ -1,10 +1,12 @@
-# feat-2: arch-scala3-compliance
+# bugfix-feature-2: arch-scala3-compliance
 
-- Status: Open
+- Status: Proposed
 - Created: 2026-10-10
-- Feature ID: feat-2-arch-scala3-compliance
+- Feature ID: bugfix-feature-2-arch-scala3-compliance
 
 ## Synopsis
+
+Fixes bug-1-arch-scala3-compliance.
 
 The newspipe codebase runs on Scala 3.3.4 but the architectural pattern was not
 explicitly designed or validated for Scala 3 compliance. This feature adds the
@@ -47,7 +49,7 @@ checking.
 5. Control-flow syntax is consistent: no mixed `while true do` vs `while (true)` variants
 6. Cross-version dependency shim documented in build.sbt comments referencing
    ARCH.scala3_compliance_checklist.md
-7. Architecture audit checklist references feat-2-arch-scala3-compliance.md
+7. Architecture audit checklist references bugfix-feature-2-arch-scala3-compliance.md
 
 ## Tests
 

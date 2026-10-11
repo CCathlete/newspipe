@@ -1,0 +1,1 @@
+[{"cus": ["cu-001"], "description": "Compliance checklist first: creates .LLMDD/ARCH.scala3_compliance_checklist.md with five audit sections (cu-002 references it)", "wave": 1}, {"cus": ["cu-002"], "description": "Build docs last: build.sbt cross-reference comments plus verification set (depends on cu-001 checklist)", "wave": 2}]

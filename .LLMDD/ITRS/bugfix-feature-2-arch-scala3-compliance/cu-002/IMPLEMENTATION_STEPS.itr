@@ -1,0 +1,16 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. Add the comment block in the scala fence below to build.sbt directly above the line starting with ThisBuild / excludeDependencies. Keep all existing dependency lines unchanged. Anchor file: build.sbt at repo root.
+```scala
+// Scala 3 compliance (bugfix-feature-2, fixes bug-1-arch-scala3-compliance):
+// Spark 3.5.1 plus Delta 3.1.0 publish Scala 2.13 artifacts only, loaded here
+// through CrossVersion.for3Use2_13. Native Scala 3 artifacts are unavailable.
+// Full audit: .LLMDD/ARCH.scala3_compliance_checklist.md section 3.
+```
+Prove: `grep -n 'bugfix-feature-2' build.sbt` prints the added comment lines.
+2. Run the verification set for build.sbt at repo root and the layering check over src/main/scala/newspipe/domain plus the syntax check over src/main/scala/newspipe/control/Main.scala and src/main/scala/newspipe/application/IngestionService.scala.
+Prove: `sbt compile` exits 0.
+Prove: `grep -rn '^import' src/main/scala/newspipe/domain/` prints zero lines naming infrastructure, kafka, spark, delta, rome.
+Prove: `grep -rn 'while (' src/main/scala/ || true` prints nothing.
+Do NOT touch: .LLMDD/ARCH.scala3_compliance_checklist.md, src/main/scala/newspipe/domain/ports.scala, src/main/scala/newspipe/infrastructure/KafkaRawPublisher.scala, project/build.properties, src/test.
+Stop when build.sbt holds the cross-reference comment and sbt compile exits 0; checklist content belongs to cu-001.

@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-001
+
+AC-1 (criterion 1): `test -f .LLMDD/ARCH.scala3_compliance_checklist.md` exits 0. AC-4 (criterion 4): checklist section 1 names KafkaCodecs givens plus explicit import site. AC-5 (criterion 5): checklist section 5 names then/do sites in Main plus IngestionService. AC-7 (criterion 7): checklist references bugfix-feature-2-arch-scala3-compliance plus bug-1-arch-scala3-compliance.

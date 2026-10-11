@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+CU-001 creates .LLMDD/ARCH.scala3_compliance_checklist.md with five populated audit sections recording verdicts for given placement, port traits, cross-version shim, boundary audit, and control syntax, closing bug-1 items 1 through 5 and satisfying bugfix-feature-2 criteria 1, 4, 5, and 7.

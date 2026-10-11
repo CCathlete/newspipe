@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-002
+
+AC-2 (criterion 2): `sbt compile` exits 0. AC-3 (criterion 3): `grep -rn '^import' src/main/scala/newspipe/domain/` prints zero lines naming infrastructure, kafka, spark, delta, rome. AC-6 (criterion 6): `grep -n 'ARCH.scala3_compliance_checklist' build.sbt` prints at least one line.
