@@ -1,0 +1,6 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-11T10:26:46.003932478Z
+# DTR-COORDINATES: 
+
+Architecture rules (binding on every CU in this batch): v2 partition from bugfix-feature-3 stays in force (domain models/valueObjects, application ports/services, infrastructure one folder per port plus env, control dependencyInjection/entryPoint, no layer-root files); this batch renames two port folders only: infrastructure/raw/ becomes infrastructure/message-queue/ with package newspipe.infrastructure.messagequeue, infrastructure/enrichment/ becomes infrastructure/llm-data-enricher/ with package newspipe.infrastructure.llmdataenricher (hyphens are illegal in Scala package identifiers, hence hyphenless packages); class names KafkaRawPublisher and OpenCodeCliClient unchanged; behavior-preserving relocation with no topic, schema, or config changes.

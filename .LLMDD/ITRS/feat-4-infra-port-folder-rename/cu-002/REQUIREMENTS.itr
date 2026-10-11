@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+CU-002 relocates the enrichment client from infrastructure/enrichment/ to infrastructure/llm-data-enricher/ with package newspipe.infrastructure.llmdataenricher, deletes the old folder file, and points the AppContainer plus OpenCodeParserSpec imports at the new package. Requires cu-001. This CU satisfies feat-4 criterion 2.

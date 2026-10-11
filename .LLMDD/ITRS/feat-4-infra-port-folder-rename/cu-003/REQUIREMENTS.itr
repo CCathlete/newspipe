@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-003
+
+CU-003 refreshes the checklist evidence path from the raw folder to the message-queue folder, records the feat-4 rename, and runs the folder plus reference audits with the full test suite. Requires cu-001 and cu-002. This CU satisfies feat-4 criteria 3, 4, and 5.

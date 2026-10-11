@@ -1,0 +1,5 @@
+[
+  {"wave": 1, "description": "Raw folder to message-queue plus AppContainer import (owns AppContainer this wave)", "cus": ["cu-001"]},
+  {"wave": 2, "description": "Enrichment folder to llm-data-enricher plus AppContainer and spec imports", "cus": ["cu-002"]},
+  {"wave": 3, "description": "Checklist refresh plus folder, reference, and test audits last and alone", "cus": ["cu-003"]}
+]

@@ -1,0 +1,81 @@
+# IMPLEMENTATION_STEPS: cu-001
+
+1. Create src/main/scala/newspipe/infrastructure/message-queue/KafkaRawPublisher.scala with exactly the content in the scala fence below (body identical to the current raw file; only the package line differs).
+```scala
+package newspipe.infrastructure.messagequeue
+
+import io.circe.Encoder
+import io.circe.generic.semiauto.deriveEncoder
+import io.circe.syntax.*
+import newspipe.application.ports.RawPublisher
+import newspipe.domain.models.RssItem
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
+
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.util.Properties
+
+object KafkaCodecs:
+  given Encoder[Instant] = Encoder.encodeString.contramap(DateTimeFormatter.ISO_INSTANT.format)
+  given Encoder[RssItem] = deriveEncoder[RssItem]
+
+final class KafkaRawPublisher(bootstrapServers: String, topic: String) extends RawPublisher with AutoCloseable:
+  private val producer = new KafkaProducer[String, String](KafkaRawPublisher.props(bootstrapServers))
+
+  def publish(items: List[RssItem]): Unit =
+    import KafkaCodecs.given
+    items.foreach { it =>
+      producer.send(new ProducerRecord[String, String](topic, it.guid, it.asJson.noSpaces))
+    }
+    producer.flush()
+
+  def close(): Unit = producer.close()
+
+object KafkaRawPublisher:
+  def props(bootstrapServers: String): Properties =
+    val p = new Properties()
+    p.put("bootstrap.servers", bootstrapServers)
+    p.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    p.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    p.put("acks", "all")
+    p.put("enable.idempotence", "true")
+    p
+```
+Prove: `grep -n '^package' src/main/scala/newspipe/infrastructure/message-queue/KafkaRawPublisher.scala` prints package newspipe.infrastructure.messagequeue.
+2. Delete src/main/scala/newspipe/infrastructure/raw/KafkaRawPublisher.scala, superseded by the message-queue file above.
+Prove: `test ! -d src/main/scala/newspipe/infrastructure/raw` exits 0.
+3. Rewrite src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala with exactly the content in the scala fence below (only the KafkaRawPublisher import differs from the current file).
+```scala
+package newspipe.control.dependencyInjection
+
+import newspipe.application.services.IngestionService
+import newspipe.infrastructure.bronze.DeltaBronzeSink
+import newspipe.infrastructure.enrichment.OpenCodeCliClient
+import newspipe.infrastructure.env.EnvConfig
+import newspipe.infrastructure.messagequeue.KafkaRawPublisher
+import newspipe.infrastructure.rss.RomeRssClient
+import org.apache.spark.sql.SparkSession
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
+
+final class AppContainer(env: EnvConfig):
+  val spark: SparkSession = SparkSession.builder()
+    .appName("newspipe")
+    .master(env.sparkMaster)
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+    .getOrCreate()
+  val rss = new RomeRssClient(env.feeds)
+  val enrich = new OpenCodeCliClient(env.opencodeModel, FiniteDuration(env.opencodeTimeoutSeconds, TimeUnit.SECONDS))
+  val sink = new DeltaBronzeSink(spark, env.bronzePath)
+  val raw = new KafkaRawPublisher(env.kafkaBootstrap, env.rawTopic)
+  val service = new IngestionService(rss, enrich, sink, raw)
+
+  def close(): Unit =
+    raw.close()
+    spark.stop()
+```
+Prove: `grep -n 'messagequeue' src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` prints the import line.
+Do NOT touch: src/main/scala/newspipe/domain, src/main/scala/newspipe/application, src/main/scala/newspipe/infrastructure/enrichment, src/main/scala/newspipe/infrastructure/bronze, src/main/scala/newspipe/infrastructure/rss, src/main/scala/newspipe/infrastructure/env, src/test, build.sbt, src/main/resources.
+Stop when the message-queue folder holds the client, the raw folder is gone, and AppContainer imports the new package; the enrichment move belongs to cu-002.

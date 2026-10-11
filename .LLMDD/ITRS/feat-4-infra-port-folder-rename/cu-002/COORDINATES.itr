@@ -1,0 +1,3 @@
+# COORDINATES: cu-002
+
+FILE.infrastructure/litellm_client.py, FILE.control/main.py, FILE.control/dependency_layers.py. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the folder file below is a new creation traced from them.

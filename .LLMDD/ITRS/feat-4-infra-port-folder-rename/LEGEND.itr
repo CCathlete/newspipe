@@ -1,0 +1,6 @@
+# CU-ID: legend
+# CU-TYPE: LegendCU
+# TIMESTAMP: 2026-10-11T10:26:46.005679731Z
+# DTR-COORDINATES: 
+
+Legend: CU-ID is the unit id (cu-001 through cu-003); CU-TYPE is arch|legend|feature|fix; DTR-COORDINATES are baseline keys the CU traces into (absent key means creation); REQUIREMENTS: states the slice of feat-4 delivered; IMPLEMENTATION_STEPS: ordered file-level actions each with exact file contents, a Do-NOT-touch list, and a proving command; ACCEPTANCE: maps feat-4 test IDs to exact commands plus expected results; per-CU feedback status is PENDING|DONE|ESCALATION.

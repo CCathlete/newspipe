@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-002
+
+AC-2 (criterion 2): `test ! -d src/main/scala/newspipe/infrastructure/enrichment` exits 0 and `grep -n '^package' src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeCliClient.scala` prints package newspipe.infrastructure.llmdataenricher.

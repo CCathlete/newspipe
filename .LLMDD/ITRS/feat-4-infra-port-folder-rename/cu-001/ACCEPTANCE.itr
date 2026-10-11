@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-001
+
+AC-1 (criterion 1): `test ! -d src/main/scala/newspipe/infrastructure/raw` exits 0 and `grep -n '^package' src/main/scala/newspipe/infrastructure/message-queue/KafkaRawPublisher.scala` prints package newspipe.infrastructure.messagequeue.
