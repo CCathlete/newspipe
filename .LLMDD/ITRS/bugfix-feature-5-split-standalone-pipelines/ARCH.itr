@@ -1,0 +1,6 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-11T12:28:00.274796217Z
+# DTR-COORDINATES: 
+
+Architecture rules (binding on every CU in this batch): repo root gains pipelines/ingestion/ and pipelines/enrichment/, each a standalone sbt build (own build.sbt, build.properties, application.conf) with duplicated model, valueObject, and port sources u2014 no shared modules and no cross-pipeline imports; package names stay newspipe.* in both trees; ingestion runs the fast path (fetch, publish, raw-only append, seen marked only after write); enrichment consumes the raw Kafka topic and Delta-merges enriched rows by id; v2 layer partition holds inside each tree; legacy root src/ plus root build.sbt stay untouched and green.

@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+CU-001 scaffolds the standalone ingestion pipeline: own build.sbt plus build.properties plus application.conf subset (no opencode section) under pipelines/ingestion/. Requires nothing; consumed by cu-002 through cu-004. This CU starts feat-4-style standalone criterion 1 for the ingestion tree.

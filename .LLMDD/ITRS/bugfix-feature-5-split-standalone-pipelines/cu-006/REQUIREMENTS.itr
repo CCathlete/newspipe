@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-006
+
+CU-006 adds the enrichment slow-path logic: KafkaRawConsumer with manual offset commits, DeltaMergeSink merging enriched rows by id, EnrichmentService skipping failures without committing them away, subset Env with group plus opencode keys, container, and thin Main. Requires cu-005. Consumed by cu-007. This CU satisfies the logic half of bugfix-feature-5 criterion 3.

@@ -1,0 +1,7 @@
+[
+  {"wave": 1, "description": "Both scaffolds in parallel on disjoint trees (ingestion plus enrichment build files)", "cus": ["cu-001", "cu-005"]},
+  {"wave": 2, "description": "Source trees in parallel: ingestion copies plus enrichment logic (disjoint trees)", "cus": ["cu-002", "cu-006"]},
+  {"wave": 3, "description": "Ingestion service wiring plus standalone compile", "cus": ["cu-003"]},
+  {"wave": 4, "description": "Test trees in parallel: ingestion specs plus enrichment specs", "cus": ["cu-004", "cu-007"]},
+  {"wave": 5, "description": "Checklist record plus cross-tree audits last and alone", "cus": ["cu-008"]}
+]

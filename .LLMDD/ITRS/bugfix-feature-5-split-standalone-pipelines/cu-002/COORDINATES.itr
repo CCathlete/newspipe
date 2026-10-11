@@ -1,0 +1,3 @@
+# COORDINATES: cu-002
+
+FILE.domain/models.py, FILE.domain/interfaces.py, FILE.infrastructure/kafka.py. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the files below are new duplications traced from them.

@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-006
+
+AC-3a (criterion 3): `sbt compile` exits 0 with workdir pipelines/enrichment. AC-3b (criterion 3): `grep -n '^import' pipelines/enrichment/src/main/scala/newspipe/application/services/EnrichmentService.scala` prints only ports, models, logging, and java.time imports (no infrastructure import in the service).

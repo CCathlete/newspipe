@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-007
+
+AC-3c (criterion 3): `sbt test` passes all suites with workdir pipelines/enrichment.

@@ -1,0 +1,22 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. Copy src/main/scala/newspipe/domain/valueObjects/GeoArea.scala to pipelines/ingestion/src/main/scala/newspipe/domain/valueObjects/GeoArea.scala verbatim.
+Prove: `diff src/main/scala/newspipe/domain/valueObjects/GeoArea.scala pipelines/ingestion/src/main/scala/newspipe/domain/valueObjects/GeoArea.scala` exits 0.
+2. Copy src/main/scala/newspipe/domain/valueObjects/Urgency.scala to pipelines/ingestion/src/main/scala/newspipe/domain/valueObjects/Urgency.scala verbatim.
+Prove: `diff src/main/scala/newspipe/domain/valueObjects/Urgency.scala pipelines/ingestion/src/main/scala/newspipe/domain/valueObjects/Urgency.scala` exits 0.
+3. Copy src/main/scala/newspipe/domain/models/RssItem.scala to pipelines/ingestion/src/main/scala/newspipe/domain/models/RssItem.scala verbatim.
+Prove: `diff src/main/scala/newspipe/domain/models/RssItem.scala pipelines/ingestion/src/main/scala/newspipe/domain/models/RssItem.scala` exits 0.
+4. Copy src/main/scala/newspipe/domain/models/Enrichment.scala to pipelines/ingestion/src/main/scala/newspipe/domain/models/Enrichment.scala verbatim.
+Prove: `diff src/main/scala/newspipe/domain/models/Enrichment.scala pipelines/ingestion/src/main/scala/newspipe/domain/models/Enrichment.scala` exits 0.
+5. Copy src/main/scala/newspipe/domain/models/BronzeUnit.scala to pipelines/ingestion/src/main/scala/newspipe/domain/models/BronzeUnit.scala verbatim.
+Prove: `diff src/main/scala/newspipe/domain/models/BronzeUnit.scala pipelines/ingestion/src/main/scala/newspipe/domain/models/BronzeUnit.scala` exits 0.
+6. Copy src/main/scala/newspipe/application/ports/Ports.scala to pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala verbatim.
+Prove: `diff src/main/scala/newspipe/application/ports/Ports.scala pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala` exits 0.
+7. Copy src/main/scala/newspipe/infrastructure/rss/RomeRssClient.scala to pipelines/ingestion/src/main/scala/newspipe/infrastructure/rss/RomeRssClient.scala verbatim.
+Prove: `diff src/main/scala/newspipe/infrastructure/rss/RomeRssClient.scala pipelines/ingestion/src/main/scala/newspipe/infrastructure/rss/RomeRssClient.scala` exits 0.
+8. Copy src/main/scala/newspipe/infrastructure/message-queue/KafkaRawPublisher.scala to pipelines/ingestion/src/main/scala/newspipe/infrastructure/message-queue/KafkaRawPublisher.scala verbatim.
+Prove: `diff src/main/scala/newspipe/infrastructure/message-queue/KafkaRawPublisher.scala pipelines/ingestion/src/main/scala/newspipe/infrastructure/message-queue/KafkaRawPublisher.scala` exits 0.
+9. Copy src/main/scala/newspipe/infrastructure/bronze/DeltaBronzeSink.scala to pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/DeltaBronzeSink.scala verbatim.
+Prove: `diff src/main/scala/newspipe/infrastructure/bronze/DeltaBronzeSink.scala pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/DeltaBronzeSink.scala` exits 0.
+Do NOT touch: build.sbt, src/main, src/test, pipelines/ingestion/build.sbt, pipelines/ingestion/src/main/resources, .LLMDD.
+Stop when all nine duplications exist byte-identical to their sources; the trimmed service plus Env plus container plus Main belong to cu-003.

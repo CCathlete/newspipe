@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-007
+
+CU-007 adds the enrichment test tree: unchanged copies of the parser spec plus prompt resource, and a new merge spec proving stubbed service skips failures and Delta merge updates one row without duplicating. Requires cu-005 and cu-006. This CU satisfies bugfix-feature-5 criterion 3 test half.

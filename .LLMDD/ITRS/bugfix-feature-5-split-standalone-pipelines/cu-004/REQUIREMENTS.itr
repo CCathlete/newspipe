@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-004
+
+CU-004 adds the ingestion test tree: unchanged copies of the RSS plus bronze suites plus fixture, and a new service spec proving raw-only writes, second-run dedup, and retry after a sink failure (bug-4 proof for the fast path). Requires cu-001 through cu-003. This CU satisfies bugfix-feature-5 criterion 2 test half.

@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-003
+
+CU-003 adds the ingestion fast-path logic: trimmed IngestionService without the enrich step that marks seen only after a successful sink write (bug-4 fix for this path), subset Env without opencode keys, trimmed container without the enrichment client, and thin entry point Main. Requires cu-001 and cu-002. Consumed by cu-004. This CU satisfies the logic half of bugfix-feature-5 criterion 2.

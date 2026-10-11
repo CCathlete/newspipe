@@ -1,0 +1,3 @@
+# COORDINATES: cu-005
+
+FILE.infrastructure/litellm_client.py, FILE.control/main.py, FILE.domain/interfaces.py. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the scaffold plus Ports below are new creations traced from them.

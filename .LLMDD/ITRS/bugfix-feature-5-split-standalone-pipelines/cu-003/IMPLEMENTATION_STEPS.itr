@@ -1,0 +1,126 @@
+# IMPLEMENTATION_STEPS: cu-003
+
+1. Create pipelines/ingestion/src/main/scala/newspipe/application/services/IngestionService.scala with exactly the content in the scala fence below (fetch, publish, write raw-only rows, mark seen only after write).
+```scala
+package newspipe.application.services
+
+import com.typesafe.scalalogging.LazyLogging
+import newspipe.application.ports.*
+import newspipe.domain.models.*
+
+import java.time.Instant
+import scala.collection.mutable
+
+final class IngestionService(
+    rss: RssSource,
+    sink: BronzeSink,
+    raw: RawPublisher
+) extends LazyLogging:
+  private val seen = mutable.HashSet.empty[String]
+
+  def runOnce(now: Instant): Int =
+    val items = rss.fetch()
+    raw.publish(items)
+    val fresh = items.filterNot(it => seen(BronzeUnit.idFor(it)))
+    if fresh.isEmpty then 0
+    else
+      val units = fresh.map(it => BronzeUnit.fromRss(it, Enrichment.empty, now))
+      val n = sink.write(units)
+      units.foreach(u => seen.add(u.id))
+      n
+```
+Prove: `grep -n 'units.foreach(u => seen.add(u.id))' pipelines/ingestion/src/main/scala/newspipe/application/services/IngestionService.scala` prints the mark-after-write line.
+2. Create pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala with exactly the content in the scala fence below (feeds, poll interval, kafka, bronze, spark; no opencode keys).
+```scala
+package newspipe.infrastructure.env
+
+import com.typesafe.config.{Config, ConfigFactory}
+
+import scala.jdk.CollectionConverters.*
+
+final case class EnvConfig(
+    feeds: List[String],
+    pollIntervalSeconds: Long,
+    kafkaBootstrap: String,
+    rawTopic: String,
+    bronzePath: String,
+    sparkMaster: String
+)
+
+object Env:
+  def load(): EnvConfig =
+    load(ConfigFactory.load().getConfig("newspipe"))
+
+  def load(cfg: Config): EnvConfig =
+    EnvConfig(
+      feeds = sys.env.get("NEWSPIPE_FEEDS").map(_.split(",").toList.map(_.trim).filter(_.nonEmpty))
+        .getOrElse(cfg.getStringList("feeds").asScala.toList),
+      pollIntervalSeconds = sys.env.get("NEWSPIPE_POLL_INTERVAL_SECONDS").map(_.toLong)
+        .getOrElse(cfg.getLong("poll-interval-seconds")),
+      kafkaBootstrap = sys.env.get("NEWSPIPE_KAFKA_BOOTSTRAP")
+        .getOrElse(cfg.getString("kafka.bootstrap-servers")),
+      rawTopic = sys.env.get("NEWSPIPE_RAW_TOPIC")
+        .getOrElse(cfg.getString("kafka.raw-topic")),
+      bronzePath = sys.env.get("NEWSPIPE_BRONZE_PATH")
+        .getOrElse(cfg.getString("bronze.path")),
+      sparkMaster = sys.env.get("NEWSPIPE_SPARK_MASTER")
+        .getOrElse(cfg.getString("spark.master"))
+    )
+```
+Prove: `grep -c 'NEWSPIPE_' pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala` prints 6.
+3. Create pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala with exactly the content in the scala fence below (spark, rss, sink, raw, service; no enrichment client).
+```scala
+package newspipe.control.dependencyInjection
+
+import newspipe.application.services.IngestionService
+import newspipe.infrastructure.bronze.DeltaBronzeSink
+import newspipe.infrastructure.env.EnvConfig
+import newspipe.infrastructure.messagequeue.KafkaRawPublisher
+import newspipe.infrastructure.rss.RomeRssClient
+import org.apache.spark.sql.SparkSession
+
+final class AppContainer(env: EnvConfig):
+  val spark: SparkSession = SparkSession.builder()
+    .appName("newspipe-ingestion")
+    .master(env.sparkMaster)
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+    .getOrCreate()
+  val rss = new RomeRssClient(env.feeds)
+  val sink = new DeltaBronzeSink(spark, env.bronzePath)
+  val raw = new KafkaRawPublisher(env.kafkaBootstrap, env.rawTopic)
+  val service = new IngestionService(rss, sink, raw)
+
+  def close(): Unit =
+    raw.close()
+    spark.stop()
+```
+Prove: `grep -n 'new IngestionService(rss, sink, raw)' pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` prints the wiring line.
+4. Create pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala with exactly the content in the scala fence below.
+```scala
+package newspipe.control.entryPoint
+
+import com.typesafe.scalalogging.LazyLogging
+import newspipe.control.dependencyInjection.AppContainer
+import newspipe.infrastructure.env.Env
+
+import java.time.{Duration, Instant}
+
+object Main extends LazyLogging:
+  def main(args: Array[String]): Unit =
+    val env = Env.load()
+    val app = new AppContainer(env)
+    sys.addShutdownHook { app.close() }
+    val poll = Duration.ofSeconds(env.pollIntervalSeconds)
+    logger.info(s"newspipe-ingestion polling ${env.feeds.size} feeds every $poll")
+    while true do
+      try
+        val n = app.service.runOnce(Instant.now())
+        logger.info(s"poll wrote $n bronze units")
+      catch case e: Exception => logger.error("poll iteration failed", e)
+      Thread.sleep(poll.toMillis)
+```
+Prove: `grep -n 'newspipe-ingestion polling' pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala` prints the boot line.
+Prove: `sbt compile` exits 0 when run with workdir pipelines/ingestion.
+Do NOT touch: build.sbt, src/main, src/test, pipelines/enrichment, .LLMDD.
+Stop when the four logic files exist with the fenced content and sbt compile exits 0 inside pipelines/ingestion; tests belong to cu-004.

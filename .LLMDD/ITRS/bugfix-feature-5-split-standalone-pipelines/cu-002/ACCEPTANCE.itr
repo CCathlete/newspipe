@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-002
+
+AC-dup (criteria 1, 4): all nine `diff` proves exit 0 and `grep -rln 'pipelines/enrichment' pipelines/ingestion/` prints nothing.

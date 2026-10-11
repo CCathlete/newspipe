@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-005
+
+CU-005 scaffolds the standalone enrichment pipeline: own build.sbt plus build.properties plus application.conf subset (kafka group, bronze, spark, opencode; no feeds), duplicated domain sources, Ports extended with RawConsumer plus BronzeMergeSink traits, and the unchanged OpenCodeCliClient copy. Requires nothing; consumed by cu-006 and cu-007.

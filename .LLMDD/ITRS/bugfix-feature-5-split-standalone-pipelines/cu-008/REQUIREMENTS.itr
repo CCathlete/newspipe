@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-008
+
+CU-008 records the split in the checklist and runs the cross-tree audits: both standalone builds plus the legacy root build green, no cross-pipeline imports, legacy tree intact. Requires cu-001 through cu-007. This CU satisfies bugfix-feature-5 criteria 4, 5, and 6.

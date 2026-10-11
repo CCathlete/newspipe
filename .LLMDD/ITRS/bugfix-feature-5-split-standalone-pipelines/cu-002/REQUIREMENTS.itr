@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+CU-002 duplicates the unchanged ingestion sources into the new tree: domain valueObjects plus models, application ports, and the three fast-path infrastructure clients (rss, message-queue, bronze). Requires cu-001. Consumed by cu-003 and cu-004.

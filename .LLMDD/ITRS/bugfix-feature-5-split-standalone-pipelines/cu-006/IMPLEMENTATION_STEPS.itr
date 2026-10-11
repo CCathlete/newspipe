@@ -1,0 +1,201 @@
+# IMPLEMENTATION_STEPS: cu-006
+
+1. Create pipelines/enrichment/src/main/scala/newspipe/infrastructure/kafka/KafkaRawConsumer.scala with exactly the content in the scala fence below (circe decoders, manual-commit consumer on the raw topic).
+```scala
+package newspipe.infrastructure.kafka
+
+import io.circe.Decoder
+import io.circe.generic.semiauto.deriveDecoder
+import io.circe.parser.*
+import newspipe.application.ports.RawConsumer
+import newspipe.domain.models.RssItem
+import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.common.serialization.StringDeserializer
+
+import java.time.{Duration, Instant}
+import java.util.Properties
+import scala.jdk.CollectionConverters.*
+
+object KafkaConsumerCodecs:
+  given Decoder[Instant] = Decoder.decodeString.map(Instant.parse)
+  given Decoder[RssItem] = deriveDecoder[RssItem]
+
+final class KafkaRawConsumer(bootstrapServers: String, topic: String, groupId: String) extends RawConsumer with AutoCloseable:
+  private val consumer = new KafkaConsumer[String, String](KafkaRawConsumer.props(bootstrapServers, groupId))
+  consumer.subscribe(java.util.List.of(topic))
+
+  def poll(): List[RssItem] =
+    import KafkaConsumerCodecs.given
+    consumer.poll(Duration.ofSeconds(10)).asScala.toList.flatMap { rec =>
+      parse(rec.value()).toOption.flatMap(_.as[RssItem].toOption)
+    }
+
+  def commit(): Unit = consumer.commitSync()
+
+  def close(): Unit = consumer.close()
+
+object KafkaRawConsumer:
+  def props(bootstrapServers: String, groupId: String): Properties =
+    val p = new Properties()
+    p.put("bootstrap.servers", bootstrapServers)
+    p.put("group.id", groupId)
+    p.put("key.deserializer", classOf[StringDeserializer].getName)
+    p.put("value.deserializer", classOf[StringDeserializer].getName)
+    p.put("enable.auto.commit", "false")
+    p.put("auto.offset.reset", "earliest")
+    p
+```
+Prove: `grep -n 'enable.auto.commit", "false"' pipelines/enrichment/src/main/scala/newspipe/infrastructure/kafka/KafkaRawConsumer.scala` prints the manual-commit line.
+2. Create pipelines/enrichment/src/main/scala/newspipe/infrastructure/bronze/DeltaMergeSink.scala with exactly the content in the scala fence below (MERGE enriched rows into bronze on id).
+```scala
+package newspipe.infrastructure.bronze
+
+import newspipe.application.ports.BronzeMergeSink
+import newspipe.domain.models.BronzeUnit
+import org.apache.spark.sql.SparkSession
+
+final class DeltaMergeSink(spark: SparkSession, bronzePath: String) extends BronzeMergeSink:
+
+  def merge(units: List[BronzeUnit]): Int =
+    if units.isEmpty then 0
+    else
+      import spark.implicits.*
+      val updates = units.map { u =>
+        (u.id, u.summary, u.countries.toArray, u.geoArea.value, u.topics.toArray, u.actors.toArray, u.urgency.value, u.language)
+      }.toDF("id", "summary", "countries", "geo_area", "topics", "actors", "urgency", "language")
+      updates.createOrReplaceTempView("updates")
+      spark.sql(s"""MERGE INTO delta.`$bronzePath` AS bronze USING updates ON bronze.id = updates.id WHEN MATCHED THEN UPDATE SET bronze.summary = updates.summary, bronze.countries = updates.countries, bronze.geo_area = updates.geo_area, bronze.topics = updates.topics, bronze.actors = updates.actors, bronze.urgency = updates.urgency, bronze.language = updates.language""").count()
+      units.size
+```
+Prove: `grep -n 'MERGE INTO' pipelines/enrichment/src/main/scala/newspipe/infrastructure/bronze/DeltaMergeSink.scala` prints the merge line.
+3. Create pipelines/enrichment/src/main/scala/newspipe/application/services/EnrichmentService.scala with exactly the content in the scala fence below (poll, enrich, merge successes, skip failures, commit).
+```scala
+package newspipe.application.services
+
+import com.typesafe.scalalogging.LazyLogging
+import newspipe.application.ports.{BronzeMergeSink, EnrichmentPort, RawConsumer}
+import newspipe.domain.models.BronzeUnit
+import java.time.Instant
+
+final class EnrichmentService(
+    consumer: RawConsumer,
+    enrich: EnrichmentPort,
+    sink: BronzeMergeSink
+) extends LazyLogging:
+  def runOnce(now: Instant): Int =
+    val items = consumer.poll()
+    val merged = items.flatMap { it =>
+      enrich.enrich(it) match
+        case Right(en) => Some(BronzeUnit.fromRss(it, en, now))
+        case Left(err) =>
+          logger.warn(s"enrichment failed for ${it.link}: ${err.getMessage}; leaving unenriched")
+          None
+    }
+    val n = sink.merge(merged)
+    consumer.commit()
+    n
+```
+Prove: `grep -n 'consumer.commit()' pipelines/enrichment/src/main/scala/newspipe/application/services/EnrichmentService.scala` prints the commit line.
+4. Create pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala with exactly the content in the scala fence below (kafka group, bronze, spark, opencode; no feeds).
+```scala
+package newspipe.infrastructure.env
+
+import com.typesafe.config.{Config, ConfigFactory}
+
+import scala.jdk.CollectionConverters.*
+
+final case class EnvConfig(
+    pollIntervalSeconds: Long,
+    kafkaBootstrap: String,
+    rawTopic: String,
+    groupId: String,
+    bronzePath: String,
+    sparkMaster: String,
+    opencodeModel: String,
+    opencodeTimeoutSeconds: Long
+)
+
+object Env:
+  def load(): EnvConfig =
+    load(ConfigFactory.load().getConfig("newspipe"))
+
+  def load(cfg: Config): EnvConfig =
+    EnvConfig(
+      pollIntervalSeconds = sys.env.get("NEWSPIPE_POLL_INTERVAL_SECONDS").map(_.toLong)
+        .getOrElse(cfg.getLong("poll-interval-seconds")),
+      kafkaBootstrap = sys.env.get("NEWSPIPE_KAFKA_BOOTSTRAP")
+        .getOrElse(cfg.getString("kafka.bootstrap-servers")),
+      rawTopic = sys.env.get("NEWSPIPE_RAW_TOPIC")
+        .getOrElse(cfg.getString("kafka.raw-topic")),
+      groupId = sys.env.get("NEWSPIPE_GROUP_ID")
+        .getOrElse(cfg.getString("kafka.group-id")),
+      bronzePath = sys.env.get("NEWSPIPE_BRONZE_PATH")
+        .getOrElse(cfg.getString("bronze.path")),
+      sparkMaster = sys.env.get("NEWSPIPE_SPARK_MASTER")
+        .getOrElse(cfg.getString("spark.master")),
+      opencodeModel = sys.env.get("NEWSPIPE_OPENCODE_MODEL")
+        .getOrElse(cfg.getString("opencode.model")),
+      opencodeTimeoutSeconds = sys.env.get("NEWSPIPE_OPENCODE_TIMEOUT_SECONDS").map(_.toLong)
+        .getOrElse(cfg.getLong("opencode.timeout-seconds"))
+    )
+```
+Prove: `grep -c 'NEWSPIPE_' pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala` prints 8.
+5. Create pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala with exactly the content in the scala fence below.
+```scala
+package newspipe.control.dependencyInjection
+
+import newspipe.application.services.EnrichmentService
+import newspipe.infrastructure.bronze.DeltaMergeSink
+import newspipe.infrastructure.env.EnvConfig
+import newspipe.infrastructure.kafka.KafkaRawConsumer
+import newspipe.infrastructure.llmdataenricher.OpenCodeCliClient
+import org.apache.spark.sql.SparkSession
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
+
+final class AppContainer(env: EnvConfig):
+  val spark: SparkSession = SparkSession.builder()
+    .appName("newspipe-enrichment")
+    .master(env.sparkMaster)
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+    .getOrCreate()
+  val consumer = new KafkaRawConsumer(env.kafkaBootstrap, env.rawTopic, env.groupId)
+  val enrich = new OpenCodeCliClient(env.opencodeModel, FiniteDuration(env.opencodeTimeoutSeconds, TimeUnit.SECONDS))
+  val sink = new DeltaMergeSink(spark, env.bronzePath)
+  val service = new EnrichmentService(consumer, enrich, sink)
+
+  def close(): Unit =
+    consumer.close()
+    spark.stop()
+```
+Prove: `grep -n 'new EnrichmentService(consumer, enrich, sink)' pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` prints the wiring line.
+6. Create pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala with exactly the content in the scala fence below.
+```scala
+package newspipe.control.entryPoint
+
+import com.typesafe.scalalogging.LazyLogging
+import newspipe.control.dependencyInjection.AppContainer
+import newspipe.infrastructure.env.Env
+
+import java.time.{Duration, Instant}
+
+object Main extends LazyLogging:
+  def main(args: Array[String]): Unit =
+    val env = Env.load()
+    val app = new AppContainer(env)
+    sys.addShutdownHook { app.close() }
+    val poll = Duration.ofSeconds(env.pollIntervalSeconds)
+    logger.info(s"newspipe-enrichment polling every $poll")
+    while true do
+      try
+        val n = app.service.runOnce(Instant.now())
+        logger.info(s"poll merged $n enriched units")
+      catch case e: Exception => logger.error("poll iteration failed", e)
+      Thread.sleep(poll.toMillis)
+```
+Prove: `grep -n 'newspipe-enrichment polling' pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala` prints the boot line.
+Prove: `sbt compile` exits 0 when run with workdir pipelines/enrichment.
+Do NOT touch: build.sbt, src/main, src/test, pipelines/ingestion, .LLMDD.
+Stop when the six logic files exist with the fenced content and sbt compile exits 0 inside pipelines/enrichment; tests belong to cu-007.
