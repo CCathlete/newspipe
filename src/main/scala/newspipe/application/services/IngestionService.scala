@@ -1,7 +1,8 @@
-package newspipe.application
+package newspipe.application.services
 
 import com.typesafe.scalalogging.LazyLogging
-import newspipe.domain.*
+import newspipe.application.ports.*
+import newspipe.domain.models.*
 
 import java.time.Instant
 import scala.collection.mutable

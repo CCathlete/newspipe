@@ -1,29 +1,8 @@
-package newspipe.domain
+package newspipe.domain.models
+
+import newspipe.domain.valueObjects.{GeoArea, Urgency}
 
 import java.time.Instant
-
-final case class RssItem(
-    guid: String,
-    feedUrl: String,
-    title: String,
-    link: String,
-    publishedAt: Option[Instant],
-    description: String
-)
-
-final case class Enrichment(
-    summary: String,
-    countries: List[String],
-    geoArea: String,
-    topics: List[String],
-    actors: List[String],
-    urgency: String,
-    language: String
-)
-
-object Enrichment:
-  val empty: Enrichment =
-    Enrichment("", Nil, "unknown", Nil, Nil, "low", "en")
 
 final case class BronzeUnit(
     id: String,
@@ -35,10 +14,10 @@ final case class BronzeUnit(
     ingestedAt: Instant,
     summary: String,
     countries: List[String],
-    geoArea: String,
+    geoArea: GeoArea,
     topics: List[String],
     actors: List[String],
-    urgency: String,
+    urgency: Urgency,
     language: String
 )
 

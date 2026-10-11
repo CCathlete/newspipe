@@ -1,6 +1,6 @@
 # bugfix-feature-3: scala-layer-layout
 
-- Status: Proposed
+- Status: Implemented
 - Created: 2026-10-11
 - Feature ID: bugfix-feature-3-scala-layer-layout
 
@@ -33,7 +33,7 @@ Scope (out):
 
 ## Implementation status
 
-Proposed. No CUs assigned yet.
+Implemented in 1fe3e25. All 8 CUs (cu-001..cu-008) implemented across 7 waves, 0 escalations; `sbt compile` green and `sbt test` 5/5 green (lead review plus independent verify 2026-10-11). ITR directory: .LLMDD/ITRS/bugfix-feature-3-scala-layer-layout/.
 
 ## Acceptance criteria
 

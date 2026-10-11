@@ -1,9 +1,10 @@
-package newspipe.infrastructure
+package newspipe.infrastructure.raw
 
 import io.circe.Encoder
 import io.circe.generic.semiauto.deriveEncoder
 import io.circe.syntax.*
-import newspipe.domain.{RawPublisher, RssItem}
+import newspipe.application.ports.RawPublisher
+import newspipe.domain.models.RssItem
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 
 import java.time.Instant

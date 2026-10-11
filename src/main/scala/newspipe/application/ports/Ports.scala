@@ -1,4 +1,6 @@
-package newspipe.domain
+package newspipe.application.ports
+
+import newspipe.domain.models.{BronzeUnit, Enrichment, RssItem}
 
 trait RssSource:
   def fetch(): List[RssItem]

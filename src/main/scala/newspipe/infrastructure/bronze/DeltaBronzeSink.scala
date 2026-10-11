@@ -1,6 +1,7 @@
-package newspipe.infrastructure
+package newspipe.infrastructure.bronze
 
-import newspipe.domain.{BronzeSink, BronzeUnit}
+import newspipe.application.ports.BronzeSink
+import newspipe.domain.models.BronzeUnit
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.types.*
 
@@ -20,10 +21,10 @@ final class DeltaBronzeSink(spark: SparkSession, bronzePath: String) extends Bro
           u.ingestedAt.toString,
           u.summary,
           u.countries.toArray,
-          u.geoArea,
+          u.geoArea.value,
           u.topics.toArray,
           u.actors.toArray,
-          u.urgency,
+          u.urgency.value,
           u.language,
           u.ingestedAt.atZone(java.time.ZoneOffset.UTC).toLocalDate.toString
         )

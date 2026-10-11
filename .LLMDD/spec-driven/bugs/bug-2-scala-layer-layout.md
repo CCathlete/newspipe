@@ -1,8 +1,8 @@
 # bug-2: scala-layer-layout
 
-- Status: Open
+- Status: Resolved
 - Created: 2026-10-11
-- Resolved: -
+- Resolved: 2026-10-11
 - Bug ID: bug-2-scala-layer-layout
 - Related features: -
 
@@ -37,14 +37,12 @@ the layer roots, predating enforcement of the layout demands.
 
 ## Resolution status
 
-Open. No fix merged.
+Resolved in 1fe3e25.
 
 ## Fix summary (Resolved only)
 
-Pending.
+V2 layer partition per bugfix-feature-3-scala-layer-layout (cu-001..cu-008): models split plus GeoArea/Urgency opaque types, ports moved to application/ports, one infra folder per port plus env/Env singleton with eight NEWSPIPE_* overrides, AppContainer DI plus thin entryPoint/Main. Fix commit: 1fe3e25.
 
 ## Tests proving resolution (Resolved only)
 
-Pending. Suggested: `find src/main/scala/newspipe -maxdepth 2 -type f`
-asserting zero files at depth 1 under each layer root, package assertions
-per demand, `sbt compile` plus `sbt test` green after the moves.
+Proven by commit 1fe3e25: `find src/main/scala/newspipe/domain src/main/scala/newspipe/application src/main/scala/newspipe/infrastructure src/main/scala/newspipe/control -maxdepth 1 -type f | wc -l` prints 0 (was 8 files); `sbt compile` exits 0; `sbt test` passes 5/5 (failing-before: 8 files in layer roots, no env/ directory; passing-after: v2 partition, all suites green).

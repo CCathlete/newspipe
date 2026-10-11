@@ -1,7 +1,7 @@
 package newspipe
 
 import com.sun.net.httpserver.HttpServer
-import newspipe.infrastructure.RomeRssClient
+import newspipe.infrastructure.rss.RomeRssClient
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 

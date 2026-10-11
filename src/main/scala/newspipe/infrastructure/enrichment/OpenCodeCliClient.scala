@@ -1,7 +1,9 @@
-package newspipe.infrastructure
+package newspipe.infrastructure.enrichment
 
 import io.circe.parser.*
-import newspipe.domain.{Enrichment, EnrichmentPort, RssItem}
+import newspipe.application.ports.EnrichmentPort
+import newspipe.domain.models.{Enrichment, RssItem}
+import newspipe.domain.valueObjects.{GeoArea, Urgency}
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
@@ -55,9 +57,9 @@ object OpenCodeCliClient:
     Enrichment(
       summary = c.downField("summary").as[String].getOrElse(""),
       countries = c.downField("countries").as[List[String]].getOrElse(Nil),
-      geoArea = c.downField("geoArea").as[String].getOrElse("unknown"),
+      geoArea = GeoArea(c.downField("geoArea").as[String].getOrElse("unknown")),
       topics = c.downField("topics").as[List[String]].getOrElse(Nil),
       actors = c.downField("actors").as[List[String]].getOrElse(Nil),
-      urgency = c.downField("urgency").as[String].getOrElse("low"),
+      urgency = Urgency(c.downField("urgency").as[String].getOrElse("low")),
       language = c.downField("language").as[String].getOrElse("en")
     )

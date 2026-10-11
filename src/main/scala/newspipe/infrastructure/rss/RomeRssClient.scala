@@ -1,7 +1,8 @@
-package newspipe.infrastructure
+package newspipe.infrastructure.rss
 
 import com.rometools.rome.io.{SyndFeedInput, XmlReader}
-import newspipe.domain.{RssItem, RssSource}
+import newspipe.application.ports.RssSource
+import newspipe.domain.models.RssItem
 
 import java.io.ByteArrayInputStream
 import java.net.URI

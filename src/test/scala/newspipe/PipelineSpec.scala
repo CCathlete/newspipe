@@ -3,8 +3,10 @@
 // E2E (code lead runs in verify): `grep -rn "^import" src/main/scala/newspipe/domain/` must show no infrastructure/kafka/spark/delta/rome imports
 package newspipe
 
-import newspipe.application.IngestionService
-import newspipe.domain.*
+import newspipe.application.ports.*
+import newspipe.application.services.IngestionService
+import newspipe.domain.models.*
+import newspipe.domain.valueObjects.{GeoArea, Urgency}
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -22,7 +24,7 @@ class PipelineSpec extends AnyFunSpec with Matchers:
         def publish(items: List[RssItem]): Unit = published = items
       val enrich = new EnrichmentPort:
         def enrich(i: RssItem): Either[Throwable, Enrichment] =
-          if i.guid == "g2" then Left(new RuntimeException("boom")) else Right(Enrichment("S", Nil, "Global", Nil, Nil, "low", "en"))
+          if i.guid == "g2" then Left(new RuntimeException("boom")) else Right(Enrichment("S", Nil, GeoArea("Global"), Nil, Nil, Urgency("low"), "en"))
       val sink = new BronzeSink:
         def write(units: List[BronzeUnit]): Int =
           written = units

@@ -1,7 +1,8 @@
 package newspipe
 
-import newspipe.domain.{BronzeUnit, Enrichment, RssItem}
-import newspipe.infrastructure.DeltaBronzeSink
+import newspipe.domain.models.{BronzeUnit, Enrichment, RssItem}
+import newspipe.domain.valueObjects.{GeoArea, Urgency}
+import newspipe.infrastructure.bronze.DeltaBronzeSink
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funspec.AnyFunSpec
@@ -25,7 +26,7 @@ class DeltaBronzeSpec extends AnyFunSpec with Matchers with BeforeAndAfterAll:
     it("writes data + metadata as one unit per row") {
       val now = Instant.parse("2026-10-10T10:00:00Z")
       val item = RssItem("g1", "https://feed/x", "T", "https://a/1", None, "Body text")
-      val en = Enrichment("Sum.", List("Iran"), "Middle East", List("energy"), Nil, "high", "en")
+      val en = Enrichment("Sum.", List("Iran"), GeoArea("Middle East"), List("energy"), Nil, Urgency("high"), "en")
       val units = List(BronzeUnit.fromRss(item, en, now), BronzeUnit.fromRss(item.copy(guid = "g2"), en, now))
       val path = Files.createTempDirectory("bronze-test").toString
       new DeltaBronzeSink(spark, path).write(units) shouldBe 2

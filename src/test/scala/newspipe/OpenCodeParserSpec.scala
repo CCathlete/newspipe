@@ -1,6 +1,7 @@
 package newspipe
 
-import newspipe.infrastructure.OpenCodeCliClient
+import newspipe.domain.valueObjects.{GeoArea, Urgency}
+import newspipe.infrastructure.enrichment.OpenCodeCliClient
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -14,15 +15,15 @@ class OpenCodeParserSpec extends AnyFunSpec with Matchers:
       val e = OpenCodeCliClient.parseEvents(events)
       e.summary shouldBe "Strait drills."
       e.countries shouldBe List("Iran")
-      e.geoArea shouldBe "Middle East"
+      e.geoArea.value shouldBe "Middle East"
       e.topics shouldBe List("energy")
-      e.urgency shouldBe "high"
+      e.urgency.value shouldBe "high"
     }
     it("defaults missing keys") {
       val e = OpenCodeCliClient.parseEnrichment("{\"summary\":\"x\"}")
       e.countries shouldBe Nil
-      e.geoArea shouldBe "unknown"
-      e.urgency shouldBe "low"
+      e.geoArea.value shouldBe "unknown"
+      e.urgency.value shouldBe "low"
       e.language shouldBe "en"
     }
   }
