@@ -39,4 +39,6 @@ object KafkaRawConsumer:
     p.put("value.deserializer", classOf[StringDeserializer].getName)
     p.put("enable.auto.commit", "false")
     p.put("auto.offset.reset", "earliest")
+    p.put("max.poll.interval.ms", "3600000")
+    p.put("max.poll.records", "20")
     p
