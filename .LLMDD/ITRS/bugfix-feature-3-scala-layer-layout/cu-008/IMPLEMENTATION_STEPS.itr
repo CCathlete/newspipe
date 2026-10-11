@@ -1,0 +1,41 @@
+# IMPLEMENTATION_STEPS: cu-008
+
+1. Rewrite .LLMDD/ARCH.scala3_compliance_checklist.md with exactly the content in the markdown fence below. Audit evidence paths for this refresh: src/main/scala/newspipe/application/ports/Ports.scala, src/main/scala/newspipe/control/entryPoint/Main.scala, src/main/scala/newspipe/infrastructure/env/Env.scala, build.sbt.
+```markdown
+# Scala 3 compliance checklist
+- Feature: bugfix-feature-2-arch-scala3-compliance
+- Layout restructure: bugfix-feature-3-scala-layer-layout
+- Fixes: bug-1-arch-scala3-compliance, bug-2-scala-layer-layout
+- Scala: 3.3.4, sbt 1.10.7, Java 21
+
+## 1. given resolution under Scala 3
+Verdict: PASS.
+Evidence: givens live in object KafkaCodecs in src/main/scala/newspipe/infrastructure/raw/KafkaRawPublisher.scala as Encoder[Instant] plus Encoder[RssItem]. Call site imports them explicitly with import KafkaCodecs.given in publish. No package-object givens remain on the Scala path. No implicit keyword remains in src/main/scala.
+Criterion: scalafixAll reports no given-in-module ambiguity.
+
+## 2. Trait form for domain ports
+Verdict: MOVED per LAYER_LAYOUT.
+Evidence: ports RssSource, EnrichmentPort, BronzeSink, RawPublisher are traits in src/main/scala/newspipe/application/ports/Ports.scala. Domain holds models plus valueObjects only. Dependency inversion unchanged: services and infrastructure depend on the port traits.
+Criterion: Ports.scala lists four traits; domain grep shows no infrastructure imports.
+
+## 3. Cross-version dependency shim
+Verdict: DOCUMENTED.
+Evidence: build.sbt loads spark-sql 3.5.1 Provided plus delta-spark 3.1.0 through CrossVersion.for3Use2_13. Upstream publishes Scala 2.13 artifacts only. ExclusionRule removes scala-xml_3 so scala-xml_2.13 satisfies both Spark and ScalaTest. build.sbt comment lines point here.
+Criterion: sbt compile exits 0 with shim in place.
+
+## 4. Scala 3 boundary audit
+Verdict: PASS under v2 partition.
+Evidence: domain/models plus domain/valueObjects import stdlib plus java.time only. application/services/IngestionService.scala imports application.ports plus domain.models plus logging only. infrastructure port folders plus env/ own all external imports. control/dependencyInjection/AppContainer.scala owns construction; control/entryPoint/Main.scala reads config only via Env. No .scala file sits directly in any layer root.
+Criterion: find maxdepth 1 under each layer root prints zero files; sbt compile green.
+
+## 5. then-do control syntax consistency
+Verdict: PASS.
+Evidence: control flow uses Scala 3 form at src/main/scala/newspipe/control/entryPoint/Main.scala (while true do) with try/catch case, plus src/main/scala/newspipe/application/services/IngestionService.scala (match with case) and if units.isEmpty then. No while-paren form found in src/main/scala.
+Criterion: search for paren-while returns zero hits.
+```
+Prove: `grep -c '^## ' .LLMDD/ARCH.scala3_compliance_checklist.md` prints 5.
+2. Run the layout audit over src/main/scala/newspipe plus the checklist cross-checks against src/main/scala/newspipe/application/ports/Ports.scala and src/main/scala/newspipe/infrastructure/env/Env.scala.
+Prove: `find src/main/scala/newspipe -maxdepth 1 -type f | wc -l` prints 0.
+Prove: `find src/main/scala/newspipe/domain src/main/scala/newspipe/application src/main/scala/newspipe/infrastructure src/main/scala/newspipe/control -maxdepth 1 -type f | wc -l` prints 0.
+Do NOT touch: src/main, src/test, build.sbt, project/build.properties.
+Stop when the checklist carries v2 sections 2 and 4 and both find audits print 0.

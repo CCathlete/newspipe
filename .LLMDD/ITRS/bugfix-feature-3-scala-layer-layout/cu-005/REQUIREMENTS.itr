@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-005
+
+CU-005 moves IngestionService to application/services with imports pointing at application/ports plus domain/models, then deletes the old root file. Requires cu-002 and cu-003. Consumed by cu-006. This CU satisfies the services half of bugfix-feature-3 criterion 1.

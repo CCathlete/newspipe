@@ -1,0 +1,6 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-11T05:36:09.007415010Z
+# DTR-COORDINATES: 
+
+Architecture rules (binding on every CU in this batch): hexagonal layout under src/main/scala/newspipe/ with layers domain > application > infrastructure > control; LAYER_LAYOUT partition: domain holds models/ plus valueObjects/ only, application holds ports/ plus services/ only, infrastructure holds one folder per port (rss, enrichment, bronze, raw) plus env/, control holds dependencyInjection/ plus entryPoint/; NO_LAYER_ROOT_FILES: no .scala file directly in any of the four layer roots; ENV_ADAPTER: infrastructure/env/Env.scala is the only reader of application.conf and sys.env; port flow outbound to inbound; dependency inversion via traits in application/ports; Scala 3.3.4 with then/do control syntax; behavior-preserving relocation: no Kafka topic, bronze schema, or config key changes.

@@ -1,0 +1,3 @@
+# COORDINATES: cu-004
+
+FILE.infrastructure/litellm_client.py, FILE.infrastructure/lakehouse.py, FILE.infrastructure/kafka.py, TYPE.domain.services.scraper.py.class StreamScraper. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the four files below are new creations traced from them.

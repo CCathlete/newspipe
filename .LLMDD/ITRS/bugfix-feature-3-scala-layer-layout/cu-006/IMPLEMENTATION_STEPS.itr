@@ -1,0 +1,109 @@
+# IMPLEMENTATION_STEPS: cu-006
+
+1. Create src/main/scala/newspipe/infrastructure/env/Env.scala with exactly the content in the scala fence below.
+```scala
+package newspipe.infrastructure.env
+
+import com.typesafe.config.{Config, ConfigFactory}
+
+import scala.jdk.CollectionConverters.*
+
+final case class EnvConfig(
+    feeds: List[String],
+    pollIntervalSeconds: Long,
+    opencodeModel: String,
+    opencodeTimeoutSeconds: Long,
+    kafkaBootstrap: String,
+    rawTopic: String,
+    bronzePath: String,
+    sparkMaster: String
+)
+
+object Env:
+  def load(): EnvConfig =
+    load(ConfigFactory.load().getConfig("newspipe"))
+
+  def load(cfg: Config): EnvConfig =
+    EnvConfig(
+      feeds = sys.env.get("NEWSPIPE_FEEDS").map(_.split(",").toList.map(_.trim).filter(_.nonEmpty))
+        .getOrElse(cfg.getStringList("feeds").asScala.toList),
+      pollIntervalSeconds = sys.env.get("NEWSPIPE_POLL_INTERVAL_SECONDS").map(_.toLong)
+        .getOrElse(cfg.getLong("poll-interval-seconds")),
+      opencodeModel = sys.env.get("NEWSPIPE_OPENCODE_MODEL")
+        .getOrElse(cfg.getString("opencode.model")),
+      opencodeTimeoutSeconds = sys.env.get("NEWSPIPE_OPENCODE_TIMEOUT_SECONDS").map(_.toLong)
+        .getOrElse(cfg.getLong("opencode.timeout-seconds")),
+      kafkaBootstrap = sys.env.get("NEWSPIPE_KAFKA_BOOTSTRAP")
+        .getOrElse(cfg.getString("kafka.bootstrap-servers")),
+      rawTopic = sys.env.get("NEWSPIPE_RAW_TOPIC")
+        .getOrElse(cfg.getString("kafka.raw-topic")),
+      bronzePath = sys.env.get("NEWSPIPE_BRONZE_PATH")
+        .getOrElse(cfg.getString("bronze.path")),
+      sparkMaster = sys.env.get("NEWSPIPE_SPARK_MASTER")
+        .getOrElse(cfg.getString("spark.master"))
+    )
+```
+Prove: `grep -c 'NEWSPIPE_' src/main/scala/newspipe/infrastructure/env/Env.scala` prints 8.
+2. Create src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala with exactly the content in the scala fence below.
+```scala
+package newspipe.control.dependencyInjection
+
+import newspipe.application.services.IngestionService
+import newspipe.infrastructure.bronze.DeltaBronzeSink
+import newspipe.infrastructure.enrichment.OpenCodeCliClient
+import newspipe.infrastructure.env.EnvConfig
+import newspipe.infrastructure.raw.KafkaRawPublisher
+import newspipe.infrastructure.rss.RomeRssClient
+import org.apache.spark.sql.SparkSession
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
+
+final class AppContainer(env: EnvConfig):
+  val spark: SparkSession = SparkSession.builder()
+    .appName("newspipe")
+    .master(env.sparkMaster)
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+    .getOrCreate()
+  val rss = new RomeRssClient(env.feeds)
+  val enrich = new OpenCodeCliClient(env.opencodeModel, FiniteDuration(env.opencodeTimeoutSeconds, TimeUnit.SECONDS))
+  val sink = new DeltaBronzeSink(spark, env.bronzePath)
+  val raw = new KafkaRawPublisher(env.kafkaBootstrap, env.rawTopic)
+  val service = new IngestionService(rss, enrich, sink, raw)
+
+  def close(): Unit =
+    raw.close()
+    spark.stop()
+```
+Prove: `cat src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` prints the container class.
+3. Create src/main/scala/newspipe/control/entryPoint/Main.scala with exactly the content in the scala fence below (poll loop identical to the current root file; config comes from Env, wiring from the container).
+```scala
+package newspipe.control.entryPoint
+
+import com.typesafe.scalalogging.LazyLogging
+import newspipe.control.dependencyInjection.AppContainer
+import newspipe.infrastructure.env.Env
+
+import java.time.{Duration, Instant}
+
+object Main extends LazyLogging:
+  def main(args: Array[String]): Unit =
+    val env = Env.load()
+    val app = new AppContainer(env)
+    sys.addShutdownHook { app.close() }
+    val poll = Duration.ofSeconds(env.pollIntervalSeconds)
+    logger.info(s"newspipe polling ${env.feeds.size} feeds every $poll")
+    while true do
+      try
+        val n = app.service.runOnce(Instant.now())
+        logger.info(s"poll wrote $n bronze units")
+      catch case e: Exception => logger.error("poll iteration failed", e)
+      Thread.sleep(poll.toMillis)
+```
+Prove: `grep -n 'Env.load()' src/main/scala/newspipe/control/entryPoint/Main.scala` prints the load line.
+4. Delete src/main/scala/newspipe/control/Main.scala, superseded by the container plus entry point above.
+Prove: `test ! -f src/main/scala/newspipe/control/Main.scala` exits 0.
+Prove: `sbt compile` exits 0.
+Do NOT touch: src/main/scala/newspipe/domain, src/main/scala/newspipe/application, src/test, build.sbt, src/main/resources.
+Stop when env, container, and entry point exist with the fenced content, the old Main is gone, and sbt compile exits 0; test files belong to cu-007.

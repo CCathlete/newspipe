@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-007
+
+CU-007 rewrites the four test suites against the new packages (services, ports, models, valueObjects, bronze, rss, enrichment imports; GeoArea/Urgency wrapping plus .value assertions). Requires cu-002 through cu-006. This CU satisfies bugfix-feature-3 criterion 6.

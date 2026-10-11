@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-005
+
+AC-1e (criterion 1): `find src/main/scala/newspipe/application -maxdepth 1 -type f` prints nothing. AC-1f (criterion 1): `ls -d src/main/scala/newspipe/application/*/` prints ports services.

@@ -1,0 +1,40 @@
+# IMPLEMENTATION_STEPS: cu-005
+
+1. Create src/main/scala/newspipe/application/services/IngestionService.scala with exactly the content in the scala fence below (body identical to the current root file; only package plus imports differ).
+```scala
+package newspipe.application.services
+
+import com.typesafe.scalalogging.LazyLogging
+import newspipe.application.ports.*
+import newspipe.domain.models.*
+
+import java.time.Instant
+import scala.collection.mutable
+
+final class IngestionService(
+    rss: RssSource,
+    enrich: EnrichmentPort,
+    sink: BronzeSink,
+    raw: RawPublisher
+) extends LazyLogging:
+  private val seen = mutable.HashSet.empty[String]
+
+  def runOnce(now: Instant): Int =
+    val items = rss.fetch()
+    raw.publish(items)
+    val fresh = items.filter(it => seen.add(BronzeUnit.idFor(it)))
+    val units = fresh.map { it =>
+      val e = enrich.enrich(it) match
+        case Right(en) => en
+        case Left(err) =>
+          logger.warn(s"enrichment failed for ${it.link}: ${err.getMessage}; using empty enrichment")
+          Enrichment.empty
+      BronzeUnit.fromRss(it, e, now)
+    }
+    if units.isEmpty then 0 else sink.write(units)
+```
+Prove: `cat src/main/scala/newspipe/application/services/IngestionService.scala` prints package newspipe.application.services.
+2. Delete src/main/scala/newspipe/application/IngestionService.scala, superseded by the file above.
+Prove: `test ! -f src/main/scala/newspipe/application/IngestionService.scala` exits 0.
+Do NOT touch: src/main/scala/newspipe/domain, src/main/scala/newspipe/infrastructure, src/main/scala/newspipe/control, src/test, build.sbt.
+Stop when the service file lives under services/ and the old root file is gone; Env plus control rewire belongs to cu-006.

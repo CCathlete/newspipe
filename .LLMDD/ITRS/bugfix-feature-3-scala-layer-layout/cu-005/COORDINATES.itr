@@ -1,0 +1,3 @@
+# COORDINATES: cu-005
+
+FILE.application/services/ingestion_service.py, TYPE.application.services.ingestion_service.py.class IngestionService, FILE.domain/services/data_ingestion.py. All keys exist in .LLMDD/DTRS/newspipe-scala-baseline/newspipe-python.dtr; the file below is a new creation traced from them.

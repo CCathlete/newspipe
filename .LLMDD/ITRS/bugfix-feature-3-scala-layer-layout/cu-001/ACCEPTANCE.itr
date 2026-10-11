@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-001
+
+AC-2a (criterion 2): `test -f src/main/scala/newspipe/domain/valueObjects/GeoArea.scala` exits 0. AC-2b (criterion 2): `test -f src/main/scala/newspipe/domain/valueObjects/Urgency.scala` exits 0.

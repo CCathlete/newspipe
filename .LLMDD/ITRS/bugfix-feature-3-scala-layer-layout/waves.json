@@ -1,0 +1,9 @@
+[
+  {"wave": 1, "description": "Value objects first: GeoArea plus Urgency opaque types (no dependencies)", "cus": ["cu-001"]},
+  {"wave": 2, "description": "Domain models split: RssItem, Enrichment, BronzeUnit typed on cu-001", "cus": ["cu-002"]},
+  {"wave": 3, "description": "Ports move: four traits to application/ports (depends on cu-002 models)", "cus": ["cu-003"]},
+  {"wave": 4, "description": "Parallel relocation on disjoint trees: infra port folders plus application service", "cus": ["cu-004", "cu-005"]},
+  {"wave": 5, "description": "Env plus DI plus entry point (depends on cu-004 and cu-005)", "cus": ["cu-006"]},
+  {"wave": 6, "description": "Test rewrites against new packages (depends on all moves)", "cus": ["cu-007"]},
+  {"wave": 7, "description": "Checklist refresh plus layout audit last and alone", "cus": ["cu-008"]}
+]

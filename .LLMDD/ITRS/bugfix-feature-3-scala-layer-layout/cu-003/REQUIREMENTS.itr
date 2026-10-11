@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-003
+
+CU-003 moves the four port traits from domain/ports.scala to application/ports/Ports.scala with imports pointing at domain/models, then deletes the old root file. Requires cu-002. This CU satisfies bugfix-feature-3 criterion 3 and the application half of criterion 1.

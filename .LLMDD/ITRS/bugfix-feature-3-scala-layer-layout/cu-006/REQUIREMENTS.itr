@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-006
+
+CU-006 adds infrastructure/env/Env.scala (EnvConfig plus Env.load with eight NEWSPIPE_* overrides), adds control/dependencyInjection/AppContainer.scala (Spark session plus four clients plus service, close for shutdown), rewrites control/entryPoint/Main.scala (Env.load, container, thin poll loop), then deletes control/Main.scala. Requires cu-004 and cu-005. This CU satisfies bugfix-feature-3 criteria 4 and 5.

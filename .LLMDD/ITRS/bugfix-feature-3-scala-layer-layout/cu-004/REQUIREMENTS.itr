@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-004
+
+CU-004 relocates the four infrastructure clients into one folder per port (rss, enrichment, bronze, raw) with package and import lines pointing at domain/models plus application/ports, wrapping parsed strings into GeoArea/Urgency in enrichment and unwrapping with .value in bronze, then deletes the four old root files. Requires cu-002 and cu-003. This CU satisfies the infrastructure half of bugfix-feature-3 criterion 1.

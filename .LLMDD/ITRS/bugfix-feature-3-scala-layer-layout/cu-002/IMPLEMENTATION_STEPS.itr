@@ -1,0 +1,92 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. Create src/main/scala/newspipe/domain/models/RssItem.scala with exactly the content in the scala fence below.
+```scala
+package newspipe.domain.models
+
+import java.time.Instant
+
+final case class RssItem(
+    guid: String,
+    feedUrl: String,
+    title: String,
+    link: String,
+    publishedAt: Option[Instant],
+    description: String
+)
+```
+Prove: `cat src/main/scala/newspipe/domain/models/RssItem.scala` prints the case class.
+2. Create src/main/scala/newspipe/domain/models/Enrichment.scala with exactly the content in the scala fence below.
+```scala
+package newspipe.domain.models
+
+import newspipe.domain.valueObjects.{GeoArea, Urgency}
+
+final case class Enrichment(
+    summary: String,
+    countries: List[String],
+    geoArea: GeoArea,
+    topics: List[String],
+    actors: List[String],
+    urgency: Urgency,
+    language: String
+)
+
+object Enrichment:
+  val empty: Enrichment =
+    Enrichment("", Nil, GeoArea("unknown"), Nil, Nil, Urgency("low"), "en")
+```
+Prove: `cat src/main/scala/newspipe/domain/models/Enrichment.scala` prints GeoArea/Urgency field types.
+3. Create src/main/scala/newspipe/domain/models/BronzeUnit.scala with exactly the content in the scala fence below.
+```scala
+package newspipe.domain.models
+
+import newspipe.domain.valueObjects.{GeoArea, Urgency}
+
+import java.time.Instant
+
+final case class BronzeUnit(
+    id: String,
+    feedUrl: String,
+    articleUrl: String,
+    title: String,
+    content: String,
+    publishedAt: Option[Instant],
+    ingestedAt: Instant,
+    summary: String,
+    countries: List[String],
+    geoArea: GeoArea,
+    topics: List[String],
+    actors: List[String],
+    urgency: Urgency,
+    language: String
+)
+
+object BronzeUnit:
+  def fromRss(item: RssItem, enrichment: Enrichment, now: Instant): BronzeUnit =
+    BronzeUnit(
+      id = idFor(item),
+      feedUrl = item.feedUrl,
+      articleUrl = item.link,
+      title = item.title,
+      content = item.description,
+      publishedAt = item.publishedAt,
+      ingestedAt = now,
+      summary = enrichment.summary,
+      countries = enrichment.countries,
+      geoArea = enrichment.geoArea,
+      topics = enrichment.topics,
+      actors = enrichment.actors,
+      urgency = enrichment.urgency,
+      language = enrichment.language
+    )
+
+  def idFor(item: RssItem): String =
+    val base = if item.guid.nonEmpty then item.guid else item.link
+    s"${item.feedUrl.hashCode.toHexString}-${Integer.toUnsignedString(base.hashCode)}"
+```
+Prove: `cat src/main/scala/newspipe/domain/models/BronzeUnit.scala` prints fromRss plus idFor.
+4. Delete src/main/scala/newspipe/domain/models.scala, superseded by the three files above.
+Prove: `test ! -f src/main/scala/newspipe/domain/models.scala` exits 0.
+Do NOT touch: src/main/scala/newspipe/domain/ports.scala, src/main/scala/newspipe/domain/valueObjects, src/main/scala/newspipe/application, src/main/scala/newspipe/infrastructure, src/main/scala/newspipe/control, build.sbt.
+Stop when the three model files exist and the old root file is gone; ports relocation belongs to cu-003.

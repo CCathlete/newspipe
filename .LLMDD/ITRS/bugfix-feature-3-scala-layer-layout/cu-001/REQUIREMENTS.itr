@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+CU-001 creates the value-object layer of bugfix-feature-3: GeoArea and Urgency opaque types under domain/valueObjects, giving the model split in cu-002 strongly typed wrappers for the geo_area and urgency strings while the bronze schema stays string based. This CU satisfies part of bugfix-feature-3 criterion 2 (opaque types compile).

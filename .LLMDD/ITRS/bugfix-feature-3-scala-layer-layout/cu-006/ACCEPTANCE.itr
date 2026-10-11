@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-006
+
+AC-4 (criterion 4): `grep -c 'NEWSPIPE_' src/main/scala/newspipe/infrastructure/env/Env.scala` prints 8. AC-5 (criterion 5): `grep -rn 'ConfigFactory' src/main/scala/newspipe/control/` prints nothing. AC-2b (criterion 6 partial): `sbt compile` exits 0.

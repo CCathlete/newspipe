@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+CU-002 splits domain/models.scala into domain/models/RssItem.scala, Enrichment.scala, and BronzeUnit.scala with identical fields except geoArea and urgency now typed GeoArea/Urgency from cu-001, then deletes the old root file. Requires cu-001. This CU satisfies the models half of bugfix-feature-3 criteria 1 and 2.

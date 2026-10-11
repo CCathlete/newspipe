@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-008
+
+CU-008 refreshes .LLMDD/ARCH.scala3_compliance_checklist.md sections 2 and 4 to v2 verdicts (ports in application/ports, boundary audit against the new partition) keeping sections 1, 3, and 5 intact, then runs the layout audit. Requires cu-001 through cu-007. This CU records the v2 evidence for bugfix-feature-3 criteria 1 and 3.
