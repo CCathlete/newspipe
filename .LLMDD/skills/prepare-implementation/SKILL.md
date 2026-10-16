@@ -7,10 +7,10 @@ description: Run the full pre-implementation chain for one feature — commit pe
 
 End-to-end prep for WORKFLOW STEP5 (IMPLEMENT_CUS). Chains the
 single-purpose skills in order: spec commit → `build-dtr` →
-batch CU → `compile-itr` → waves plan → `run-waves.txt` →
-print → commit. The agent does everything up to (not including)
-executing `run-waves.py` — the Designer runs that by pasting the
-printed command.
+batch CU → `compile-itr` → waves plan → dry-run fix loop →
+`run-waves.txt` → print → commit. The agent does everything up to
+(not including) executing `run-waves.py` — the Designer runs that
+by pasting the printed command.
 
 ## When to use
 
@@ -127,17 +127,29 @@ ordering allows:
 Rules: same-file CUs in different waves (dependency order);
 dependencies flow forward; verification/E2E last.
 
-Dry-run (agent runs this itself, must be green):
+### 6. Dry-run the waves and fix until green
+
+Run the dry-run (the agent runs this itself — never the operational
+command, which is the Designer's job):
 
 ```sh
 python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/<feature-name> --app <app> --waves .LLMDD/ITRS/<feature-name>/waves.json --dry-run
 ```
 
-Exit 0 with wave/CU assignments matching `waves.json`, or fix the
-waves file and re-run. The agent never runs the non-dry-run
-command — that is the Designer's job.
+Green means all three: exit code 0, wave count and CU assignments
+match `waves.json`, every CU resolves to a frame file. On any
+failure, diagnose and fix, then re-run — repeat until green:
 
-### 6. Write the wave command file
+- Unresolvable CU → frame problem: go back to step 4 (recompile
+  with `--force`, re-run `verify-cu-structure`).
+- Wrong wave/CU listing or ordering complaint → plan problem: fix
+  `waves.json` per the step 5 rules and re-run the dry-run.
+- Runner usage error (bad flags, wrong `--app`) → fix the command.
+
+Never proceed to steps 7–9 on a red dry-run. The fix loop has no
+iteration cap — a valid dry-run is mandatory before handoff.
+
+### 7. Write the wave command file
 
 Write the exact operational command (no `--dry-run`, no
 placeholders, `<feature-name>` and `<app>` filled in) as the sole
@@ -150,13 +162,13 @@ python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/<feature-name> --app <app> -
 Include non-default flags (`--coder-model`, `--lead-model`, …) on
 the same line when the run needs them.
 
-### 7. Print the wave command
+### 8. Print the wave command
 
-Print the identical one-line command from step 6 as the handoff for
+Print the identical one-line command from step 7 as the handoff for
 the Designer to paste into a terminal (fish). Print only after the
-dry-run is valid. Never print it beforehand.
+step 6 dry-run is green. Never print it beforehand.
 
-### 8. Commit
+### 9. Commit
 
 ```sh
 git add .LLMDD/ITRS/<feature-name>.batch.json .LLMDD/ITRS/<feature-name>/ARCH.itr .LLMDD/ITRS/<feature-name>/LEGEND.itr .LLMDD/ITRS/<feature-name>/cu-*/ .LLMDD/ITRS/<feature-name>/waves.json .LLMDD/ITRS/<feature-name>/run-waves.txt .LLMDD/DTRS/<feature-name>/
@@ -187,7 +199,7 @@ git commit -m "Prep: DTR plus ITR frames plus waves for <feature-name> (cu-001..
    and `FILE.`/`CODEX.`/`TYPE.` entries.
 3. `validate-steps.py` PASS for every regular CU.
 4. `verify-cu-structure` four checks pass; compiler exit 0.
-5. Waves dry-run exit 0 with expected wave/CU listing.
+5. Waves dry-run (step 6 loop) exit 0 with expected wave/CU listing.
 6. `run-waves.txt` content == printed command == operational command
    minus nothing.
 7. Final commit contains batch + frames + `waves.json` +
