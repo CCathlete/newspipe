@@ -1013,7 +1013,6 @@ def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
 
         cmd: list[str] = [
             "opencode", "run",
-            "--dir", str(project_dir),
             "--model", model,
             "--agent", "llmdd/coder",
             "--format", "json",
@@ -1217,7 +1216,6 @@ def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
 
     cmd: list[str] = [
         "opencode", "run",
-        "--dir", str(project_dir),
         "--model", model,
         "--agent", "verifier",
         "--format", "json",
@@ -1282,7 +1280,6 @@ def run_per_cu_lead(cu_id: str, cu_file: Path, model: str, max_iterations: int,
 
     cmd: list[str] = [
         "opencode", "run",
-        "--dir", str(project_dir),
         "--model", model,
         "--agent", "verifier",
         "--format", "json",
