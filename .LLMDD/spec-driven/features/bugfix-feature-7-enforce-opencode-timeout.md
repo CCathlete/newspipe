@@ -1,6 +1,6 @@
 # bugfix-feature-7: enforce-opencode-timeout
 
-- Status: Proposed
+- Status: Implemented
 - Created: 2026-10-16
 - Feature ID: bugfix-feature-7-enforce-opencode-timeout
 
@@ -29,8 +29,11 @@ Scope (out):
 
 ## Implementation status
 
-Proposed. Not implemented. ITR directory: (pending
-prepare-implementation).
+Implemented in 2ac9fe5. Both CUs (cu-001, cu-002) implemented across 2
+waves, 0 escalations, convergence.json CONVERGED; independent verify
+2026-10-16: `OpenCodeTimeoutSpec` 2/2 green, full `sbt test` 8/8 green
+(4 suites) with workdir `pipelines/enrichment`. ITR directory:
+.LLMDD/ITRS/bugfix-feature-7-enforce-opencode-timeout/.
 
 ## Acceptance criteria
 

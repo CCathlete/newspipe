@@ -1,8 +1,8 @@
 # bug-6: opencode-timeout-not-enforced
 
-- Status: Open
+- Status: Resolved
 - Created: 2026-10-11
-- Resolved: -
+- Resolved: 2026-10-16
 - Bug ID: bug-6-opencode-timeout-not-enforced
 - Related features: -
 
@@ -33,17 +33,27 @@ Environment: repo checkout,
 
 ## Resolution status
 
-Open. No fix merged.
+Resolved in 2ac9fe5. Both CUs implemented across 2 waves, 0 escalations,
+convergence.json CONVERGED; independent verify 2026-10-16: `sbt
+"testOnly newspipe.OpenCodeTimeoutSpec"` 2/2 green, full `sbt test` 8/8
+green (4 suites) with workdir `pipelines/enrichment`.
 
 ## Fix summary (Resolved only)
 
-Pending. Suggested direction: destroy the whole process tree
-(`ProcessHandle.descendants` plus wrapper) on timeout, bound total
-per-item elapsed time independent of `waitFor`, and log per-item elapsed
-so slow calls are visible before they strand.
+`OpenCodeCliClient.enrich` now checks `waitFor` before touching stdout
+and calls the new `OpenCodeCliClient.killTree` helper on timeout, which
+destroys all descendants plus the wrapper, closes the pipes, and reaps
+with a bounded 5 s wait; the timeout throw carries elapsed seconds plus
+item link, surfaced by the existing `EnrichmentService` warn line.
+Prompt, parse, merge, service, and consumer logic unchanged (14
+insertions, 5 deletions, all inside `enrich` plus the helper).
 
 ## Tests proving resolution (Resolved only)
 
-Pending. Suggested: stubbed-process test proving no child survives N
-seconds past the timeout and the parent thread is freed; e2e log shows a
-skip line for every over-timeout call with no orphan left behind.
+- `OpenCodeTimeoutSpec` (`pipelines/enrichment/src/test/scala/newspipe/OpenCodeTimeoutSpec.scala`):
+  slow-stub tree (`sh -c 'sleep 120'`) leaves no surviving descendant
+  and is reaped in bounded time — failing-before: orphaned `opencode`
+  grandchildren observed alive 32 min past timeout (see Bug detail);
+  passing-after: both tests green 2026-10-16.
+- Full `sbt test` with workdir `pipelines/enrichment`: 8/8 green,
+  including pre-existing parser, merge, and props suites.
