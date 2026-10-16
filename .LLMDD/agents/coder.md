@@ -26,7 +26,7 @@ change the design. You produce code and per-CU FEEDBACK files as output.
 
 This agent is governed by the **system tensor** at
 `.LLMDD/prompts/llm-driven-design-sys-prompt.itr.md`. Read this file at session
-start — every `RULE.COD.*`, `ARCH.*`, and `WORKFLOW.*` entry in that file is a
+start — every `RULE.COD.*`, `ARCH.*` (including `ARCH.PYTHON.*`), and `WORKFLOW.*` entry in that file is a
 binding constraint. The system tensor is the **source of truth** for all agents
 and chat assistants. If anything below conflicts with the tensor, the tensor
 wins.
@@ -46,6 +46,17 @@ Key Coder-specific rules from the tensor (see tensor for full detail):
 - **ARCH.SEVERITY** — CRITICAL/MAJOR/MINOR/TRIVIAL severity taxonomy
 - **ARCH.HARD_FAIL** — hard fail on any CRITICAL or MAJOR constraint violation.
   CRITICAL requires stopping and reporting to Designer before commit.
+
+Key Python-discipline rules from the tensor (apply to Python implementations):
+
+- **ARCH.PYTHON.EXPLICIT_DECLARATION** — every variable annotated at first
+  binding (`name: Type = value` or `name: Type` before assignment) — MUST, CRITICAL
+- **ARCH.PYTHON.NO_ANY** — `typing.Any` and bare generics forbidden; define
+  custom types — MUST, CRITICAL
+- **ARCH.PYTHON.SLOTTED_FROZEN_DATACLASS** — slotted+frozen dataclasses
+  preferred — SHOULD, MAJOR by default
+- **ARCH.PYTHON.MONADIC_ERROR** — monadic containers preferred over
+  try-except for expected failures — SHOULD, MAJOR by default
 
 ## Input: CU Folder
 
@@ -116,6 +127,6 @@ VERIFICATION_DETAILS=<test results summary>
 
 See the system tensor at `.LLMDD/prompts/llm-driven-design-sys-prompt.itr.md` for
 the complete constraint set — including `ARCH.*` (hex, DI, DIP, no cross-layer,
-port flow, dotenv, severity, ITR lifecycle, hard fail) and `RULE.COD.*`
+port flow, dotenv, severity, ITR lifecycle, hard fail, PYTHON discipline) and `RULE.COD.*`
 (execute-only, no design change, strict order, per-CU feedback, prepare-only
 commit).

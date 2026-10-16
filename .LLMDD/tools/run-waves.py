@@ -2,57 +2,59 @@
 """run-waves.py - Execute CUs in waves with live coloured output and credit tracking.
 
 Platform and shell agnostic replacement for run-waves.fish.
-Requires: Python 3.8+, opencode CLI on PATH, git repo.
+Requires: Python 3.10+, opencode CLI on PATH, git repo.
 """
 
 import argparse
+import asyncio
+import concurrent.futures
 import json
 import os
 import re
 import subprocess
 import sys
 import threading
+import typing
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-import asyncio
-import concurrent.futures
-import typing
-from dataclasses import dataclass
-from typing import Generic, TypeVar, Any
+from typing import Generic, Iterator, Literal, Optional, Sequence, TypeAlias, TypedDict, TypeVar, cast
 
 
 # ── Defaults ───────────────────────────────────────────────────────
 
-DEFAULT_CODER_MODEL = "nvidia/z-ai/glm-5.3-flash"
-DEFAULT_LEAD_MODEL = "nvidia/nvidia/nemotron-3.5-lightning-30b-a3b"
-DEFAULT_CU_TIMEOUT = 300
-DEFAULT_LEAD_TIMEOUT = 600
-DEFAULT_MAX_FIX_ITERATIONS = 3
+DEFAULT_CODER_MODEL: str = "nvidia/z-ai/glm-5.3-flash"
+DEFAULT_LEAD_MODEL: str = "nvidia/nvidia/nemotron-3.5-lightning-30b-a3b"
+DEFAULT_CU_TIMEOUT: int = 300
+DEFAULT_LEAD_TIMEOUT: int = 600
+DEFAULT_MAX_FIX_ITERATIONS: int = 3
 
 # ── Fallback defaults ───────────────────────────────────────────────
-DEFAULT_CODER_FALLBACKS = [
+DEFAULT_CODER_FALLBACKS: list[str] = [
     "opencode/big-pickle",
 ]
 
 # ── Monadic Result Type ────────────────────────────────────────────
 
+# TypeVar definitions stay bare: annotating them is a linter error.
+# ARCH.PYTHON exemption — the TypeVar itself is the declaration.
 T = TypeVar("T")
 E_co = TypeVar("E_co", bound=Exception, covariant=True)
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Ok(Generic[T]):
     """Success monad — contains a value."""
     value: T
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Err(Generic[E_co]):
     """Failure monad — contains an exception."""
     error: E_co
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class CoderOutput:
     """Result of a single coder run."""
     rc: int
@@ -61,57 +63,128 @@ class CoderOutput:
     model_used: str
 
 
+# ── JSON Custom Types (no Any, no bare generics) ───────────────────
+
+class TokenCache(TypedDict, total=False):
+    read: int
+    write: int
+class StepTokens(TypedDict, total=False):
+    input: int
+    output: int
+    reasoning: int
+    cache: TokenCache
+    total: int
+EventResult: TypeAlias = str | dict[str, str | int | float | bool | list[str]]
+EventModel: TypeAlias = str | dict[str, str]
+class EventPart(TypedDict, total=False):
+    text: str
+    tool: str
+    toolName: str
+    result: EventResult
+    tokens: StepTokens
+    cost: float
+    reason: str
+    action: str
+    resource: str
+    model: EventModel
+    id: str
+class JsonEvent(TypedDict, total=False):
+    type: str
+    part: EventPart
+    tokens: StepTokens
+    cost: float
+    reason: str
+    sessionID: str
+    model: EventModel
+class TokenReport(TypedDict):
+    input: int
+    output: int
+    reasoning: int
+    cache_read: int
+    cache_write: int
+    total: int
+    cost: float
+    session_id: str
+    model: str
+class WaveDef(TypedDict, total=False):
+    wave: int
+    cus: list[str]
+    description: str
+class WaveRecord(TypedDict):
+    wave: int
+    cus: list[str]
+    escalations: int
+    coder_status: int
+    lead_status: int
+    files_changed: dict[str, list[str]]
+    credits: dict[str, TokenReport]
+class ConvergenceData(TypedDict):
+    waves: list[WaveRecord]
+    status: str
+
+
 # ── I/O Boundary — Monadic Result Wrappers (only try/except in the tool) ──
 
-def _popen(cmd: list[str], cwd: Path) -> Ok[subprocess.Popen] | Err[Exception]:
+def _popen(cmd: list[str], cwd: Path) -> Ok[subprocess.Popen[bytes]] | Err[Exception]:
     """Spawn subprocess. Returns Ok(proc) or Err(FileNotFoundError|OSError)."""
+    # MONADIC-BOUNDARY: foreign process spawn; OS failure becomes Err.
+    caught: Exception
     try:
         return Ok(subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd
         ))
-    except (FileNotFoundError, OSError) as e:
-        return Err(e)
+    except (FileNotFoundError, OSError) as caught:
+        return Err(caught)
 
 
-def _open_file(path: Path, mode: str = "r") -> Ok[typing.IO] | Err[Exception]:
+def _open_file(path: Path, mode: Literal["r", "w"] = "r") -> Ok[typing.TextIO] | Err[Exception]:
     """Open a file. Returns Ok(fh) or Err(OSError|IOError)."""
+    # MONADIC-BOUNDARY: foreign filesystem open; OS failure becomes Err.
+    caught: Exception
     try:
         return Ok(open(path, mode))
-    except (OSError, IOError) as e:
-        return Err(e)
+    except (OSError, IOError) as caught:
+        return Err(caught)
 
 
 def _git_run(*args: str, cwd: Path) -> Ok[str] | Err[Exception]:
     """Run a git command. Returns Ok(stdout) or Err."""
+    # MONADIC-BOUNDARY: foreign git process; spawn and timeout failure becomes Err.
+    completed: subprocess.CompletedProcess[str]
+    caught: Exception
     try:
-        r = subprocess.run(
+        completed = subprocess.run(
             ["git", *args], capture_output=True, text=True, cwd=cwd, timeout=30
         )
-        return Ok(r.stdout.strip())
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as e:
-        return Err(e)
+        return Ok(completed.stdout.strip())
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as caught:
+        return Err(caught)
 
 
 def _read_file_text(path: Path) -> Ok[str] | Err[Exception]:
     """Read file as text. Returns Ok(text) or Err."""
+    # MONADIC-BOUNDARY: foreign filesystem read; OS failure becomes Err.
+    caught: Exception
     try:
         return Ok(path.read_text(errors="replace"))
-    except (OSError, IOError) as e:
-        return Err(e)
+    except (OSError, IOError) as caught:
+        return Err(caught)
 
 
 def _write_file_text(path: Path, text: str) -> Ok[None] | Err[Exception]:
     """Write text to file. Returns Ok(None) or Err."""
+    # MONADIC-BOUNDARY: foreign filesystem write; OS failure becomes Err.
+    caught: Exception
     try:
         path.write_text(text)
         return Ok(None)
-    except (OSError, IOError) as e:
-        return Err(e)
+    except (OSError, IOError) as caught:
+        return Err(caught)
 
 
 # ── Future-safe Monadic Wrapper ───────────────────────────────────
 
-async def future_result(awaitable: typing.Awaitable) -> Ok | Err:
+async def future_result(awaitable: typing.Awaitable[T]) -> Ok[T] | Err[Exception]:
     """Await an awaitable and wrap its result in Ok/Err.
 
     This is the BRIDGE between asyncio Futures (which raise exceptions
@@ -119,15 +192,17 @@ async def future_result(awaitable: typing.Awaitable) -> Ok | Err:
     It contains the ONE try/except in the async orchestration layer.
     Every caller uses match/case on the returned Ok|Err.
     """
+    # MONADIC-BOUNDARY: asyncio Future await raises by design; the raise becomes Err here and never leaks past this bridge.
+    caught: Exception
     try:
         return Ok(await awaitable)
-    except Exception as e:
-        return Err(e)
+    except Exception as caught:
+        return Err(caught)
 
 
 # ── Refusal / Error Detection ───────────────────────────────────────
 
-_REFUSAL_PATTERNS = [
+_REFUSAL_PATTERNS: list[str] = [
     # Hard refusals
     "I'm sorry, but I'm currently unable to assist",
     "I'm sorry, but I cannot",
@@ -188,7 +263,7 @@ _REFUSAL_PATTERNS = [
     "I lack the capability",
 ]
 
-_ERROR_PATTERNS = [
+_ERROR_PATTERNS: list[str] = [
     # Process-level fatal signals only (raw stderr, never JSON event text).
     # Coder tool errors, compiler output, and opencode warnings MUST NOT
     # fail a CU — only a dead process or an explicit opencode error event.
@@ -200,93 +275,127 @@ _ERROR_PATTERNS = [
 
 # ── Model Fallback Chain ────────────────────────────────────────────
 
+@dataclass(slots=True, frozen=True)
 class ModelFallbackChain:
     """Manages fallback order for model attempts."""
-    
-    def __init__(self, primary_model: str, fallback_models: list[str] | None = None):
-        self.chain = [primary_model]
-        if fallback_models:
-            self.chain.extend(fallback_models)
-    
-    def __iter__(self):
+    primary_model: str
+    fallback_models: Sequence[str] = ()
+    chain: Sequence[str] = ()
+
+    def __post_init__(self) -> None:
+        merged: list[str] = [self.primary_model, *self.fallback_models]
+        object.__setattr__(self, "chain", tuple(merged))
+
+    def __iter__(self) -> Iterator[str]:
         return iter(self.chain)
-    
-    def __len__(self):
+
+    def __len__(self) -> int:
         return len(self.chain)
-    
-    def __repr__(self):
+
+    def __repr__(self) -> str:
         return " → ".join(self.chain)
 
 
 def _detect_refusal(log_file: Path) -> bool:
     """Check if the log contains refusal patterns."""
-    try:
-        text = log_file.read_text(errors="replace")
-        for pattern in _REFUSAL_PATTERNS:
-            if pattern.lower() in text.lower():
-                return True
-    except Exception:
-        pass
+    read: Ok[str] | Err[Exception] = _read_file_text(log_file)
+    if isinstance(read, Err):
+        return False
+    text: str = read.value
+    lowered: str = text.lower()
+    pattern: str
+    for pattern in _REFUSAL_PATTERNS:
+        if pattern.lower() in lowered:
+            return True
     return False
 
 
 def _detect_error(log_file: Path) -> bool:
     """Check if the log contains error patterns (but not tool output)."""
-    try:
-        lines = log_file.read_text(errors="replace").splitlines()
-        for line in lines:
-            if "toolResult" in line or "tool_result" in line:
-                continue
-            for pattern in _ERROR_PATTERNS:
-                if pattern in line:
-                    return True
-    except Exception:
-        pass
+    read: Ok[str] | Err[Exception] = _read_file_text(log_file)
+    if isinstance(read, Err):
+        return False
+    text: str = read.value
+    line: str
+    pattern: str
+    for line in text.splitlines():
+        if "toolResult" in line or "tool_result" in line:
+            continue
+        for pattern in _ERROR_PATTERNS:
+            if pattern in line:
+                return True
     return False
 
 
 # ── Token / Cost tracking ─────────────────────────────────────────
 
-def _extract_step_tokens(ev: dict) -> tuple[dict, float, str]:
+def _as_part(raw: object) -> EventPart:
+    """Narrow foreign JSON into an EventPart; non-dicts become empty."""
+    if isinstance(raw, dict):
+        narrowed_part: EventPart = cast(EventPart, raw)
+        return narrowed_part
+    return {}
+
+
+def _as_tokens(raw: object) -> StepTokens:
+    """Narrow foreign JSON into StepTokens; non-dicts become empty."""
+    if isinstance(raw, dict):
+        narrowed_tok: StepTokens = cast(StepTokens, raw)
+        return narrowed_tok
+    return {}
+
+
+def _extract_step_tokens(ev: JsonEvent) -> tuple[StepTokens, float, str]:
     """Extract (tokens_dict, cost, reason) from a step_finish event."""
-    part = ev.get("part", {})
-    tok = part.get("tokens", ev.get("tokens", {}))
-    cost = part.get("cost", ev.get("cost", 0))
-    reason = part.get("reason", ev.get("reason", ""))
+    part: EventPart = _as_part(ev.get("part", {}))
+    tok: StepTokens = _as_tokens(part.get("tokens", ev.get("tokens", {})))
+    cost_raw: object = part.get("cost", ev.get("cost", 0))
+    cost: float = float(cost_raw) if isinstance(cost_raw, (int, float)) else 0.0
+    reason_raw: object = part.get("reason", ev.get("reason", ""))
+    reason: str = reason_raw if isinstance(reason_raw, str) else ""
     return tok, cost, reason
 
 
+@dataclass(slots=True)
+# MAJOR-latitude justification: TokenUsage is a mutable accumulator updated
+# at dozens of call sites; frozen would force a full rewrite for zero
+# behavior gain. Slotted plus annotated fields satisfies the preferred shape.
 class TokenUsage:
     """Accumulated token and cost data from opencode step_finish events."""
-    __slots__ = ("input", "output", "reasoning", "cache_read", "cache_write",
-                 "total", "cost", "session_id", "model")
+    input: int = 0
+    output: int = 0
+    reasoning: int = 0
+    cache_read: int = 0
+    cache_write: int = 0
+    total: int = 0
+    cost: float = 0.0
+    session_id: str = ""
+    model: str = ""
 
-    def __init__(self):
-        self.input = 0
-        self.output = 0
-        self.reasoning = 0
-        self.cache_read = 0
-        self.cache_write = 0
-        self.total = 0
-        self.cost = 0.0
-        self.session_id = ""
-        self.model = ""
-
-    def add_from_step_finish(self, ev: dict):
+    def add_from_step_finish(self, ev: JsonEvent) -> None:
+        tok: StepTokens
+        cost: float
+        _reason: str
         tok, cost, _reason = _extract_step_tokens(ev)
-        self.input += tok.get("input", 0)
-        self.output += tok.get("output", 0)
-        self.reasoning += tok.get("reasoning", 0)
-        cache = tok.get("cache", {})
-        self.cache_read += cache.get("read", 0)
-        self.cache_write += cache.get("write", 0)
-        self.total += tok.get("total", 0)
+        tok_input: int = tok.get("input", 0)
+        tok_output: int = tok.get("output", 0)
+        tok_reasoning: int = tok.get("reasoning", 0)
+        cache: TokenCache = tok.get("cache", {})
+        cache_read: int = cache.get("read", 0)
+        cache_write: int = cache.get("write", 0)
+        tok_total: int = tok.get("total", 0)
+        self.input += tok_input
+        self.output += tok_output
+        self.reasoning += tok_reasoning
+        self.cache_read += cache_read
+        self.cache_write += cache_write
+        self.total += tok_total
         self.cost += cost
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         return self.total == 0 and self.cost == 0.0
 
-    def dict(self):
+    def dict(self) -> TokenReport:
         return {
             "input": self.input, "output": self.output,
             "reasoning": self.reasoning,
@@ -296,13 +405,15 @@ class TokenUsage:
         }
 
 
+@dataclass(slots=True)
+# MAJOR-latitude justification: same accumulator rationale as TokenUsage.
 class WaveCredits:
-    def __init__(self, wave_num: int):
-        self.wave_num = wave_num
-        self.coders: dict[str, TokenUsage] = {}
+    wave_num: int
+    coders: dict[str, TokenUsage] = field(default_factory=dict)
 
     def wave_totals(self) -> TokenUsage:
-        totals = TokenUsage()
+        totals: TokenUsage = TokenUsage()
+        u: TokenUsage
         for u in self.coders.values():
             totals.input += u.input
             totals.output += u.output
@@ -314,17 +425,18 @@ class WaveCredits:
         return totals
 
 
+@dataclass(slots=True)
+# MAJOR-latitude justification: same accumulator rationale as TokenUsage.
 class CreditTracker:
-    def __init__(self):
-        self.waves: list[WaveCredits] = []
-        self._accumulated = TokenUsage()
+    waves: list[WaveCredits] = field(default_factory=list)
+    _accumulated: TokenUsage = field(default_factory=TokenUsage)
 
     def start_wave(self, wave_num: int) -> WaveCredits:
-        wc = WaveCredits(wave_num)
+        wc: WaveCredits = WaveCredits(wave_num)
         self.waves.append(wc)
         return wc
 
-    def accumulate(self, usage: TokenUsage):
+    def accumulate(self, usage: TokenUsage) -> None:
         self._accumulated.input += usage.input
         self._accumulated.output += usage.output
         self._accumulated.reasoning += usage.reasoning
@@ -340,38 +452,42 @@ class CreditTracker:
 
 # ── ANSI Colours ───────────────────────────────────────────────────
 
+# MAJOR-latitude justification: C is a dynamic namespace reset in place by
+# C.disable via setattr; a frozen dataclass cannot support that shape, so the
+# annotated plain class is retained.
 class C:
-    RESET   = "\033[0m"
-    BOLD    = "\033[1m"
-    DIM     = "\033[2m"
-    ULINE   = "\033[4m"
-    RED     = "\033[31m"
-    GREEN   = "\033[32m"
-    YELLOW  = "\033[33m"
-    BLUE    = "\033[34m"
-    MAGENTA = "\033[35m"
-    CYAN    = "\033[36m"
-    WHITE   = "\033[37m"
-    BR_RED    = "\033[91m"
-    BR_GREEN  = "\033[92m"
-    BR_YELLOW = "\033[93m"
-    BR_BLUE   = "\033[94m"
-    BR_MAG    = "\033[95m"
-    BR_CYAN   = "\033[96m"
-    BR_WHITE  = "\033[97m"
-    BG_RED   = "\033[41m"
-    BG_GREEN = "\033[42m"
-    BG_BLUE  = "\033[44m"
+    RESET: str     = "\033[0m"
+    BOLD: str      = "\033[1m"
+    DIM: str       = "\033[2m"
+    ULINE: str     = "\033[4m"
+    RED: str       = "\033[31m"
+    GREEN: str     = "\033[32m"
+    YELLOW: str    = "\033[33m"
+    BLUE: str      = "\033[34m"
+    MAGENTA: str   = "\033[35m"
+    CYAN: str      = "\033[36m"
+    WHITE: str     = "\033[37m"
+    BR_RED: str    = "\033[91m"
+    BR_GREEN: str  = "\033[92m"
+    BR_YELLOW: str = "\033[93m"
+    BR_BLUE: str   = "\033[94m"
+    BR_MAG: str    = "\033[95m"
+    BR_CYAN: str   = "\033[96m"
+    BR_WHITE: str  = "\033[97m"
+    BG_RED: str   = "\033[41m"
+    BG_GREEN: str = "\033[42m"
+    BG_BLUE: str  = "\033[44m"
 
     @classmethod
-    def disable(cls):
+    def disable(cls) -> None:
+        attr: str
         for attr in dir(cls):
             if attr.isupper() and attr != "RESET":
                 setattr(cls, attr, "")
         cls.RESET = ""
 
 
-CODER_COLOURS = [
+CODER_COLOURS: list[tuple[str, str]] = [
     (C.BR_CYAN,   "CYN"),
     (C.BR_GREEN,  "GRN"),
     (C.BR_YELLOW, "YLW"),
@@ -383,7 +499,7 @@ CODER_COLOURS = [
 ]
 
 
-def _no_colour_support():
+def _no_colour_support() -> bool:
     if os.environ.get("NO_COLOR"):
         return True
     if not sys.stdout.isatty():
@@ -410,44 +526,46 @@ def _fmt_cost(c: float) -> str:
         return f"${c:.4f}"
     return f"${c:.2f}"
 
-def _banner_line(width=63):
+def _banner_line(width: int = 63) -> str:
     return f"{C.BR_CYAN}{'═' * width}{C.RESET}"
 
-def _info(msg):
+def _info(msg: str) -> None:
     print(f"  {C.DIM}{msg}{C.RESET}")
 
-def _success(msg):
+def _success(msg: str) -> None:
     print(f"  {C.BR_GREEN}✓{C.RESET} {msg}")
 
-def _fail(msg):
+def _fail(msg: str) -> None:
     print(f"  {C.BR_RED}✗{C.RESET} {msg}")
 
-def _warn(msg):
+def _warn(msg: str) -> None:
     print(f"  {C.BR_YELLOW}⚠{C.RESET} {msg}")
 
-def _header(msg):
+def _header(msg: str) -> None:
     print(f"  {C.BOLD}{C.BR_WHITE}{msg}{C.RESET}")
 
 
 def _print_credit_table(cu_usages: dict[str, TokenUsage], label: str,
-                         colour: str = ""):
+                         colour: str = "") -> None:
     """Print credit usage table — cost is the primary column."""
     if not cu_usages:
         return
 
     print(f"    {colour}{C.BOLD}{label}{C.RESET}")
-    hdr = (f"    {C.DIM}{'CU':<22} {'Cost':>8}  "
+    hdr: str = (f"    {C.DIM}{'CU':<22} {'Cost':>8}  "
            f"{'In':>8} {'Out':>8} {'Reason':>8} {'CacheR':>8} {'Model':<25}{C.RESET}")
     print(hdr)
     print(f"    {C.DIM}{'─' * 97}{C.RESET}")
 
-    wt = TokenUsage()
+    wt: TokenUsage = TokenUsage()
+    cu_id: str
+    u: TokenUsage
     for cu_id, u in cu_usages.items():
         if u.is_empty():
             continue
-        cost_str = _fmt_cost(u.cost)
-        cost_col = C.BR_YELLOW if u.cost > 0 else C.DIM
-        model_str = u.model if u.model else "unknown"
+        cost_str: str = _fmt_cost(u.cost)
+        cost_col: str = C.BR_YELLOW if u.cost > 0 else C.DIM
+        model_str: str = u.model if u.model else "unknown"
         # Shorten model name for display
         if "/" in model_str:
             model_str = model_str.split("/")[-1]
@@ -468,7 +586,7 @@ def _print_credit_table(cu_usages: dict[str, TokenUsage], label: str,
         wt.total += u.total
         wt.cost += u.cost
 
-    total_cost_col = C.BR_YELLOW if wt.cost > 0 else C.DIM
+    total_cost_col: str = C.BR_YELLOW if wt.cost > 0 else C.DIM
     print(f"    {C.DIM}{'─' * 97}{C.RESET}")
     print(f"    {C.BOLD}{'TOTAL':<22}{C.RESET}"
           f" {total_cost_col}{_fmt_cost(wt.cost):>8}{C.RESET}  "
@@ -479,14 +597,14 @@ def _print_credit_table(cu_usages: dict[str, TokenUsage], label: str,
     print()
 
 
-def _print_accumulated(tracker: CreditTracker):
+def _print_accumulated(tracker: CreditTracker) -> None:
     """Print accumulated totals — cost is the hero number."""
-    a = tracker.accumulated
+    a: TokenUsage = tracker.accumulated
     if a.is_empty():
         return
     print(f"    {C.BOLD}{C.BR_WHITE}ACCUMULATED TOTALS{C.RESET}")
     print(f"    {C.DIM}{'─' * 50}{C.RESET}")
-    cost_col = C.BR_YELLOW if a.cost > 0 else C.DIM
+    cost_col: str = C.BR_YELLOW if a.cost > 0 else C.DIM
     print(f"    {C.BOLD}{'Total cost:':<25}{C.RESET} "
           f"{cost_col}{C.BOLD}{_fmt_cost(a.cost)}{C.RESET}")
     print(f"    {'Input tokens:':<25} {C.BOLD}{_fmt_tokens(a.input)}{C.RESET}")
@@ -498,8 +616,8 @@ def _print_accumulated(tracker: CreditTracker):
 
 # ── CLI ────────────────────────────────────────────────────────────
 
-def parse_args(argv=None):
-    p = argparse.ArgumentParser(
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    p: argparse.ArgumentParser = argparse.ArgumentParser(
         description="Execute CUs in waves with live coloured output and credit tracking.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -526,22 +644,25 @@ def parse_args(argv=None):
 
 # ── CU ID → file resolution ───────────────────────────────────────
 
-_CUID_RE = re.compile(r"^#\s*CU-ID:\s*(.+)$")
+_CUID_RE: re.Pattern[str] = re.compile(r"^#\s*CU-ID:\s*(.+)$")
 
-_COMPONENT_FILES = ("COORDINATES.itr", "REQUIREMENTS.itr",
+_COMPONENT_FILES: Sequence[str] = ("COORDINATES.itr", "REQUIREMENTS.itr",
                     "IMPLEMENTATION_STEPS.itr", "ACCEPTANCE.itr")
 
 
 def _file_cu_id(f: Path) -> str | None:
     """Return the CU-ID header of a frame file, or None."""
-    try:
-        with open(f) as fh:
-            for line in fh:
-                m = _CUID_RE.match(line)
-                if m:
-                    return m.group(1).strip()
-    except Exception:
-        pass
+    opened: Ok[typing.TextIO] | Err[Exception] = _open_file(f)
+    if isinstance(opened, Err):
+        return None
+    log_fh: typing.TextIO = opened.value
+    line: str
+    for line in log_fh:
+        found: Optional[re.Match[str]] = _CUID_RE.match(line)
+        if found is not None:
+            log_fh.close()
+            return found.group(1).strip()
+    log_fh.close()
     return None
 
 
@@ -550,12 +671,25 @@ def _cu_folder_ref(subdir: Path) -> Path | None:
     component files, else the CU-ID-bearing frame inside, else None."""
     if not subdir.is_dir():
         return None
-    if any((subdir / name).is_file() for name in _COMPONENT_FILES):
-        return subdir
+    name: str
+    for name in _COMPONENT_FILES:
+        if (subdir / name).is_file():
+            return subdir
+    f: Path
     for f in sorted(subdir.iterdir()):
         if f.suffix == ".itr" and f.is_file() and _file_cu_id(f):
             return f
     return None
+
+
+def _iter_subdirs(itr_path: Path) -> list[Path]:
+    """List subdirectory entries of an ITR folder."""
+    found: list[Path] = []
+    entry: Path
+    for entry in itr_path.iterdir():
+        if entry.is_dir():
+            found.append(entry)
+    return found
 
 
 def _cu_read_instructions(cu_ref: Path) -> str:
@@ -570,14 +704,18 @@ def _cu_read_instructions(cu_ref: Path) -> str:
 
 
 def build_cu_map(itr_path: Path) -> dict[str, Path]:
-    cu_map = {}
+    cu_map: dict[str, Path] = {}
     # Legacy root-level frames first, then per-CU subdirectories (win).
+    f: Path
+    cu_id: str | None
     for f in sorted(itr_path.iterdir()):
         if f.suffix == ".itr" and f.is_file():
             cu_id = _file_cu_id(f)
             if cu_id:
                 cu_map[cu_id] = f
-    for sub in sorted(p for p in itr_path.iterdir() if p.is_dir()):
+    sub: Path
+    ref: Path | None
+    for sub in sorted(_iter_subdirs(itr_path)):
         ref = _cu_folder_ref(sub)
         if ref is not None:
             cu_id = sub.name if ref.is_dir() else (_file_cu_id(ref) or sub.name)
@@ -588,44 +726,43 @@ def build_cu_map(itr_path: Path) -> dict[str, Path]:
 def resolve_cu_file(cu_id: str, cu_map: dict[str, Path], itr_path: Path) -> Path | None:
     if cu_id in cu_map:
         return cu_map[cu_id]
-    direct = itr_path / f"{cu_id}.itr"
+    direct: Path = itr_path / f"{cu_id}.itr"
     if direct.is_file():
         return direct
-    subdir = itr_path / cu_id
-    ref = _cu_folder_ref(subdir)
+    subdir: Path = itr_path / cu_id
+    ref: Path | None = _cu_folder_ref(subdir)
     if ref is not None:
         return ref
-    nested = subdir / f"{cu_id}.itr"
+    nested: Path = subdir / f"{cu_id}.itr"
     return nested if nested.is_file() else None
 
 
 # ── Wave detection ─────────────────────────────────────────────────
 
-def detect_waves(itr_path: Path, waves_file: str | None) -> list[dict]:
+def detect_waves(itr_path: Path, waves_file: str | None) -> list[WaveDef]:
     if waves_file:
-        p = Path(waves_file)
+        p: Path = Path(waves_file)
         if p.is_file():
-            return json.loads(p.read_text())
+            loaded: list[WaveDef] = json.loads(p.read_text())
+            return loaded
         _warn(f"Waves file not found: {waves_file}")
-    cu_map = build_cu_map(itr_path)
-    cu_ids = sorted(cu_map.keys())
+    cu_map: dict[str, Path] = build_cu_map(itr_path)
+    cu_ids: list[str] = sorted(cu_map.keys())
     return [{"wave": 1, "cus": cu_ids}] if cu_ids else []
 
 
 # ── Git helpers ────────────────────────────────────────────────────
 
-def _git(*args, cwd: Path | None = None) -> str:
-    try:
-        r = subprocess.run(
-            ["git"] + list(args),
-            capture_output=True, text=True, cwd=cwd or Path.cwd(), timeout=30,
-        )
-        return r.stdout.strip()
-    except Exception:
+def _git(*args: str, cwd: Path | None = None) -> str:
+    """Run git and return stdout; empty string when git is unavailable."""
+    base: Path = cwd if cwd is not None else Path.cwd()
+    ran: Ok[str] | Err[Exception] = _git_run(*args, cwd=base)
+    if isinstance(ran, Err):
         return ""
+    return ran.value
 
 def git_diff_names(work_dir: Path, ref: str) -> list[str]:
-    names = _git("diff", "--name-only", ref, cwd=work_dir)
+    names: str = _git("diff", "--name-only", ref, cwd=work_dir)
     return names.splitlines() if names else []
 
 def git_stash_ref(work_dir: Path) -> str:
@@ -634,12 +771,29 @@ def git_stash_ref(work_dir: Path) -> str:
 
 # ── Live-streaming with JSON parsing ──────────────────────────────
 
-def _stream_process_json(cmd: list[str], log_fh, colour: str, prefix: str,
+def _parse_event_line(line: str) -> Ok[JsonEvent] | Err[ValueError]:
+    """Parse one streamed log line as a JSON event."""
+    # MONADIC-BOUNDARY: JSON decode of a foreign process stream; a non-object line becomes Err.
+    parsed: object = None
+    caught: ValueError
+    try:
+        parsed = json.loads(line)
+    except (json.JSONDecodeError, ValueError) as caught:
+        return Err(caught)
+    if isinstance(parsed, dict):
+        event: JsonEvent = cast(JsonEvent, parsed)
+        return Ok(event)
+    return Err(ValueError("event line is not a JSON object"))
+
+
+def _stream_process_json(cmd: list[str], log_fh: typing.TextIO, colour: str, prefix: str,
                          timeout: int, work_dir: Path,
                          token_usage: TokenUsage) -> Ok[int] | Err[Exception]:
     """Stream JSON events with activity-based timeout.
     Returns Ok(exit_code) or Err(FileNotFoundError|OSError|TimeoutError).
     """
+    proc: subprocess.Popen[bytes]
+    e: Exception
     match _popen(cmd, cwd=work_dir):
         case Ok(proc):
             pass
@@ -647,12 +801,14 @@ def _stream_process_json(cmd: list[str], log_fh, colour: str, prefix: str,
             _fail(f"Command not found: {cmd[0]}")
             return Err(e)
 
-    _done = threading.Event()
-    last_activity = [datetime.now()]
+    _done: threading.Event = threading.Event()
+    last_activity: list[datetime] = [datetime.now()]
 
 
-    def _reader():
+    def _reader() -> None:
         assert proc.stdout is not None
+        raw: bytes
+        line: str
         for raw in proc.stdout:
             line = raw.decode("utf-8", errors="replace").rstrip("\n")
             log_fh.write(line + "\n")
@@ -661,16 +817,20 @@ def _stream_process_json(cmd: list[str], log_fh, colour: str, prefix: str,
             # Any output from the process counts as activity
             last_activity[0] = datetime.now()
 
-            try:
-                ev = json.loads(line)
-                ev_type = ev.get("type", "")
+            parsed: Ok[JsonEvent] | Err[ValueError] = _parse_event_line(line)
+            if isinstance(parsed, Err):
+                print(f"  {colour}{prefix}{C.RESET} {C.DIM}│{C.RESET} {line}",
+                      flush=True)
+            else:
+                ev: JsonEvent = parsed.value
+                ev_type: str = ev.get("type", "")
 
-                sid = ev.get("sessionID", "")
+                sid: str = ev.get("sessionID", "")
                 if sid and not token_usage.session_id:
                     token_usage.session_id = sid
 
                 if ev_type == "model_start":
-                    model_info = ev.get("model", {})
+                    model_info: EventModel = ev.get("model", {})
                     if isinstance(model_info, dict):
                         token_usage.model = model_info.get("id", "")
                     elif isinstance(model_info, str):
@@ -679,26 +839,23 @@ def _stream_process_json(cmd: list[str], log_fh, colour: str, prefix: str,
                 if ev_type == "step_finish":
                     token_usage.add_from_step_finish(ev)
 
-                display = _format_event(ev, colour)
+                display: str | None = _format_event(ev, colour)
                 if display:
-                    dlines = display.split("\n")
+                    dlines: list[str] = display.split("\n")
                     print(f"  {colour}{prefix}{C.RESET} {C.DIM}│{C.RESET} {dlines[0]}",
                           flush=True)
+                    cont: str
                     for cont in dlines[1:]:
                         print(f"  {colour}{prefix}{C.RESET} {C.DIM}│{C.RESET} {cont}",
                               flush=True)
 
-            except (json.JSONDecodeError, ValueError):
-                print(f"  {colour}{prefix}{C.RESET} {C.DIM}│{C.RESET} {line}",
-                      flush=True)
-
         _done.set()
 
-    t = threading.Thread(target=_reader, daemon=True)
+    t: threading.Thread = threading.Thread(target=_reader, daemon=True)
     t.start()
 
     while not _done.is_set():
-        idle_secs = (datetime.now() - last_activity[0]).total_seconds()
+        idle_secs: float = (datetime.now() - last_activity[0]).total_seconds()
 
         # Kill if no activity for full timeout
         if idle_secs > timeout:
@@ -713,15 +870,18 @@ def _stream_process_json(cmd: list[str], log_fh, colour: str, prefix: str,
     return Ok(proc.returncode)
 
 
-def _format_event(ev: dict, colour: str) -> str | None:
-    t = ev.get("type", "")
+def _format_event(ev: JsonEvent, colour: str) -> str | None:
+    t: str = ev.get("type", "")
 
     if t == "step_start":
         return f"{C.DIM}▸ step start{C.RESET}"
 
     if t == "step_finish":
+        tok: StepTokens
+        cost: float
+        reason: str
         tok, cost, reason = _extract_step_tokens(ev)
-        parts = []
+        parts: list[str] = []
         if cost > 0:
             parts.append(f"cost:{_fmt_cost(cost)}")
         if tok.get("input"):
@@ -730,19 +890,19 @@ def _format_event(ev: dict, colour: str) -> str | None:
             parts.append(f"out:{_fmt_tokens(tok['output'])}")
         if tok.get("reasoning"):
             parts.append(f"reason:{_fmt_tokens(tok['reasoning'])}")
-        cache = tok.get("cache", {})
+        cache: TokenCache = tok.get("cache", {})
         if cache.get("read"):
             parts.append(f"cR:{_fmt_tokens(cache['read'])}")
         if reason:
             parts.append(f"({reason})")
-        token_str = " ".join(parts) if parts else "no data"
+        token_str: str = " ".join(parts) if parts else "no data"
         return f"{C.BR_GREEN}▸ done{C.RESET} {C.DIM}{token_str}{C.RESET}"
 
     if t == "model_start":
-        model = ev.get("model", {})
+        model: EventModel = ev.get("model", {})
         if isinstance(model, dict):
-            name = model.get("id", "unknown")
-            provider = model.get("providerID", "")
+            name: str = model.get("id", "unknown")
+            provider: str = model.get("providerID", "")
             return f"{C.DIM}▸ model: {provider}/{name}{C.RESET}"
         return f"{C.DIM}▸ model start{C.RESET}"
 
@@ -750,25 +910,29 @@ def _format_event(ev: dict, colour: str) -> str | None:
         return None
 
     if t == "text":
-        part = ev.get("part", {})
-        text = part.get("text", "")
+        part: EventPart = ev.get("part", {})
+        text: str = part.get("text", "")
         if not text:
             return None
         # Show what the agent actually says, in full, one line per line.
         # Truncation here is what made runs unreadable — cap high.
         if len(text) > 4000:
             text = text[:3997] + "..."
-        return "\n".join(f"{C.BR_WHITE}📝 {ln}{C.RESET}" for ln in text.split("\n"))
+        prefixed: list[str] = []
+        ln: str
+        for ln in text.split("\n"):
+            prefixed.append(f"{C.BR_WHITE}📝 {ln}{C.RESET}")
+        return "\n".join(prefixed)
 
     if t == "tool_invocation_start":
         part = ev.get("part", {})
-        tool = part.get("toolName", "unknown")
+        tool: str = part.get("toolName", "unknown")
         return f"{C.BR_YELLOW}🔧 {tool}{C.RESET}"
 
     if t == "tool_result":
         part = ev.get("part", {})
         tool = part.get("toolName", "unknown")
-        result = part.get("result", "")
+        result: EventResult = part.get("result", "")
         if isinstance(result, str) and len(result) > 80:
             result = result[:77] + "..."
         elif isinstance(result, dict):
@@ -779,8 +943,8 @@ def _format_event(ev: dict, colour: str) -> str | None:
 
     if t == "permission_request":
         part = ev.get("part", {})
-        action = part.get("action", "")
-        resource = part.get("resource", "")
+        action: str = part.get("action", "")
+        resource: str = part.get("resource", "")
         return f"{C.BR_MAG}🔐 permission: {action} {resource}{C.RESET}"
 
     return None
@@ -792,8 +956,8 @@ def _usage_line(usage: TokenUsage, colour: str = "") -> str:
     """Format a single-line usage summary: cost is prominent."""
     if usage.is_empty():
         return ""
-    cost_str = _fmt_cost(usage.cost)
-    cost_col = C.BR_YELLOW if usage.cost > 0 else C.DIM
+    cost_str: str = _fmt_cost(usage.cost)
+    cost_col: str = C.BR_YELLOW if usage.cost > 0 else C.DIM
     return (f"    {cost_col}{C.BOLD}cost: {cost_str}{C.RESET}"
             f" {C.DIM}| in={_fmt_tokens(usage.input)}"
             f" out={_fmt_tokens(usage.output)}"
@@ -811,14 +975,16 @@ def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
     file tracking uses `git diff --name-only <stash_ref>` to isolate changes
     made during this CU's execution from other parallel CUs.
     """
+    colour_code: str
+    colour_label: str
     colour_code, colour_label = coder_colour
-    prefix = f"[{cu_id}]"
-    combined_usage = TokenUsage()
-    model_used = ""
+    prefix: str = f"[{cu_id}]"
+    combined_usage: TokenUsage = TokenUsage()
+    model_used: str = ""
     files_changed: list[str] = []
-    stream_rc = 1
+    stream_rc: int = 1
 
-    prompt = (
+    prompt: str = (
         f"Implement ONLY CU {cu_id}. Rules:\n"
         f"1. {_cu_read_instructions(cu_file)}\n"
         f"2. Implement ONLY the changes described in that CU\n"
@@ -835,15 +1001,17 @@ def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
           f" {C.DIM}\u2192 {cu_file.name}{C.RESET}  {C.DIM}({colour_label}){C.RESET}")
     print(f"    {C.DIM}{'\u2500' * 55}{C.RESET}")
 
+    model_idx: int
+    model: str
     for model_idx, model in enumerate(fallback_chain):
-        log_file = log_dir / f"{cu_id}.attempt-{model_idx}.log"
-        attempt_usage = TokenUsage()
+        log_file: Path = log_dir / f"{cu_id}.attempt-{model_idx}.log"
+        attempt_usage: TokenUsage = TokenUsage()
 
         if model_idx > 0:
             _warn(f"Fallback attempt {model_idx}: trying {C.BOLD}{model}{C.RESET}")
             print(f"    {C.DIM}Trying fallback model: {model}{C.RESET}")
 
-        cmd = [
+        cmd: list[str] = [
             "opencode", "run",
             "--dir", str(project_dir),
             "--model", model,
@@ -854,6 +1022,9 @@ def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
         ]
 
         # Open log file via monadic wrapper
+        log_fh: typing.TextIO
+        rc: int
+        e: Exception
         match _open_file(log_file, "w"):
             case Ok(log_fh):
                 match _stream_process_json(cmd, log_fh, colour_code, prefix,
@@ -871,19 +1042,29 @@ def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
         # An opencode `"type": "error"` event is authoritative. Plain-text
         # patterns only apply to non-JSON lines (raw process stderr) so
         # coder tool errors and compiler output can never fail a CU.
+        text: str
         match _read_file_text(log_file):
             case Ok(text):
-                is_refusal = any(p.lower() in text.lower() for p in _REFUSAL_PATTERNS)
-                is_error_lines = False
+                lowered_text: str = text.lower()
+                is_refusal: bool = False
+                p: str
+                for p in _REFUSAL_PATTERNS:
+                    if p.lower() in lowered_text:
+                        is_refusal = True
+                        break
+                is_error_lines: bool = False
+                line: str
+                ev: JsonEvent
                 for line in text.splitlines():
-                    try:
-                        ev = json.loads(line)
-                        if isinstance(ev, dict) and ev.get("type") == "error":
+                    parsed_line: Ok[JsonEvent] | Err[ValueError] = _parse_event_line(line)
+                    if isinstance(parsed_line, Err):
+                        pass
+                    else:
+                        ev = parsed_line.value
+                        if ev.get("type") == "error":
                             is_error_lines = True
                             break
                         continue
-                    except (json.JSONDecodeError, ValueError):
-                        pass
                     if "toolResult" in line or "tool_result" in line:
                         continue
                     for p in _ERROR_PATTERNS:
@@ -896,8 +1077,8 @@ def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
                 is_refusal = False
                 is_error_lines = False
 
-        is_error = is_error_lines if stream_rc == 0 else False
-        is_timeout = stream_rc == 124
+        is_error: bool = is_error_lines if stream_rc == 0 else False
+        is_timeout: bool = stream_rc == 124
 
         # Combine usage
         combined_usage.input += attempt_usage.input
@@ -913,9 +1094,10 @@ def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
 
         # Git diff from project root — use stash_ref to isolate per-CU changes
         # when running in parallel (avoids capturing changes from other CUs)
-        diff_args = ["diff", "--name-only"]
+        diff_args: list[str] = ["diff", "--name-only"]
         if stash_ref:
             diff_args.append(stash_ref)
+        diff_out: str
         match _git_run(*diff_args, cwd=project_dir):
             case Ok(diff_out):
                 files_changed = diff_out.splitlines() if diff_out else []
@@ -923,7 +1105,7 @@ def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
                 files_changed = []
 
         # Determine if this attempt succeeded
-        succeeded = stream_rc == 0 and not is_refusal and not is_error
+        succeeded: bool = stream_rc == 0 and not is_refusal and not is_error
 
         if succeeded:
             model_used = model
@@ -934,7 +1116,7 @@ def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
                 _success(f"CU {cu_id} completed {C.DIM}({len(files_changed)} files){C.RESET}")
             break
         else:
-            reason = "refused" if is_refusal else ("error" if is_error else ("timeout" if is_timeout else f"exit {stream_rc}"))
+            reason: str = "refused" if is_refusal else ("error" if is_error else ("timeout" if is_timeout else f"exit {stream_rc}"))
             _warn(f"Model {C.BOLD}{model}{C.RESET} failed: {reason}")
             if model_idx == len(fallback_chain) - 1:
                 model_used = model
@@ -943,12 +1125,12 @@ def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
                 # Never clobber evidence: the coder may have written feedback
                 # before failing. Only write the escalation stub when the
                 # coder left no feedback file behind.
-                coder_feedback = feedback_dir / f"{cu_id}.feedback.txt"
+                coder_feedback: Path = feedback_dir / f"{cu_id}.feedback.txt"
                 if coder_feedback.is_file():
                     _warn(f"Keeping coder feedback at {coder_feedback}")
                     break
 
-                feedback_content = f"""CU_ID={cu_id}
+                feedback_content: str = f"""CU_ID={cu_id}
 CODER_NAME=wave-runner
 DATE={datetime.now().isoformat()}
 CLARITY_RATING=1
@@ -973,16 +1155,17 @@ VERIFICATION_DETAILS=CU not implemented
                         _warn(f"Failed to write escalation feedback: {e}")
                 break
 
-    line = _usage_line(combined_usage)
-    if line:
-        print(line)
+    line2: str = _usage_line(combined_usage)
+    if line2:
+        print(line2)
 
     if files_changed:
+        fc: str
         for fc in files_changed:
             print(f"    {colour_code}\u251c{C.RESET} {fc}")
 
     if model_used:
-        log_model_info = log_dir / f"{cu_id}.model-used.txt"
+        log_model_info: Path = log_dir / f"{cu_id}.model-used.txt"
         match _write_file_text(log_model_info, f"model={model_used}\nfallback_level={model_idx}\n"):
             case Ok(_):
                 pass
@@ -1001,15 +1184,15 @@ VERIFICATION_DETAILS=CU not implemented
 def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
                   feedback_dir: Path, log_dir: Path, timeout: int,
                   project_dir: Path, wave_cus: list[str]) -> tuple[int, TokenUsage]:
-    log_file = log_dir / f"lead-wave-{wave}.log"
-    colour = C.BR_MAG
-    prefix = "[LEAD]"
-    usage = TokenUsage()
+    log_file: Path = log_dir / f"lead-wave-{wave}.log"
+    colour: str = C.BR_MAG
+    prefix: str = "[LEAD]"
+    usage: TokenUsage = TokenUsage()
 
-    is_final = (wave == num_waves)
+    is_final: bool = (wave == num_waves)
 
     if is_final:
-        commit_instruction = (
+        commit_instruction: str = (
             f"\n7. Read COMMIT_MESSAGE fields from all feedback files across all waves\n"
             f"8. Consolidate into a single commit message\n"
             f"9. Stage all changes and commit with the consolidated message\n"
@@ -1020,7 +1203,7 @@ def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
             f"8. Do NOT commit \u2014 the final wave lead will commit\n"
         )
 
-    prompt = (
+    prompt: str = (
         f"You are the code lead for wave {wave}.\n\n"
         f"1. Read feedback files for this wave\u2019s CUs: {', '.join(wave_cus)}\n"
         f"2. For any CU with STATUS=ESCALATION: read the CU frame file and implement it yourself\n"
@@ -1032,7 +1215,7 @@ def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
         f"Max fix iterations: {max_iterations}"
     )
 
-    cmd = [
+    cmd: list[str] = [
         "opencode", "run",
         "--dir", str(project_dir),
         "--model", model,
@@ -1045,6 +1228,9 @@ def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
     print(f"  {colour}{C.BOLD}▸{C.RESET} {colour}{C.BOLD}Code Lead — Wave {wave} review{C.RESET}")
     print(f"    {C.DIM}{'─' * 55}{C.RESET}")
 
+    log_fh: typing.TextIO
+    rc: int
+    e: Exception
     match _open_file(log_file, "w"):
         case Ok(log_fh):
             match _stream_process_json(cmd, log_fh, colour, prefix,
@@ -1065,7 +1251,7 @@ def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
     else:
         _fail(f"Lead review failed (exit {rc})")
 
-    line = _usage_line(usage)
+    line: str = _usage_line(usage)
     if line:
         print(line)
     print()
@@ -1079,12 +1265,12 @@ def run_per_cu_lead(cu_id: str, cu_file: Path, model: str, max_iterations: int,
                     project_dir: Path) -> Ok[tuple[int, TokenUsage]] | Err[Exception]:
     """Run code lead for a single escalated CU immediately.
     Returns Ok((rc, usage)) or Err."""
-    log_file = log_dir / f"lead-{cu_id}.log"
-    colour = C.BR_MAG
-    prefix = f"[LEAD-{cu_id}]"
-    usage = TokenUsage()
+    log_file: Path = log_dir / f"lead-{cu_id}.log"
+    colour: str = C.BR_MAG
+    prefix: str = f"[LEAD-{cu_id}]"
+    usage: TokenUsage = TokenUsage()
 
-    prompt = (
+    prompt: str = (
         f"You are the code lead. CU {cu_id} was escalated by the coder.\n\n"
         f"1. {_cu_read_instructions(cu_file)}\n"
         f"2. Read the escalation feedback at {feedback_dir / f'{cu_id}.feedback.txt'}\n"
@@ -1094,7 +1280,7 @@ def run_per_cu_lead(cu_id: str, cu_file: Path, model: str, max_iterations: int,
         f"Max fix iterations: {max_iterations}"
     )
 
-    cmd = [
+    cmd: list[str] = [
         "opencode", "run",
         "--dir", str(project_dir),
         "--model", model,
@@ -1107,6 +1293,9 @@ def run_per_cu_lead(cu_id: str, cu_file: Path, model: str, max_iterations: int,
     print(f"  {colour}{C.BOLD}\u25b8 {colour}{C.BOLD}Lead \u2014 fixing {cu_id}{C.RESET}")
     print(f"    {C.DIM}{'\u2500' * 55}{C.RESET}")
 
+    log_fh: typing.TextIO
+    rc: int
+    e: Exception
     match _open_file(log_file, "w"):
         case Ok(log_fh):
             match _stream_process_json(cmd, log_fh, colour, prefix,
@@ -1126,7 +1315,7 @@ def run_per_cu_lead(cu_id: str, cu_file: Path, model: str, max_iterations: int,
         case _:
             _fail(f"Lead failed on {cu_id} (exit {rc})")
 
-    line = _usage_line(usage)
+    line: str = _usage_line(usage)
     if line:
         print(line)
     print()
@@ -1134,7 +1323,8 @@ def run_per_cu_lead(cu_id: str, cu_file: Path, model: str, max_iterations: int,
 
 def _is_escalated(cu_id: str, feedback_dir: Path) -> bool:
     """Check if a specific CU has ESCALATION status."""
-    fb = feedback_dir / f"{cu_id}.feedback.txt"
+    fb: Path = feedback_dir / f"{cu_id}.feedback.txt"
+    text: str
     match _read_file_text(fb):
         case Ok(text):
             return "STATUS=ESCALATION" in text
@@ -1145,11 +1335,12 @@ def _is_escalated(cu_id: str, feedback_dir: Path) -> bool:
 # ── Escalation check ───────────────────────────────────────────────
 
 def check_escalations(wave_cus: list[str], feedback_dir: Path) -> int:
-    count = 0
+    count: int = 0
+    cu_id: str
     for cu_id in wave_cus:
-        fb = feedback_dir / f"{cu_id}.feedback.txt"
+        fb: Path = feedback_dir / f"{cu_id}.feedback.txt"
         if fb.is_file():
-            text = fb.read_text(errors="replace")
+            text: str = fb.read_text(errors="replace")
             if "STATUS=ESCALATION" in text:
                 count += 1
                 _warn(f"Escalation: {cu_id}")
@@ -1158,19 +1349,20 @@ def check_escalations(wave_cus: list[str], feedback_dir: Path) -> int:
 
 # ── Convergence tracking ───────────────────────────────────────────
 
-def load_convergence(path: Path) -> dict:
+def load_convergence(path: Path) -> ConvergenceData:
     if path.is_file():
-        return json.loads(path.read_text())
+        data: ConvergenceData = json.loads(path.read_text())
+        return data
     return {"waves": [], "status": "RUNNING"}
 
-def save_convergence(path: Path, data: dict):
+def save_convergence(path: Path, data: ConvergenceData) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 def update_convergence(path: Path, wave_num: int, wave_cus: list[str],
                        escalations: int, coder_ok: bool, lead_ok: bool,
                        files_changed: dict[str, list[str]],
-                       credits: dict[str, dict]):
-    data = load_convergence(path)
+                       credits: dict[str, TokenReport]) -> None:
+    data: ConvergenceData = load_convergence(path)
     data["waves"].append({
         "wave": wave_num, "cus": wave_cus,
         "escalations": escalations,
@@ -1206,10 +1398,12 @@ async def run_wave_parallel(
     No try/except in this function — all error handling via Result monad + match/case.
     """
     wave_files_changed: dict[str, list[str]] = {}
-    all_passed = True
-    loop = asyncio.get_event_loop()
+    all_passed: bool = True
+    loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
 
     # Capture git HEAD reference ONCE before parallel dispatch
+    stash_ref: str
+    e: Exception
     match _git_run("rev-parse", "HEAD", cwd=project_dir):
         case Ok(stash_ref):
             pass
@@ -1217,14 +1411,18 @@ async def run_wave_parallel(
             _fail(f"Cannot get git HEAD: {e}")
             return {}, False
 
+    pool: concurrent.futures.ThreadPoolExecutor
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(cu_files)) as pool:
         # Dispatch all coders in parallel
-        coder_futures: list[tuple[str, Path, asyncio.Future]] = []
+        coder_futures: list[tuple[str, Path, asyncio.Future[Ok[CoderOutput] | Err[Exception]]]] = []
+        idx: int
+        cu_id: str
+        cu_file: Path
         for idx, (cu_id, cu_file) in enumerate(cu_files):
-            coder_colour = CODER_COLOURS[idx % len(CODER_COLOURS)]
-            fallback_chain = ModelFallbackChain(coder_model, coder_fallbacks)
+            coder_colour: tuple[str, str] = CODER_COLOURS[idx % len(CODER_COLOURS)]
+            fallback_chain: ModelFallbackChain = ModelFallbackChain(coder_model, tuple(coder_fallbacks))
 
-            future = loop.run_in_executor(
+            future: asyncio.Future[Ok[CoderOutput] | Err[Exception]] = loop.run_in_executor(
                 pool,
                 run_coder,
                 cu_file, cu_id, fallback_chain,
@@ -1235,6 +1433,10 @@ async def run_wave_parallel(
             coder_futures.append((cu_id, cu_file, future))
 
         # Await all coders with monadic wrapping
+        rc: int
+        files: list[str]
+        usage: TokenUsage
+        model: str
         for cu_id, cu_file, future in coder_futures:
             match await future_result(future):
                 case Ok(CoderOutput(rc=rc, files_changed=files, usage=usage, model_used=model)):
@@ -1252,7 +1454,11 @@ async def run_wave_parallel(
 
     # Per-CU lead checks (sequential after all coders done — avoids file conflicts)
     escalated_cus: list[str] = []
-    for cu_id, cu_file, _ in coder_futures:
+    _leftover: asyncio.Future[Ok[CoderOutput] | Err[Exception]]
+    text: str
+    lead_rc: int
+    lead_usage: TokenUsage
+    for cu_id, cu_file, _leftover in coder_futures:
         if no_per_cu_lead:
             continue
         match _read_file_text(feedback_dir / f"{cu_id}.feedback.txt"):
@@ -1274,10 +1480,11 @@ async def run_wave_parallel(
     # After all per-CU leads, recompute files changed from pre-wave ref.
     # This captures files committed by leads (coders' files_changed is empty
     # when the lead implements the CU instead of the coder).
+    diff_out: str
     if escalated_cus:
         match _git_run("diff", "--name-only", stash_ref, cwd=project_dir):
             case Ok(diff_out):
-                all_changed = diff_out.splitlines() if diff_out else []
+                all_changed: list[str] = diff_out.splitlines() if diff_out else []
                 for cu_id in escalated_cus:
                     wave_files_changed[cu_id] = all_changed
             case Err(_):
@@ -1292,27 +1499,30 @@ async def main_async(args: argparse.Namespace) -> None:
     """Async entry point — drives wave execution.
     No try/except in this function — all error handling via match/case on Result monad.
     """
-    itr_path = Path(args.itr).resolve()
+    itr_path: Path = Path(args.itr).resolve()
     if not itr_path.is_dir():
         _fail(f"ITR path does not exist: {itr_path}")
         sys.exit(1)
 
-    app_name = args.app
+    app_name: str = args.app
     # Run outputs live INSIDE the ITR folder, never scattered next to it.
-    work_dir = itr_path
+    work_dir: Path = itr_path
 
     # Resolve project root
+    project_dir: Path | None
     if args.project:
         project_dir = Path(args.project).resolve()
     else:
         project_dir = None
+        start: Path
         for start in [Path.cwd(), work_dir.resolve()]:
-            search = start
-            for _ in range(10):
+            search: Path = start
+            depth: int
+            for depth in range(10):
                 if (search / ".opencode" / "agents").is_dir():
                     project_dir = search
                     break
-                parent = search.parent
+                parent: Path = search.parent
                 if parent == search:
                     break
                 search = parent
@@ -1323,16 +1533,16 @@ async def main_async(args: argparse.Namespace) -> None:
             _info("Use --project to specify the project root")
             sys.exit(1)
 
-    feedback_dir = work_dir / f"{app_name}.feedback"
-    log_dir = work_dir / f"{app_name}.logs"
-    convergence_file = work_dir / f"{app_name}.convergence.json"
+    feedback_dir: Path = work_dir / f"{app_name}.feedback"
+    log_dir: Path = work_dir / f"{app_name}.logs"
+    convergence_file: Path = work_dir / f"{app_name}.convergence.json"
 
     # A dry-run prints the plan and touches nothing on disk.
     if not args.dry_run:
         feedback_dir.mkdir(parents=True, exist_ok=True)
         log_dir.mkdir(parents=True, exist_ok=True)
 
-    cu_map = build_cu_map(itr_path)
+    cu_map: dict[str, Path] = build_cu_map(itr_path)
 
     print()
     print(_banner_line())
@@ -1350,23 +1560,24 @@ async def main_async(args: argparse.Namespace) -> None:
     print()
 
     _header("Loading waves...")
-    waves = detect_waves(itr_path, args.waves)
+    waves: list[WaveDef] = detect_waves(itr_path, args.waves)
     if not args.dry_run:
         log_dir.joinpath("waves.json").write_text(json.dumps(waves, indent=2) + "\n")
 
-    num_waves = len(waves)
+    num_waves: int = len(waves)
     _success(f"Found {num_waves} waves")
     print()
 
     if not args.dry_run:
         save_convergence(convergence_file, {"waves": [], "status": "RUNNING"})
-    tracker = CreditTracker()
+    tracker: CreditTracker = CreditTracker()
 
+    wave_def: WaveDef
     for wave_def in waves:
-        wave_num = wave_def["wave"]
-        wave_cus = wave_def["cus"]
-        description = wave_def.get("description", "")
-        wc = tracker.start_wave(wave_num)
+        wave_num: int = wave_def["wave"]
+        wave_cus: list[str] = wave_def["cus"]
+        description: str = wave_def.get("description", "")
+        wc: WaveCredits = tracker.start_wave(wave_num)
 
         print(_banner_line())
         print(f"  {C.BOLD}{C.BR_CYAN}Wave {wave_num}/{num_waves}{C.RESET}"
@@ -1375,9 +1586,10 @@ async def main_async(args: argparse.Namespace) -> None:
         _info(f"CUs: {', '.join(wave_cus)}")
         print()
 
-        cu_files = []
+        cu_files: list[tuple[str, Path]] = []
+        cu_id: str
         for cu_id in wave_cus:
-            cu_file = resolve_cu_file(cu_id, cu_map, itr_path)
+            cu_file: Path | None = resolve_cu_file(cu_id, cu_map, itr_path)
             if cu_file:
                 cu_files.append((cu_id, cu_file))
             else:
@@ -1390,12 +1602,15 @@ async def main_async(args: argparse.Namespace) -> None:
 
         if args.dry_run:
             print(f"  {C.DIM}[dry-run] Would execute:{C.RESET}")
+            f: Path
             for cu_id, f in cu_files:
                 print(f"    {C.DIM}·{C.RESET} {C.BR_CYAN}{cu_id}{C.RESET} {C.DIM}→ {f.name}{C.RESET}")
             print()
             continue
 
         # Capture pre-wave HEAD ref for accurate file tracking after wave lead commits
+        ref: str
+        pre_wave_ref: str | None
         match _git_run("rev-parse", "HEAD", cwd=project_dir):
             case Ok(ref):
                 pre_wave_ref = ref
@@ -1406,6 +1621,8 @@ async def main_async(args: argparse.Namespace) -> None:
         _header(f"Running {len(cu_files)} coder(s) in parallel...")
         print()
 
+        wave_files_changed: dict[str, list[str]]
+        all_passed: bool
         wave_files_changed, all_passed = await run_wave_parallel(
             cu_files, wc, tracker,
             feedback_dir, log_dir, project_dir,
@@ -1418,11 +1635,13 @@ async def main_async(args: argparse.Namespace) -> None:
 
         # Wave file summary
         print(f"  {C.BOLD}Wave {wave_num} files changed:{C.RESET}")
+        files: list[str]
         for cu_id, files in wave_files_changed.items():
             if files:
-                for f in files:
-                    print(f"    {C.DIM}├{C.RESET} {C.BR_CYAN}{cu_id}{C.RESET} {C.DIM}→{C.RESET} {f}")
-        total_files = set()
+                fname: str
+            for fname in files:
+                print(f"    {C.DIM}├{C.RESET} {C.BR_CYAN}{cu_id}{C.RESET} {C.DIM}→{C.RESET} {fname}")
+        total_files: set[str] = set()
         for files in wave_files_changed.values():
             total_files.update(files)
         if total_files:
@@ -1436,34 +1655,41 @@ async def main_async(args: argparse.Namespace) -> None:
         _print_accumulated(tracker)
 
         # Code lead review
+        lead_rc: int
+        lead_usage: TokenUsage
         lead_rc, lead_usage = run_code_lead(
             wave_num, num_waves, args.lead_model, args.max_fix_iterations,
             feedback_dir, log_dir, args.lead_timeout,
             project_dir, wave_cus,
         )
         tracker.accumulate(lead_usage)
-        lead_ok = lead_rc == 0
+        lead_ok: bool = lead_rc == 0
 
         # After wave lead, merge files committed by wave lead into file tracking
+        diff_out: str
         if pre_wave_ref:
             match _git_run("diff", "--name-only", pre_wave_ref, cwd=project_dir):
                 case Ok(diff_out):
-                    lead_files = set(diff_out.splitlines() if diff_out else [])
+                    lead_files: set[str] = set(diff_out.splitlines() if diff_out else [])
                     if lead_files:
                         for cu_id in wave_files_changed:
-                            existing = set(wave_files_changed[cu_id])
+                            existing: set[str] = set(wave_files_changed[cu_id])
                             wave_files_changed[cu_id] = list(existing | lead_files)
                 case Err(_):
                     pass
 
-        escalations = check_escalations(wave_cus, feedback_dir)
+        escalations: int = check_escalations(wave_cus, feedback_dir)
         if escalations > 0:
             _warn(f"Wave {wave_num}: {escalations} escalation(s)")
         else:
             _success(f"Wave {wave_num} completed")
         print()
 
-        credits_data = {cu_id: u.dict() for cu_id, u in wc.coders.items()}
+        credits_data: dict[str, TokenReport] = {}
+        cu_credit_id: str
+        cu_usage: TokenUsage
+        for cu_credit_id, cu_usage in wc.coders.items():
+            credits_data[cu_credit_id] = cu_usage.dict()
         credits_data["lead"] = lead_usage.dict()
         update_convergence(
             convergence_file, wave_num, wave_cus,
@@ -1482,13 +1708,15 @@ async def main_async(args: argparse.Namespace) -> None:
         print(_banner_line())
         return
 
-    convergence = load_convergence(convergence_file)
-    total_escalations = sum(w["escalations"] for w in convergence["waves"])
-    failed_waves = sum(
-        1 for w in convergence["waves"]
-        if w["coder_status"] != 0 or w["lead_status"] != 0
-    )
-    unique_all = set()
+    convergence: ConvergenceData = load_convergence(convergence_file)
+    total_escalations: int = 0
+    failed_waves: int = 0
+    w: WaveRecord
+    for w in convergence["waves"]:
+        total_escalations += w["escalations"]
+        if w["coder_status"] != 0 or w["lead_status"] != 0:
+            failed_waves += 1
+    unique_all: set[str] = set()
     for w in convergence["waves"]:
         for files in w.get("files_changed", {}).values():
             unique_all.update(files)
@@ -1499,7 +1727,7 @@ async def main_async(args: argparse.Namespace) -> None:
         convergence["status"] = "NEEDS_ATTENTION"
     save_convergence(convergence_file, convergence)
 
-    status_colour = C.BR_GREEN if convergence["status"] == "CONVERGED" else C.BR_RED
+    status_colour: str = C.BR_GREEN if convergence["status"] == "CONVERGED" else C.BR_RED
 
     print(_banner_line())
     print(f"  {C.BOLD}Summary{C.RESET}")
@@ -1513,9 +1741,9 @@ async def main_async(args: argparse.Namespace) -> None:
     print(_banner_line())
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> None:
     """Entry point — parses args and delegates to async main."""
-    args = parse_args(argv)
+    args: argparse.Namespace = parse_args(argv)
     if args.no_color:
         C.disable()
     sys.exit(asyncio.run(main_async(args)))

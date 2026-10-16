@@ -61,7 +61,9 @@ done (e.g. `1. dtr-builder emits TYPE entries for nested classes`).
 
 Executable tests proving each criterion: test file paths, commands to run,
 and expected results. Written by the Advisor, run by the code lead in
-E2E verify.
+E2E verify. For Python implementation work, include a mypy strict probe
+(e.g. `uvx mypy --strict <touched-files>`, zero errors expected) — annotation
+presence does not imply type agreement.
 ```
 
 ## Rules
@@ -71,6 +73,8 @@ E2E verify.
   status is a spec bug.
 - Acceptance criteria must be verifiable by the listed tests, one-to-one
   where possible.
+- Python features must list the `mypy --strict` zero-error probe among their
+  tests (see Tests); a Python feature without it is under-tested.
 - The feature ID (serial int) is assigned at creation and never changes,
   even if the title is reworded.
 - A bug/bugs fix feature must use the `bugfix-feature-<n>-<short-name>` name

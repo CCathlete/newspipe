@@ -132,7 +132,7 @@ COMPILE.ERROR_HANDLING=per-cu:continue-on-error,report-warnings,partial-output-a
 # ──────────────────────────────────────────────
 # ARCHITECTURE CONSTRAINTS
 # ──────────────────────────────────────────────
-ARCH=HEX,DI,DIP,NO_CROSS_LAYER,PORT_FLOW_OUT_IN,DOTENV_WALKUP,CODER_FEEDBACK,SEVERITY,ITR_LIFECYCLE,HARD_FAIL
+ARCH=HEX,DI,DIP,NO_CROSS_LAYER,PORT_FLOW_OUT_IN,DOTENV_WALKUP,CODER_FEEDBACK,SEVERITY,ITR_LIFECYCLE,HARD_FAIL,PYTHON_EXPLICIT_DECLARATION,PYTHON_NO_ANY,PYTHON_FROZEN_SLOTTED_DATACLASS,PYTHON_MONADIC_ERROR
 ARCH.HEX=Hexagonal architecture — domain innermost, application defines ports, infrastructure provides adapters
 ARCH.DI=Dependency injection — all dependencies provided from outside, no service locators
 ARCH.DIP=Dependency inversion — high-level modules own the interfaces, low-level modules implement them
@@ -143,6 +143,12 @@ ARCH.LAYER.DOMAIN=MODELS_ONLY — entities, value objects, no logic, no infrastr
 ARCH.LAYER.APPLICATION=SERVICES_PORTS_USECASES — operational logic, business rules, port interfaces
 ARCH.LAYER.INFRASTRUCTURE=ENVIRONMENT_SINGLETON_ADAPTERS_DOTENV — config, dotenv, IO, persistence, external APIs
 ARCH.LAYER.CONTROL=CONTAINER_CONTROLLERS_CLI_ENTRYPOINT — DI wiring, controllers, CLI, main
+ARCH.PYTHON.SCOPE=Applies to all Python implementation code produced from CUs where APP.LANGUAGE=Python. Non-Python tooling (e.g. Scala dtr-builder/itr-compiler) is exempt.
+ARCH.PYTHON.EXPLICIT_DECLARATION=Every variable must be declared with an explicit type annotation at first binding before its value is defined — MUST, CRITICAL violation otherwise. Form: `name: Type = value` or `name: Type` declared before `name = value`. Covers locals, attributes, function args and returns, loop targets. Bare `x = ...` on first binding is forbidden. Rebinding an already-annotated name does not need re-annotation when the type is unchanged. TypeVar definitions stay bare (`T = TypeVar(...)`) — annotating them is a linter error; the TypeVar itself is the declaration.
+ARCH.PYTHON.NO_ANY=Use of the Any type (typing.Any) is forbidden — MUST, CRITICAL violation. Bare `dict`/`list`/`tuple`/`set` without type parameters are forbidden as implicit Any. Create unambiguous custom types instead: NewType, dataclass, Enum, Literal, Union, TypeAlias, Protocol. Using `object` as an escape hatch for unknown types is forbidden.
+ARCH.PYTHON.SLOTTED_FROZEN_DATACLASS=Use of slotted, frozen dataclasses (@dataclass(slots=True, frozen=True)) is preferred over plain classes and mutable dataclasses — SHOULD, MAJOR deviation by default. Domain value objects default to slotted+frozen. Deviation requires justification in CU content (Advisor) or per-CU feedback (Coder) with Designer acknowledgement.
+ARCH.PYTHON.MONADIC_ERROR=Use of monadic containers (Result[T,E]/Either/Option-style wrappers, Optional chaining) for expected and domain failures is preferred over try-except — SHOULD, MAJOR deviation by default. try-except is reserved for truly exceptional boundary errors (imports, interpreter, OS-level). Business-logic control flow via exceptions is forbidden. Deviation requires justification as above.
+ARCH.PYTHON.SEVERITY=EXPLICIT_DECLARATION and NO_ANY violations are CRITICAL (HARD_FAIL). SLOTTED_FROZEN_DATACLASS and MONADIC_ERROR deviations are MAJOR by default (Advisor may downgrade with reason in CU content; Coder self-assesses SEVERITY in per-CU feedback).
 
 ARCH.DOTENV=DotEnv walk-up discovery is mandatory for every application
 ARCH.DOTENV.DISCOVERY=Walk up from application root toward filesystem root, check each directory for .env. First hit loads. None found = proceed with empty DotEnv.

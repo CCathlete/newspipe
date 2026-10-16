@@ -23,6 +23,8 @@ Every regular CU's steps must contain:
 1. **Numbered steps** (`1.`, `2.`, …), each naming at least one exact file
    path (`src/main/scala/…`, `src/test/…`, `conf/…`, `project/…`,
    `build.sbt`).
+   (Repo-own work uses repo-rooted paths instead:
+   `.LLMDD/…`, `itr-buffer/…`, `dtr-builder/…`, `itr-compiler/…`.)
 2. **Injectable code**: every step that creates or changes a file carries
    a complete fenced block (```scala / ```hocon / ```xml / ```properties /
    ```text) with exact content — signatures, imports, literals, versions.
@@ -61,7 +63,7 @@ Checker rules (FAIL = batch rejected, fix and recompile):
 - F6: any `TBD|TODO|FIXME|XXX|e.g.|etc.` token (code fences excluded
   from this rule except for `TODO|FIXME|XXX`, which fail everywhere).
 
-Reference implementation (keep in sync with the rules above):
+Reference implementation (keep in sync with the rules above; itself complies with `ARCH.PYTHON.*` — explicit annotations, no `Any`, failures returned as a list):
 
 ```python
 """validate-steps.py — mechanical dummy-proof gate for CU steps.
@@ -72,32 +74,67 @@ Usage:
 
 Exits 0 when every regular CU passes, 1 otherwise. See
 .LLMDD/skills/validate-implementation-steps/SKILL.md for the F-rules.
+
+This tool itself complies with ARCH.PYTHON.*: every first binding carries
+an explicit annotation, no typing.Any appears, and failures are returned
+as a list (monadic style) instead of raised/caught with try-except.
 """
 import json
 import re
 import sys
 from pathlib import Path
+from typing import Optional, TypedDict
 
-BANNED = ["handle", "extend", "improve", "enhance", "refactor",
+class BatchCu(TypedDict, total=False):
+    cu_id: str
+    content: str
+    cu_type: str
+
+
+def _normalize_cu_keys(raw: object) -> BatchCu:
+    """Map wire keys (cu-id) to identifier keys; ValueError on wrong-typed values."""
+    if not isinstance(raw, dict):
+        raise ValueError(f"CU item is not an object: {raw!r}")
+    normalized: BatchCu = {}
+    cu_id_raw: object = raw.get("cu-id", "")
+    if not isinstance(cu_id_raw, str):
+        raise ValueError(f"CU item has non-string cu-id: {cu_id_raw!r}")
+    normalized["cu_id"] = cu_id_raw
+    content_raw: object = raw.get("content", "")
+    if not isinstance(content_raw, str):
+        raise ValueError(f"CU item has non-string content: {content_raw!r}")
+    normalized["content"] = content_raw
+    cu_type_raw: object = raw.get("cu-type", "regular")
+    if not isinstance(cu_type_raw, str):
+        raise ValueError(f"CU item has non-string cu-type: {cu_type_raw!r}")
+    normalized["cu_type"] = cu_type_raw
+    return normalized
+
+BANNED: list[str] = ["handle", "extend", "improve", "enhance", "refactor",
           "wire up", "take care of", "manage"]
-PLACEHOLDER = re.compile(r"TBD|TODO|FIXME|XXX|etc\.")
-EG = re.compile(r"e\.g\.")
-FENCE = re.compile(r"```(\w+)\n(.*?)```", re.S)
-STEP = re.compile(r"(?m)^(\d+)\.\s")
-PATH = re.compile(r"(src/|conf/|project/)[\w./-]+|\bbuild\.sbt\b")
-PROVE = re.compile(r"Prove:\s*`([^`]+)`")
+PLACEHOLDER: re.Pattern[str] = re.compile(r"TBD|TODO|FIXME|XXX|etc\.")
+EG: re.Pattern[str] = re.compile(r"e\.g\.")
+FENCE: re.Pattern[str] = re.compile(r"```(\w+)\n(.*?)```", re.S)
+STEP: re.Pattern[str] = re.compile(r"(?m)^(\d+)\.\s")
+PATH: re.Pattern[str] = re.compile(r"(src/|conf/|project/|\.LLMDD/|itr-buffer/|dtr-builder/|itr-compiler/|commit-tool/|scripts/|docs/)[\w./-]+|\bbuild\.sbt\b|\bREADME\.md\b")
+PROVE: re.Pattern[str] = re.compile(r"Prove:\s*`([^`]+)`")
 
 
 def check(cu_id: str, text: str) -> list[str]:
     fails: list[str] = []
+    body: str
     if "# IMPLEMENTATION_STEPS:" in text:
         body = text.split("# IMPLEMENTATION_STEPS:", 1)[-1]
     else:
         body = text
-    parts = STEP.split(body)[1:]
-    nums, chunks = parts[0::2], parts[1::2]
+    parts: list[str] = STEP.split(body)[1:]
+    nums: list[str] = parts[0::2]
+    chunks: list[str] = parts[1::2]
     if len(nums) < 1:
         fails.append("F1: no numbered steps")
+    n: str
+    ch: str
+    verb: str
     for n, ch in zip(nums, chunks):
         if not PATH.search(ch):
             fails.append(f"F1: step {n} has no exact file path")
@@ -112,30 +149,62 @@ def check(cu_id: str, text: str) -> list[str]:
         fails.append("F4: missing Do NOT touch list")
     if "Stop when" not in body:
         fails.append("F4: missing Stop when condition")
-    code_free = FENCE.sub("", body)
+    code_free: str = FENCE.sub("", body)
     if PLACEHOLDER.search(code_free) or EG.search(code_free):
         fails.append("F6: placeholder token outside code (TBD/TODO/FIXME/XXX/e.g./etc.)")
     if re.search(r"TODO|FIXME|XXX", body):
         fails.append("F6: TODO/FIXME/XXX token (even in code)")
-    if any("…" in b or "..." in b for _, b in FENCE.findall(body)):
-        fails.append("F2: fenced block contains …/... placeholder instead of exact code")
+    fence_pair: tuple[str, str]
+    fence_text: str = ""
+    placeholder_in_fence: bool = False
+    for fence_pair in FENCE.findall(body):
+        fence_text = fence_pair[1]
+        if "\u2026" in fence_text or "..." in fence_text:
+            placeholder_in_fence = True
+    if placeholder_in_fence:
+        fails.append("F2: fenced block contains \u2026/... placeholder instead of exact code")
     return fails
 
 
 def main() -> None:
-    src = Path(sys.argv[1])
+    src: Path = Path(sys.argv[1])
     targets: dict[str, str] = {}
+    raw: str
+    parsed: list[BatchCu] = []
+    cu: BatchCu
+    content: str
+    cu_id: str
+    m: Optional[re.Match[str]]
+    steps_file: Path
     if src.suffix == ".json":
-        for cu in json.loads(src.read_text()):
-            if cu.get("cu-type", "regular") in ("arch", "legend"):
+        raw = src.read_text()
+        loaded: object = json.loads(raw)
+        items: list[BatchCu] = []
+        raw_items: list[object] = []
+        if isinstance(loaded, dict):
+            cus_raw: object = loaded.get("cus", [])
+            if isinstance(cus_raw, list):
+                raw_items = cus_raw
+        elif isinstance(loaded, list):
+            raw_items = loaded
+        item: object
+        for item in raw_items:
+            items.append(_normalize_cu_keys(item))
+        for cu in items:
+            if cu.get("cu_type", "regular") in ("arch", "legend"):
                 continue
             content = cu.get("content", "")
             m = re.search(r"IMPLEMENTATION_STEPS:(.*?)ACCEPTANCE:", content, re.S)
-            targets[cu["cu-id"]] = m.group(1) if m else ""
+            cu_id = cu.get("cu_id", "")
+            targets[cu_id] = m.group(1) if m else ""
     else:
         for steps_file in sorted(src.glob("cu-*/IMPLEMENTATION_STEPS.itr")):
             targets[steps_file.parent.name] = steps_file.read_text()
-    failed = False
+    failed: bool = False
+    cid: str
+    text: str
+    errs: list[str] = []
+    e: str
     for cid, text in targets.items():
         errs = check(cid, text)
         print(("FAIL " if errs else "PASS ") + cid)
@@ -160,6 +229,20 @@ The script cannot judge everything. The reviewer additionally confirms:
 - J3: cross-CU contracts name the exact API (e.g. `BronzeUnit.idFor`
   public in cu-001, consumed in cu-005) and dependency order is stated.
 - J4: each `Prove:` command's expected output is stated, not just the command.
+- J5: Python code (when `APP.LANGUAGE=Python`) obeys `ARCH.PYTHON.*` —
+  every first binding carries an explicit annotation, no `typing.Any` /
+  bare generics, slotted+frozen dataclasses for value objects, monadic
+  error handling over `try-except`. Injectable Python fences violating
+  `EXPLICIT_DECLARATION` or `NO_ANY` fail like any J-rule. Annotation
+  presence alone does not pass: the reviewer runs
+  `uvx mypy --strict <touched-files>` with zero errors required
+  (feat-4 lesson: 77 errors invisible to tests and to annotation audits —
+  annotated TypeVars, annotated functional `TypedDict(...)`, same-scope
+  re-annotations). Sanctioned forms that are both rule-clean and
+  linter-clean: bare `T = TypeVar(...)` definitions (annotating them is a
+  linter error; tensor exemption recorded), class-based `TypedDict`s
+  (functional form cannot carry `TypeAlias`), `cast` only at
+  foreign-boundary narrowings.
 
 ## Rules
 
@@ -168,7 +251,8 @@ The script cannot judge everything. The reviewer additionally confirms:
 - Keep this skill's checker and the F-rules in sync — editing one means
   editing the other.
 - Record the validation run (command + PASS list) in the CU feedback or
-  commit message.
+  commit message. For Python work, record the `mypy --strict` run the same
+  way (command + zero-error verdict).
 
 ## Output
 

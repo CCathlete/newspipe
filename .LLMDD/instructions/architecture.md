@@ -107,6 +107,25 @@ Each CU frame is compiled by `itr-compiler` from CU content + baseline DTR.
 7. **E2E_VERIFY** — Code lead runs e2e tests, repairs until convergence
 8. **ITERATE** — Re-scan with dtr-builder, repeat
 
+## Layer layout demands
+
+Every app follows the hexagonal layer partition below. Folder-name casing
+follows the implementation language: snake_case for Python, camelCase for
+Scala/TS/JS, etc. (a Scala app uses `useCases`, `dependencyInjection`,
+`entryPoint`, `valueObjects`; a Python app uses `use_cases`,
+`dependency_injection`, `entry_point`, `value_objects`).
+
+- **application** divides into `services`, `ports`, `useCases` — nothing else.
+- **infrastructure** divides into one folder per application port (each port
+  gets its adapter folder), plus an `Env` adapter singleton that loads config
+  and env variables (system env takes precedence over loaded config).
+- **domain** contains `models` and `valueObjects` only.
+- **control** divides into `dependencyInjection` and `entryPoint` — nothing else.
+- **No layer root holds files.** `application`, `infrastructure`, `domain`,
+  and `control` contain only their nested folders; every source file lives in
+  a nested folder. A file placed directly in a layer root is a constraint
+  violation (`HARD_FAIL`).
+
 ## Constraints
 
 - Hexagonal architecture (`HEX`)
@@ -125,6 +144,40 @@ Each CU frame is compiled by `itr-compiler` from CU content + baseline DTR.
   control → dependencyInjection/entryPoint (`LAYER_LAYOUT`)
 - No files in layer roots, only in nested folders (`NO_LAYER_ROOT_FILES`)
 - Infra Env adapter singleton loads config + env variables (`ENV_ADAPTER`)
+- Python explicit declaration: every variable annotated at first binding (`PYTHON_EXPLICIT_DECLARATION`, MUST/CRITICAL)
+- Python no-Any: `typing.Any` and bare generics forbidden, define custom types (`PYTHON_NO_ANY`, MUST/CRITICAL)
+- Python slotted+frozen dataclasses preferred (`PYTHON_FROZEN_SLOTTED_DATACLASS`, SHOULD/MAJOR)
+- Python monadic error handling preferred over try-except (`PYTHON_MONADIC_ERROR`, SHOULD/MAJOR)
 
-See the system tensor at `system_tensors/llm-driven-design-sys-prompt.itr` for
+## Python discipline (Python implementation code, `APP.LANGUAGE=Python`)
+
+Non-Python tooling (e.g. Scala dtr-builder/itr-compiler) is exempt.
+
+1. **Explicit declaration before definition (MUST/CRITICAL).** Every
+   variable carries an explicit type annotation at its first binding:
+   `name: Type = value`, or `name: Type` declared before `name = value`.
+   Covers locals, attributes, function args and returns, loop targets.
+   Bare `x = ...` on first binding is a `HARD_FAIL` violation. TypeVar definitions stay bare (`T = TypeVar(...)`) — annotating them is a linter error; the TypeVar itself is the declaration.
+2. **No `Any` (MUST/CRITICAL).** `typing.Any` is forbidden. Bare
+   `dict`/`list`/`tuple`/`set` without parameters count as implicit
+   `Any` and are forbidden. Create unambiguous custom types instead:
+   `NewType`, dataclass, `Enum`, `Literal`, `Union`, `TypeAlias`,
+   `Protocol`. `object` as an escape hatch is forbidden.
+3. **Slotted, frozen dataclasses preferred (SHOULD/MAJOR).** Use
+   `@dataclass(slots=True, frozen=True)` over plain classes and mutable
+   dataclasses. Domain value objects default to slotted+frozen.
+   Deviation needs justification in CU content or per-CU feedback with
+   Designer acknowledgement.
+4. **Monadic containers over try-except (SHOULD/MAJOR).** Use
+   `Result[T,E]`/`Either`/`Option`-style wrappers and `Optional`
+   chaining for expected and domain failures. `try-except` is reserved
+   for truly exceptional boundary errors (imports, interpreter,
+   OS-level). Business-logic control flow via exceptions is forbidden.
+   Deviation needs justification as above.
+
+`EXPLICIT_DECLARATION` and `NO_ANY` violations are CRITICAL
+(`HARD_FAIL`); `SLOTTED_FROZEN_DATACLASS` and `MONADIC_ERROR`
+deviations are MAJOR by default.
+
+See the system tensor at `.LLMDD/prompts/llm-driven-design-sys-prompt.itr.md` for
 the complete specification.
