@@ -1,0 +1,4 @@
+# ACCEPTANCE: cu-002
+
+AC-1 (criteria 1, 2): `sbt "testOnly newspipe.OpenCodeTimeoutSpec"` reports 2/2 succeeded with workdir pipelines/enrichment.
+AC-2 (criterion 4): `sbt test` passes all suites with workdir pipelines/enrichment, including the pre-existing parser, merge, and props suites.

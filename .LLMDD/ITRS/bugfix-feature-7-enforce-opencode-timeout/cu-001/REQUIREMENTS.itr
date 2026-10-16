@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+CU-001 rewrites the timeout path of OpenCodeCliClient.enrich so an over-timeout opencode run is killed as a whole tree and the caller is freed promptly. Requires nothing; consumed by cu-002. This CU satisfies bugfix-feature-7 criteria 1, 2, and the message half of 3.

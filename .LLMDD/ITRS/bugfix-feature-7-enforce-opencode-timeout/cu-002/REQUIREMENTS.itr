@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+CU-002 adds OpenCodeTimeoutSpec proving killTree destroys a real stub process tree within a bounded time, and proves the full enrichment suite green. Requires cu-001 (it calls OpenCodeCliClient.killTree). This CU satisfies bugfix-feature-7 criteria 1 and 2 by test plus criterion 4.

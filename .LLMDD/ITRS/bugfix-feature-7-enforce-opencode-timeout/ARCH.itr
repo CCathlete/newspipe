@@ -1,0 +1,6 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-16T08:49:17.914534672Z
+# DTR-COORDINATES: 
+
+Architecture rules (binding on every CU in this batch): enrichment pipeline only; timeout enforcement kills the whole process tree on expiry and never blocks on stdout past the timeout; per-item elapsed is bounded and every skip carries elapsed time plus item identity; no behavior change to prompt building, event parsing, merge, service, consumer, or ingestion logic; v2 layer partition holds.

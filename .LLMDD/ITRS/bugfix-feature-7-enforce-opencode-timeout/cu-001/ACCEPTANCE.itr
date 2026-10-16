@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-001
+
+AC-1 (criterion 1): killTree destroys descendants plus wrapper; proven by cu-002 spec over this helper.
+AC-2 (criterion 2): enrich checks finished before reading stdout and throws on the timeout branch; `sbt compile` exits 0 with workdir pipelines/enrichment.
+AC-3 (criterion 3): the timeout throw carries elapsed seconds plus item link, surfaced by the existing EnrichmentService warn line.

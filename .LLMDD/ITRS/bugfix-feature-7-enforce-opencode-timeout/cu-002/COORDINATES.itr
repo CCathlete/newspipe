@@ -1,0 +1,3 @@
+# COORDINATES: cu-002
+
+FILE.pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeCliClient.scala, TYPE.pipelines.enrichment.src.main.scala.newspipe.infrastructure.llm-data-enricher.OpenCodeCliClient.scala.OpenCodeCliClient. Both keys exist in .LLMDD/DTRS/bugfix-feature-7-enforce-opencode-timeout/newspipe.dtr; the spec below is a new creation traced from them.

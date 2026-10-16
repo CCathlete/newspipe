@@ -1,0 +1,37 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. Create pipelines/enrichment/src/test/scala/newspipe/OpenCodeTimeoutSpec.scala with exactly the content in the scala fence below. The stub tree is sh plus sleep, which exists on this box. The polling loop waits up to 5 s for the child to appear so the kill assertion never races process startup.
+```scala
+package newspipe
+
+import newspipe.infrastructure.llmdataenricher.OpenCodeCliClient
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+class OpenCodeTimeoutSpec extends AnyFunSpec with Matchers:
+  describe("OpenCodeCliClient.killTree") {
+    it("destroys the wrapper and all descendants") {
+      val proc = new ProcessBuilder("sh", "-c", "sleep 120").start()
+      val deadline = System.currentTimeMillis() + 5000L
+      while proc.descendants().count() == 0L && System.currentTimeMillis() < deadline do Thread.sleep(50)
+      proc.descendants().count() should be >= 1L
+      OpenCodeCliClient.killTree(proc)
+      proc.isAlive shouldBe false
+      proc.descendants().count() shouldBe 0L
+    }
+
+    it("reaps the tree within a bounded time") {
+      val proc = new ProcessBuilder("sh", "-c", "sleep 120").start()
+      val startNanos = System.nanoTime()
+      OpenCodeCliClient.killTree(proc)
+      val elapsedMillis = (System.nanoTime() - startNanos) / 1000000L
+      elapsedMillis should be < 15000L
+    }
+  }
+```
+Prove: `grep -n 'destroys the wrapper' pipelines/enrichment/src/test/scala/newspipe/OpenCodeTimeoutSpec.scala` prints the test line.
+2. Run the focused spec, then the whole suite, both from the enrichment pipeline root.
+Prove: `sbt "testOnly newspipe.OpenCodeTimeoutSpec"` reports both tests succeeded with workdir pipelines/enrichment.
+Prove: `sbt test` passes all suites with workdir pipelines/enrichment.
+Do NOT touch: pipelines/enrichment/src/main, pipelines/enrichment/src/test/scala/newspipe/OpenCodeParserSpec.scala, pipelines/enrichment/src/test/scala/newspipe/MergeBackfillSpec.scala, pipelines/enrichment/src/test/scala/newspipe/ConsumerPropsSpec.scala, pipelines/ingestion, build.sbt, .LLMDD.
+Stop when the spec exists exactly as fenced and sbt test passes inside pipelines/enrichment. Timeout tuning beyond the 15 s test bound belongs to no other CU; this feature is complete.
