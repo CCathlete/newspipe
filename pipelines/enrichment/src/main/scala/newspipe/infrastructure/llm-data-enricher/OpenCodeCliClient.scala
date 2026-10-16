@@ -18,18 +18,27 @@ final class OpenCodeCliClient(model: String, timeout: FiniteDuration) extends En
       val proc = new ProcessBuilder("opencode", "run", "--format", "json", "--model", model, prompt)
         .redirectErrorStream(false)
         .start()
-      val secs = timeout.toSeconds
-      val finished = proc.waitFor(secs, TimeUnit.SECONDS)
-      val stdout = new String(proc.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+      val startNanos = System.nanoTime()
+      val finished = proc.waitFor(timeout.toMillis, TimeUnit.MILLISECONDS)
+      val elapsedSecs = (System.nanoTime() - startNanos) / 1000000000L
       if !finished then
-        proc.destroyForcibly()
-        throw new RuntimeException(s"opencode run timed out after $secs s")
+        OpenCodeCliClient.killTree(proc)
+        throw new RuntimeException(s"opencode run timed out after $elapsedSecs s; skipped item '${item.link}'")
+      val stdout = new String(proc.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
       if proc.exitValue() != 0 then
         throw new RuntimeException(s"opencode run exited ${proc.exitValue()}")
       OpenCodeCliClient.parseEvents(stdout)
     }.toEither
 
 object OpenCodeCliClient:
+  def killTree(proc: Process): Unit =
+    proc.descendants().forEach(_.destroyForcibly())
+    proc.destroyForcibly()
+    try proc.getInputStream.close() catch case _: Exception => ()
+    try proc.getErrorStream.close() catch case _: Exception => ()
+    try proc.getOutputStream.close() catch case _: Exception => ()
+    val _ = proc.waitFor(5, TimeUnit.SECONDS)
+
   def promptFor(item: RssItem): String =
     val stream = getClass.getClassLoader.getResourceAsStream("prompts/enrich.txt")
     require(stream != null, "prompts/enrich.txt missing from classpath")
