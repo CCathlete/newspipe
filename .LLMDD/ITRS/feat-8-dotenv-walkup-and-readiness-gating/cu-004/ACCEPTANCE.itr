@@ -1,9 +1,7 @@
 # ACCEPTANCE: cu-004
 
-AC-1 ARCH.DOTENV.MERGE - the three tiers resolve in order for the object-store keys.
-AC-2 ARCH.DOTENV.MERGE - the enrichment-only keys groupId and opencodeModel also resolve through .env.
-AC-3 EnvConfig exposes groupId, opencodeModel, opencodeTimeoutSeconds and the five object-store fields.
-AC-4 The `opencode` block in application.conf survives the edit.
-AC-5 ARCH.STANDALONE - `grep -rn 'pipelines/ingestion' pipelines/enrichment/` prints nothing.
-AC-6 `sbt compile` and `sbt "testOnly newspipe.EnvPrecedenceSpec"` exit 0 from `pipelines/enrichment`.
-AC-7 The pre-existing `Env.load(cfg)` overload still resolves.
+AC-1 The two ConfLoader.scala files are byte-identical.
+AC-2 pipelines/enrichment/src/main/resources/application.conf no longer exists.
+AC-3 The ConfLoaderSpec asserts the same five behaviours as the ingestion copy.
+AC-4 ARCH.STANDALONE - `grep -rn 'pipelines/ingestion' pipelines/enrichment/` prints nothing, so byte-identical means the content matches, not that a cross-tree import was introduced.
+AC-5 `sbt compile` and `sbt "testOnly newspipe.ConfLoaderSpec"` exit 0 from `pipelines/enrichment`.

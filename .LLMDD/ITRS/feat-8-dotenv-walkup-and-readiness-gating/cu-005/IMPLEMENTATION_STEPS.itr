@@ -1,61 +1,141 @@
 # IMPLEMENTATION_STEPS: cu-005
 
-1. Change `pipelines/ingestion/build.sbt` to add hadoop-aws. Spark 3.5.1 ships Hadoop 3.3.4, so the version must match the one Spark was built against, and the artifact is Scala-2.13 only, hence CrossVersion.for3Use2_13.
+1. Change `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala` so the no-argument load resolves through ConfLoader and returns Either, while the explicit-configuration overload keeps its signature for callers that supply a Config. The Either surfaces a missing conf directory or file as a startup failure with a readable message.
 
 ```scala
-      ("org.apache.hadoop" % "hadoop-aws" % "3.3.4" % Provided).cross(CrossVersion.for3Use2_13),
+package newspipe.infrastructure.env
+
+import com.typesafe.config.Config
+import newspipe.infrastructure.conf.ConfLoader
+
+import java.nio.file.Paths
+import scala.jdk.CollectionConverters.*
+
+final case class EnvConfig(
+    feeds: List[String],
+    pollIntervalSeconds: Long,
+    kafkaBootstrap: String,
+    rawTopic: String,
+    bronzePath: String,
+    sparkMaster: String,
+    s3Endpoint: String,
+    s3PathStyle: Boolean,
+    s3AccessKey: String,
+    s3SecretKey: String,
+    s3Bucket: String
+)
+
+object Env:
+  private val PipelineFile = "ingestion.conf"
+
+  def load(): Either[String, EnvConfig] =
+    for
+      loaded <- ConfLoader.load(PipelineFile, Paths.get("").toAbsolutePath)
+      dot <- DotEnv.discover(Paths.get("").toAbsolutePath)
+    yield load(loaded.config.getConfig("newspipe"), dot)
+
+  def load(cfg: Config): EnvConfig =
+    load(cfg, DotEnv.discover(Paths.get("").toAbsolutePath))
+
+  def load(cfg: Config, dot: DotEnv): EnvConfig =
+    def pick(key: String, fallback: => String): String =
+      sys.env.get(key).orElse(dot.get(key)).getOrElse(fallback)
+    def pickLong(key: String, fallback: => Long): Long =
+      sys.env.get(key).map(_.toLong).orElse(dot.get(key).map(_.toLong)).getOrElse(fallback)
+    def pickBool(key: String, fallback: => Boolean): Boolean =
+      sys.env.get(key).map(_.toBoolean).orElse(dot.get(key).map(_.toBoolean)).getOrElse(fallback)
+
+    EnvConfig(
+      feeds = pick("NEWSPIPE_FEEDS", cfg.getStringList("feeds").asScala.mkString(","))
+        .split(",").toList.map(_.trim).filter(_.nonEmpty),
+      pollIntervalSeconds = pickLong("NEWSPIPE_POLL_INTERVAL_SECONDS", cfg.getLong("poll-interval-seconds")),
+      kafkaBootstrap = pick("NEWSPIPE_KAFKA_BOOTSTRAP", cfg.getString("kafka.bootstrap-servers")),
+      rawTopic = pick("NEWSPIPE_RAW_TOPIC", cfg.getString("kafka.raw-topic")),
+      bronzePath = pick("NEWSPIPE_BRONZE_PATH", cfg.getString("bronze.path")),
+      sparkMaster = pick("NEWSPIPE_SPARK_MASTER", cfg.getString("spark.master")),
+      s3Endpoint = pick("NEWSPIPE_S3_ENDPOINT", cfg.getString("s3.endpoint")),
+      s3PathStyle = pickBool("NEWSPIPE_S3_PATH_STYLE", cfg.getBoolean("s3.path-style-access")),
+      s3AccessKey = pick("NEWSPIPE_S3_ACCESS_KEY", cfg.getString("s3.access-key")),
+      s3SecretKey = pick("NEWSPIPE_S3_SECRET_KEY", cfg.getString("s3.secret-key")),
+      s3Bucket = pick("NEWSPIPE_BRONZE_BUCKET", cfg.getString("s3.bucket"))
+    )
+
 ```
 
-   Prove: `grep -q 'hadoop-aws' pipelines/ingestion/build.sbt && cd pipelines/ingestion && sbt compile`
+   Prove: `grep -q 'ConfLoader.load' pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala && ! grep -q 'ConfigFactory.load' pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala && cd pipelines/ingestion && sbt compile`
 
-2. Change `pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` so the SparkSession builder receives the four fs.s3a settings. Path-style addressing is required because a single-host S3-compatible store cannot answer virtual-host-style bucket names over localhost.
+2. Change `pipelines/ingestion/src/test/scala/newspipe/EnvPrecedenceSpec.scala` so the fallback tier is a temporary conf directory rather than an inline ConfigFactory string. The specification must prove the conf file is actually read, not merely that a Config object behaves.
 
 ```scala
-package newspipe.control.dependencyInjection
+package newspipe
 
-import newspipe.application.services.IngestionService
-import newspipe.infrastructure.bronze.DeltaBronzeSink
-import newspipe.infrastructure.env.EnvConfig
-import newspipe.infrastructure.messagequeue.KafkaRawPublisher
-import newspipe.infrastructure.rss.RomeRssClient
-import org.apache.spark.sql.SparkSession
+import com.typesafe.config.ConfigFactory
+import newspipe.infrastructure.env.{DotEnv, Env}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-final class AppContainer(env: EnvConfig):
-  val spark: SparkSession = SparkSession.builder()
-    .appName("newspipe-ingestion")
-    .master(env.sparkMaster)
-    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-    .config("spark.hadoop.fs.s3a.endpoint", env.s3Endpoint)
-    .config("spark.hadoop.fs.s3a.path.style.access", env.s3PathStyle.toString)
-    .config("spark.hadoop.fs.s3a.access.key", env.s3AccessKey)
-    .config("spark.hadoop.fs.s3a.secret.key", env.s3SecretKey)
-    .getOrCreate()
-  val rss = new RomeRssClient(env.feeds)
-  val sink = new DeltaBronzeSink(spark, s3a(env.bronzePath))
-  val raw = new KafkaRawPublisher(env.kafkaBootstrap, env.rawTopic)
-  val service = new IngestionService(rss, sink, raw)
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
 
-  private def s3a(path: String): String =
-    if env.s3Bucket.nonEmpty && path.startsWith("s3a://") && !path.contains("/", "s3a://".length + 1) then path
-    else if env.s3Bucket.nonEmpty && path.startsWith("s3a://") then path
-    else path
+class EnvPrecedenceSpec extends AnyFunSpec with Matchers:
+  private val confDir: Path = Files.createTempDirectory("env-conf").resolve("conf")
+  Files.createDirectories(confDir)
+  Files.writeString(
+    confDir.resolve("ingestion.conf"),
+    """
+      newspipe {
+        feeds = ["http://conf/only"]
+        poll-interval-seconds = 300
+        kafka { bootstrap-servers = "localhost:9092", raw-topic = "raw_rss" }
+        bronze { path = "s3a://lakehouse/bronze/news" }
+        spark { master = "local[*]" }
+        s3 {
+          endpoint = "http://conf:9000"
+          path-style-access = true
+          access-key = "confkey"
+          secret-key = "confsecret"
+          bucket = "confbucket"
+        }
+      }
+    """.stripMargin, StandardCharsets.UTF_8)
+  private val cfg = ConfigFactory.parseFile(confDir.resolve("ingestion.conf").toFile).resolve().getConfig("newspipe")
 
-  def close(): Unit =
-    raw.close()
-    spark.stop()
+  describe("ARCH.DOTENV.MERGE") {
+    it("falls back to the conf file when no .env key is present") {
+      val env = Env.load(cfg, DotEnv(Map.empty, None))
+      env.s3Endpoint shouldBe "http://conf:9000"
+      env.feeds shouldBe List("http://conf/only")
+    }
+    it("prefers a .env value over the conf file") {
+      Env.load(cfg, DotEnv(Map("NEWSPIPE_S3_ENDPOINT" -> "http://dotenv:9000"), None)).s3Endpoint shouldBe "http://dotenv:9000"
+    }
+    it("reads the boolean and integer tiers through the same precedence") {
+      val env = Env.load(cfg, DotEnv(Map("NEWSPIPE_S3_PATH_STYLE" -> "false", "NEWSPIPE_POLL_INTERVAL_SECONDS" -> "42"), None))
+      env.s3PathStyle shouldBe false
+      env.pollIntervalSeconds shouldBe 42
+    }
+    it("keeps an expanded .env value intact") {
+      val raw = Map("NEWSPIPE_S3_ENDPOINT" -> "http://${NEWSPIPE_S3_HOST}:9000", "NEWSPIPE_S3_HOST" -> "rustfs")
+      Env.load(cfg, DotEnv.expand(raw).toOption.get, None).s3Endpoint shouldBe "http://rustfs:9000"
+    }
+    it("carries the object-store fields through to EnvConfig") {
+      val env = Env.load(cfg, DotEnv.empty)
+      env.s3Bucket shouldBe "confbucket"
+      env.s3AccessKey shouldBe "confkey"
+      env.s3SecretKey shouldBe "confsecret"
+    }
+  }
 ```
 
-   Prove: `grep -q 'fs.s3a.endpoint' pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala && cd pipelines/ingestion && sbt compile`
+   Prove: `cd pipelines/ingestion && sbt "testOnly newspipe.EnvPrecedenceSpec"`
 
-3. Run the ingestion suite to prove the SparkSession change does not disturb DeltaBronzeSpec, which builds its own session and must stay unaffected.
+3. Run the ingestion suite so the loader change is proven against every existing suite.
 
-   ```sh
+```sh
 cd pipelines/ingestion && sbt test
 ```
 
-   Prove: `cd pipelines/ingestion && sbt test`
+   Prove: `cd pipelines/ingestion && sbt test | tail -5`
 
-Do NOT touch: `pipelines/enrichment/**` (cu-006), `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/**` (cu-001, cu-003), `pipelines/ingestion/src/main/scala/newspipe/application/**` (cu-007), `pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/**` (cu-009), `.LLMDD/**`.
-Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.
+Do NOT touch: `pipelines/enrichment/**` (cu-006), `pipelines/ingestion/src/main/scala/newspipe/infrastructure/conf/**` (cu-003), `pipelines/ingestion/build.sbt` (cu-007), `pipelines/ingestion/src/main/scala/newspipe/control/**` (cu-011), `conf/**`, `.LLMDD/**`.
 Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

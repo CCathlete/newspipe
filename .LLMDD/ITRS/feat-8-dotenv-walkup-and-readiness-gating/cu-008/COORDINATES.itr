@@ -1,8 +1,8 @@
 # COORDINATES: cu-008
 
-CODEX.pipelines/enrichment/src/main/scala/newspipe/application/ports/Ports.scala=OBJECT:Ports
-FILE.pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeCliClient.scala (folder reference)
-TYPE.newspipe.application.ports.CliReadinessProbe (new)
-REL.newspipe.application.services.ReadinessGate->newspipe.application.ports.DependencyProbe
+FILE.pipelines/enrichment/build.sbt
+FILE.pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala
+CODEX.pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala=CLASS:AppContainer
+TYPE.newspipe.control.dependencyInjection.AppContainer
 
 #

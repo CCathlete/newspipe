@@ -1,52 +1,133 @@
 # IMPLEMENTATION_STEPS: cu-006
 
-1. Change `pipelines/enrichment/build.sbt` to add hadoop-aws at the version Spark 3.5.1 was built against, scoped Provided, using CrossVersion.for3Use2_13 because the artifact ships Scala 2.13 only.
+1. Change `pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala` so the no-argument load names enrichment.conf and the case class carries the enrichment-only fields.
 
 ```scala
-      ("org.apache.hadoop" % "hadoop-aws" % "3.3.4" % Provided).cross(CrossVersion.for3Use2_13),
+package newspipe.infrastructure.env
+
+import com.typesafe.config.Config
+import newspipe.infrastructure.conf.ConfLoader
+
+import java.nio.file.Paths
+import scala.jdk.CollectionConverters.*
+
+final case class EnvConfig(
+    groupId: String,
+    opencodeModel: String,
+    opencodeTimeoutSeconds: Int,
+    pollIntervalSeconds: Long,
+    kafkaBootstrap: String,
+    rawTopic: String,
+    bronzePath: String,
+    sparkMaster: String,
+    s3Endpoint: String,
+    s3PathStyle: Boolean,
+    s3AccessKey: String,
+    s3SecretKey: String,
+    s3Bucket: String
+)
+
+object Env:
+  private val PipelineFile = "enrichment.conf"
+
+  def load(): Either[String, EnvConfig] =
+    for
+      loaded <- ConfLoader.load(PipelineFile, Paths.get("").toAbsolutePath)
+      dot <- DotEnv.discover(Paths.get("").toAbsolutePath)
+    yield load(loaded.config.getConfig("newspipe"), dot)
+
+  def load(cfg: Config): EnvConfig =
+    load(cfg, DotEnv.discover(Paths.get("").toAbsolutePath))
+
+  def load(cfg: Config, dot: DotEnv): EnvConfig =
+    def pick(key: String, fallback: => String): String =
+      sys.env.get(key).orElse(dot.get(key)).getOrElse(fallback)
+    def pickLong(key: String, fallback: => Long): Long =
+      sys.env.get(key).map(_.toLong).orElse(dot.get(key).map(_.toLong)).getOrElse(fallback)
+    def pickBool(key: String, fallback: => Boolean): Boolean =
+      sys.env.get(key).map(_.toBoolean).orElse(dot.get(key).map(_.toBoolean)).getOrElse(fallback)
+
+    EnvConfig(
+      groupId = pick("NEWSPIPE_KAFKA_GROUP_ID", cfg.getString("kafka.group-id")),
+      opencodeModel = pick("NEWSPIPE_OPENCODE_MODEL", cfg.getString("opencode.model")),
+      opencodeTimeoutSeconds = pick("NEWSPIPE_OPENCODE_TIMEOUT_SECONDS", cfg.getInt("opencode.timeout-seconds").toLong).toInt,
+      pollIntervalSeconds = pickLong("NEWSPIPE_POLL_INTERVAL_SECONDS", cfg.getLong("poll-interval-seconds")),
+      kafkaBootstrap = pick("NEWSPIPE_KAFKA_BOOTSTRAP", cfg.getString("kafka.bootstrap-servers")),
+      rawTopic = pick("NEWSPIPE_RAW_TOPIC", cfg.getString("kafka.raw-topic")),
+      bronzePath = pick("NEWSPIPE_BRONZE_PATH", cfg.getString("bronze.path")),
+      sparkMaster = pick("NEWSPIPE_SPARK_MASTER", cfg.getString("spark.master")),
+      s3Endpoint = pick("NEWSPIPE_S3_ENDPOINT", cfg.getString("s3.endpoint")),
+      s3PathStyle = pickBool("NEWSPIPE_S3_PATH_STYLE", cfg.getBoolean("s3.path-style-access")),
+      s3AccessKey = pick("NEWSPIPE_S3_ACCESS_KEY", cfg.getString("s3.access-key")),
+      s3SecretKey = pick("NEWSPIPE_S3_SECRET_KEY", cfg.getString("s3.secret-key")),
+      s3Bucket = pick("NEWSPIPE_BRONZE_BUCKET", cfg.getString("s3.bucket"))
+    )
+
 ```
 
-   Prove: `grep -q 'hadoop-aws' pipelines/enrichment/build.sbt && cd pipelines/enrichment && sbt compile`
+   Prove: `grep -q 'enrichment.conf' pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala && cd pipelines/enrichment && sbt compile`
 
-2. Change `pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` so the SparkSession builder receives the four fs.s3a settings, read from EnvConfig rather than hardcoded.
+2. Change `pipelines/enrichment/src/test/scala/newspipe/EnvPrecedenceSpec.scala` so the fallback tier is a temporary conf directory and the enrichment-only keys are exercised through the same three tiers.
 
 ```scala
-package newspipe.control.dependencyInjection
+package newspipe
 
-import newspipe.application.services.EnrichmentService
-import newspipe.infrastructure.bronze.DeltaMergeSink
-import newspipe.infrastructure.env.EnvConfig
-import newspipe.infrastructure.kafka.KafkaRawConsumer
-import newspipe.infrastructure.llmdataenricher.OpenCodeCliClient
-import org.apache.spark.sql.SparkSession
+import com.typesafe.config.ConfigFactory
+import newspipe.infrastructure.env.{DotEnv, Env}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.FiniteDuration
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
 
-final class AppContainer(env: EnvConfig):
-  val spark: SparkSession = SparkSession.builder()
-    .appName("newspipe-enrichment")
-    .master(env.sparkMaster)
-    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-    .config("spark.hadoop.fs.s3a.endpoint", env.s3Endpoint)
-    .config("spark.hadoop.fs.s3a.path.style.access", env.s3PathStyle.toString)
-    .config("spark.hadoop.fs.s3a.access.key", env.s3AccessKey)
-    .config("spark.hadoop.fs.s3a.secret.key", env.s3SecretKey)
-    .getOrCreate()
-  val consumer = new KafkaRawConsumer(env.kafkaBootstrap, env.rawTopic, env.groupId)
-  val enrich = new OpenCodeCliClient(env.opencodeModel, FiniteDuration(env.opencodeTimeoutSeconds, TimeUnit.SECONDS))
-  val sink = new DeltaMergeSink(spark, env.bronzePath)
-  val service = new EnrichmentService(consumer, enrich, sink)
+class EnvPrecedenceSpec extends AnyFunSpec with Matchers:
+  private val confDir: Path = Files.createTempDirectory("env-conf").resolve("conf")
+  Files.createDirectories(confDir)
+  Files.writeString(
+    confDir.resolve("enrichment.conf"),
+    """
+      newspipe {
+        poll-interval-seconds = 300
+        kafka { bootstrap-servers = "localhost:9092", raw-topic = "raw_rss", group-id = "enrichment-group" }
+        bronze { path = "s3a://lakehouse/bronze/news" }
+        spark { master = "local[*]" }
+        opencode { model = "opencode/test", timeout-seconds = 120 }
+        s3 {
+          endpoint = "http://conf:9000"
+          path-style-access = true
+          access-key = "confkey"
+          secret-key = "confsecret"
+          bucket = "confbucket"
+        }
+      }
+    """.stripMargin, StandardCharsets.UTF_8)
+  private val cfg = ConfigFactory.parseFile(confDir.resolve("enrichment.conf").toFile).resolve().getConfig("newspipe")
 
-  def close(): Unit =
-    consumer.close()
-    spark.stop()
+  describe("ARCH.DOTENV.MERGE") {
+    it("falls back to the conf file when no .env key is present") {
+      val env = Env.load(cfg, DotEnv(Map.empty, None))
+      env.s3Endpoint shouldBe "http://conf:9000"
+      env.groupId shouldBe "enrichment-group"
+      env.opencodeModel shouldBe "opencode/test"
+      env.opencodeTimeoutSeconds shouldBe 120
+    }
+    it("prefers a .env value over the conf file") {
+      Env.load(cfg, DotEnv(Map("NEWSPIPE_S3_ENDPOINT" -> "http://dotenv:9000"), None)).s3Endpoint shouldBe "http://dotenv:9000"
+    }
+    it("prefers a .env value for the enrichment-only keys") {
+      val env = Env.load(cfg, DotEnv(Map("NEWSPIPE_OPENCODE_MODEL" -> "opencode/from-dotenv", "NEWSPIPE_KAFKA_GROUP_ID" -> "g2"), None))
+      env.opencodeModel shouldBe "opencode/from-dotenv"
+      env.groupId shouldBe "g2"
+    }
+    it("reads the boolean tier through the same precedence") {
+      Env.load(cfg, DotEnv(Map("NEWSPIPE_S3_PATH_STYLE" -> "false"), None)).s3PathStyle shouldBe false
+    }
+  }
 ```
 
-   Prove: `grep -c 'fs.s3a' pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala && cd pipelines/enrichment && sbt compile`
+   Prove: `cd pipelines/enrichment && sbt "testOnly newspipe.EnvPrecedenceSpec"`
 
-3. Run the enrichment suite so MergeBackfillSpec, which builds its own session, is proven undisturbed.
+3. Run the enrichment suite.
 
 ```sh
 cd pipelines/enrichment && sbt test
@@ -54,5 +135,5 @@ cd pipelines/enrichment && sbt test
 
    Prove: `cd pipelines/enrichment && sbt test | tail -5`
 
-Do NOT touch: `pipelines/ingestion/**` (cu-005 owns that tree), `pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/**` (cu-002, cu-004), `pipelines/enrichment/src/main/scala/newspipe/application/**` (cu-008), `pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/**` (cu-010), `.LLMDD/**`.
+Do NOT touch: `pipelines/ingestion/**` (cu-005 owns that tree), `pipelines/enrichment/src/main/scala/newspipe/infrastructure/conf/**` (cu-004), `pipelines/enrichment/build.sbt` (cu-008), `pipelines/enrichment/src/main/scala/newspipe/control/**` (cu-012), `conf/**`, `.LLMDD/**`.
 Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

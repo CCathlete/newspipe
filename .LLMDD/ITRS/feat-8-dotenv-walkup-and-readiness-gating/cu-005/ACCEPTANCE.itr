@@ -1,9 +1,10 @@
 # ACCEPTANCE: cu-005
 
-AC-1 hadoop-aws is declared in pipelines/ingestion/build.sbt at the version Spark 3.5.1 was built against, with CrossVersion.for3Use2_13.
-AC-2 `grep -c 'fs.s3a' pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` prints 4.
-AC-3 All four settings are read from EnvConfig, none is a string literal in AppContainer.
-AC-4 ARCH.DIP - AppContainer depends on EnvConfig and on no concrete configuration library beyond the Spark builder it already used.
-AC-5 ARCH.BRONZE_IS_RAW - no enrichment value is filtered, coerced or dropped by this CU.
-AC-6 `sbt compile` and `sbt test` exit 0 from `pipelines/ingestion`, with DeltaBronzeSpec still green.
-AC-7 ARCH.LAYOUT_LAYOUT - AppContainer.scala remains at control/dependencyInjection/.
+AC-1 ARCH.DOTENV.MERGE - a key present in .env but absent from the process environment resolves to the .env value.
+AC-2 ARCH.DOTENV.MERGE - a key absent from both resolves to the conf/ file value.
+AC-3 ARCH.DOTENV.MERGE - precedence is verified for String, Boolean and Long tiers.
+AC-4 ARCH.DOTENV.EXPANSION - a .env value containing a reference arrives already expanded.
+AC-5 EnvConfig exposes feeds, pollIntervalSeconds, kafkaBootstrap, rawTopic, bronzePath, sparkMaster, s3Endpoint, s3PathStyle, s3AccessKey, s3SecretKey and s3Bucket.
+AC-6 ConfigFactory.load is no longer called; configuration comes from conf/ only.
+AC-7 `sbt compile` and the precedence specification exit 0.
+AC-8 The single-argument Env.load(cfg) overload still resolves for existing callers.

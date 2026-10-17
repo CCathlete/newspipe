@@ -1,3 +1,3 @@
 # REQUIREMENTS: cu-008
 
-Mirror cu-007 into the enrichment tree, with one extra dependency. Enrichment calls the `opencode` binary as a child process, so a missing or non-executable binary is a startup dependency failure exactly like an unreachable broker, and it is detected by the same gate. The CliReadinessProbe port is declared in application/ports and its adapter sits in infrastructure/llm-data-enricher beside OpenCodeCliClient.
+Mirror cu-011 into the enrichment tree. DeltaMergeSink also writes to s3a://, so the enrichment SparkSession needs the identical hadoop-aws dependency and the same four fs.s3a settings. ARCH.STANDALONE requires the duplication rather than a shared module.

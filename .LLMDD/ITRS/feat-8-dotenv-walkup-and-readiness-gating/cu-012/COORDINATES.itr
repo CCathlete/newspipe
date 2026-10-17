@@ -1,0 +1,8 @@
+# COORDINATES: cu-012
+
+CODEX.pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala=OBJECT:Main
+FILE.pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala
+TYPE.newspipe.control.entryPoint.Main
+REL.newspipe.control.entryPoint.Main->newspipe.control.dependencyInjection.AppContainer
+
+#

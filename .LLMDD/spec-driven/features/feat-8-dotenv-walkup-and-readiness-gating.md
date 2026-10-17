@@ -23,6 +23,11 @@ starting before Kafka and the object store are up produces an unbounded error
 log rather than a fast, actionable failure.
 
 Scope (in):
+- A `ConfLoader` that locates the external `conf/` directory by walking up from
+  the working directory until it finds it, with no environment override, and
+  merges `feeds.conf` under the per-pipeline file. The classpath
+  `application.conf` in each tree is deleted, so user configuration is no
+  longer part of the compiled artifact
 - `DotEnv` loader implementing all four `ARCH.DOTENV` clauses, in
   `infrastructure/env/` (the mandated Env adapter folder) in both pipelines
 - `Env.load()` precedence `sys.env` > `.env` > `application.conf`
@@ -57,6 +62,9 @@ Scope (in):
 Scope (out):
 - The single launcher executable and its infra up/down lifecycle (separate
   feature)
+- Any process-environment override for the `conf/` location. The process
+  environment remains the highest-precedence tier for individual *values*, as
+  `ARCH.DOTENV.MERGE` requires, but where the directory lives is walk-up only
 - Feed configuration — `feeds = []` today, which means nothing has ever been
   ingested
 - Any change to `~/Repos/pipeline_infra`; the S3 gateway decision lives there
@@ -75,8 +83,9 @@ Proposed. No CUs assigned yet.
    or self reference raises a hard error rather than yielding an empty value.
 3. Expansion depth is bounded at 10; exceeding it is a hard error.
 4. Single-quoted values are literal; unquoted and double-quoted values expand.
-5. `Env.load()` resolves in the order `sys.env` > `.env` > `application.conf`,
-   with the winning source observable per key.
+5. `Env.load()` resolves in the order `sys.env` > `.env` > the `conf/` files,
+   with the winning source observable per key. `ConfigFactory.load()` is no
+   longer used, because it resolves only against the classpath.
 6. `ReadinessGate` returns `Ready` only when every dependency probe passes, and
    `NotReady(reasons)` naming each failing dependency otherwise.
 7. At timeout with a dependency still down, the gate returns `NotReady` rather
@@ -93,6 +102,12 @@ Proposed. No CUs assigned yet.
     the other, mirroring bugfix-feature-5 criterion 4.
 12. `sbt compile` and `sbt test` exit 0 in both `pipelines/ingestion` and
     `pipelines/enrichment`.
+13. Neither tree contains `src/main/resources/application.conf`; both read
+    their configuration from `conf/` at the repository root.
+14. `ConfLoader` resolves the same `conf/` directory whether the process is
+    launched from the repository root or from inside `pipelines/ingestion`,
+    because `run / fork := true` makes the working directory the launch
+    directory.
 
 ## Tests
 
@@ -102,9 +117,19 @@ Proposed. No CUs assigned yet.
   and nested expansion (2), depth-10 bound and circular/self hard error
   (2, 3), single-quote literal against bare and double-quoted expansion (4),
   and empty-map-when-absent (1)
-- `EnvPrecedenceSpec.scala` in both trees — `sys.env` beats `.env` beats
-  `application.conf` for the same key, with the winning source asserted
+- `EnvPrecedenceSpec.scala` in both trees — `sys.env` beats `.env` beats the
+  `conf/` files for the same key, with the winning source asserted
   (criterion 5)
+- `ConfLoaderSpec.scala` in both trees — a temporary directory chain proves
+  walk-up finds `conf/` from a nested working directory, that a missing
+  directory yields a named failure rather than an empty configuration, and that
+  a key present in both `feeds.conf` and the per-pipeline file resolves to the
+  per-pipeline value (criteria 13, 14)
+- `test ! -f pipelines/ingestion/src/main/resources/application.conf` and the
+  same for `pipelines/enrichment` — both print nothing (criterion 13)
+- `cd pipelines/ingestion && sbt run` started from the pipeline directory
+  resolves `conf/` at the repository root, proven by the run reaching the poll
+  loop rather than exiting on a missing configuration (criterion 14)
 - `ReadinessGateSpec.scala` in both trees — all stubs ready returns `Ready`;
   one stub failing returns `NotReady` naming it; a never-ready stub under a
   short timeout returns `NotReady` and does not hang (criteria 6, 7)

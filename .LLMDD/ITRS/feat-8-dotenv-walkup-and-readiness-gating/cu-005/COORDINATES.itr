@@ -1,9 +1,9 @@
 # COORDINATES: cu-005
 
-FILE.pipelines/ingestion/build.sbt
-FILE.pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala
-CODEX.pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala=CLASS:AppContainer
-TYPE.newspipe.control.dependencyInjection.AppContainer
-REL.pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala->newspipe.infrastructure.env.EnvConfig
+CODEX.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala=OBJECT:Env
+CODEX.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala=FUNCTION:load:EnvConfig
+TYPE.newspipe.infrastructure.env.EnvConfig
+REL.newspipe.infrastructure.env.Env->newspipe.infrastructure.conf.ConfLoader (new)
+REL.newspipe.infrastructure.env.Env->newspipe.infrastructure.env.DotEnv
 
 #

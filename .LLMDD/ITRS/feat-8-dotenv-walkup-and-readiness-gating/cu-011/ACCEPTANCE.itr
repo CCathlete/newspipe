@@ -1,0 +1,9 @@
+# ACCEPTANCE: cu-011
+
+AC-1 Main calls the readiness gate before entering the poll loop.
+AC-2 A gate report with ready=false logs the failing dependency names and calls sys.exit(1).
+AC-3 The container is closed before the non-zero exit, so no Spark session or Kafka producer is left open.
+AC-4 ARCH.DI - AppContainer builds the gate from concrete adapters passed at the boundary; no service locator.
+AC-5 ARCH.LAYOUT_LAYOUT - Main.scala remains at control/entryPoint/.
+AC-6 `sbt compile` and `sbt test` exit 0 from `pipelines/ingestion`.
+AC-7 With the object store stopped, `sbt run` exits non-zero within the gate timeout naming the object store rather than looping.

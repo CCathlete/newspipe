@@ -1,189 +1,116 @@
 # IMPLEMENTATION_STEPS: cu-004
 
-1. Change `pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala` so EnvConfig carries the object-store fields alongside the existing enrichment fields, and Env.load resolves system environment, then .env, then application.conf. Feeds are absent from this tree because enrichment never polls an RSS source.
+1. Create `pipelines/enrichment/src/main/scala/newspipe/infrastructure/conf/ConfLoader.scala`, byte-identical to the ingestion copy. The loader names no pipeline file itself; the caller supplies it, which is why the duplication is exact.
 
 ```scala
-package newspipe.infrastructure.env
+package newspipe.infrastructure.conf
 
 import com.typesafe.config.{Config, ConfigFactory}
 
-import java.nio.file.Paths
-import scala.jdk.CollectionConverters.*
+import java.nio.file.{Files, Path}
+import scala.annotation.tailrec
+import scala.util.Try
 
-final case class EnvConfig(
-    groupId: String,
-    opencodeModel: String,
-    opencodeTimeoutSeconds: Int,
-    pollIntervalSeconds: Long,
-    kafkaBootstrap: String,
-    rawTopic: String,
-    bronzePath: String,
-    sparkMaster: String,
-    s3Endpoint: String,
-    s3PathStyle: Boolean,
-    s3AccessKey: String,
-    s3SecretKey: String,
-    s3Bucket: String
-)
+final case class LoadedConf(config: Config, directory: Path)
 
-object Env:
-  private val EnvFileName = ".env"
+object ConfLoader:
+  private val DirName = "conf"
+  private val SharedFile = "feeds.conf"
 
-  def load(): EnvConfig =
-    load(ConfigFactory.load().getConfig("newspipe"), DotEnv.discover(Paths.get("").toAbsolutePath))
+  def discover(start: Path): Option[Path] =
+    @tailrec def walk(dir: Path): Option[Path] =
+      if dir == null then None
+      else
+        val candidate: Path = dir.resolve(DirName)
+        if Files.isDirectory(candidate) then Some(candidate)
+        else walk(dir.getParent)
+    walk(start.toAbsolutePath.normalize())
 
-  def load(cfg: Config): EnvConfig =
-    load(cfg, DotEnv.discover(Paths.get("").toAbsolutePath))
+  def load(pipelineFile: String, start: Path): Either[String, LoadedConf] =
+    discover(start) match
+      case None => Left(s"no '$DirName' directory found at or above $start")
+      case Some(dir) =>
+        val shared: Path = dir.resolve(SharedFile)
+        val own: Path = dir.resolve(pipelineFile)
+        if !Files.isRegularFile(own) then Left(s"missing $own")
+        else
+          val parsedShared: Try[Config] = Try(ConfigFactory.parseFile(shared.toFile))
+          val merged: Config =
+            parsedShared.fold(_ => ConfigFactory.empty(), c => c.withFallback(ConfigFactory.parseFile(own.toFile)).resolve())
+          Right(LoadedConf(merged, dir))
 
-  def load(cfg: Config, dot: DotEnv): EnvConfig =
-    def pick(key: String, fallback: => String): String =
-      sys.env.get(key).orElse(dot.get(key)).getOrElse(fallback)
-    def pickLong(key: String, fallback: => Long): Long =
-      sys.env.get(key).map(_.toLong).orElse(dot.get(key).map(_.toLong)).getOrElse(fallback)
-    def pickBool(key: String, fallback: => Boolean): Boolean =
-      sys.env.get(key).map(_.toBoolean).orElse(dot.get(key).map(_.toBoolean)).getOrElse(fallback)
-
-    EnvConfig(
-      groupId = pick("NEWSPIPE_KAFKA_GROUP_ID", cfg.getString("kafka.group-id")),
-      opencodeModel = pick("NEWSPIPE_OPENCODE_MODEL", cfg.getString("opencode.model")),
-      opencodeTimeoutSeconds = pick("NEWSPIPE_OPENCODE_TIMEOUT_SECONDS", cfg.getInt("opencode.timeout-seconds").toLong).toInt,
-      pollIntervalSeconds = pickLong("NEWSPIPE_POLL_INTERVAL_SECONDS", cfg.getLong("poll-interval-seconds")),
-      kafkaBootstrap = pick("NEWSPIPE_KAFKA_BOOTSTRAP", cfg.getString("kafka.bootstrap-servers")),
-      rawTopic = pick("NEWSPIPE_RAW_TOPIC", cfg.getString("kafka.raw-topic")),
-      bronzePath = pick("NEWSPIPE_BRONZE_PATH", cfg.getString("bronze.path")),
-      sparkMaster = pick("NEWSPIPE_SPARK_MASTER", cfg.getString("spark.master")),
-      s3Endpoint = pick("NEWSPIPE_S3_ENDPOINT", cfg.getString("s3.endpoint")),
-      s3PathStyle = pickBool("NEWSPIPE_S3_PATH_STYLE", cfg.getBoolean("s3.path-style-access")),
-      s3AccessKey = pick("NEWSPIPE_S3_ACCESS_KEY", cfg.getString("s3.access-key")),
-      s3SecretKey = pick("NEWSPIPE_S3_SECRET_KEY", cfg.getString("s3.secret-key")),
-      s3Bucket = pick("NEWSPIPE_BRONZE_BUCKET", cfg.getString("s3.bucket"))
-    )
 ```
 
-   Prove: `cd pipelines/enrichment && sbt compile`
+   Prove: `test -f pipelines/enrichment/src/main/scala/newspipe/infrastructure/conf/ConfLoader.scala && diff -q pipelines/ingestion/src/main/scala/newspipe/infrastructure/conf/ConfLoader.scala pipelines/enrichment/src/main/scala/newspipe/infrastructure/conf/ConfLoader.scala && echo IDENTICAL`
 
-2. Change `pipelines/enrichment/src/main/resources/application.conf` to add the `s3` block. The existing kafka, bronze, spark and opencode blocks are unchanged.
+2. Delete `pipelines/enrichment/src/main/resources/application.conf`.
 
-```hocon
-newspipe {
-  feeds = []
-#    "https://news.google.com/rss/search?q=geopolitics&hl=en-US&gl=US&ceid=US:en",
-    "https://news.google.com/rss/search?q=geopolitics+OR+%22foreign+policy%22+when:7d&hl=en-US&gl=US&ceid=US:en",
-    "https://www.aljazeera.com/xml/rss/all.xml",
-    "https://feeds.bbci.co.uk/news/world/rss.xml",
-    "https://foreignpolicy.com/feed/",
-    "https://thediplomat.com/feed/",
-    "https://warontherocks.com/feed/",
-    "https://www.crisisgroup.org/rss.xml",
-    "https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml",
-    "https://www.rfi.fr/en/rss",
-    "https://www.scmp.com/rss/91/feed"
-  ]
-  poll-interval-seconds = 300
-  kafka {
-    bootstrap-servers = "localhost:9092"
-    raw-topic = "raw_rss"
-  }
-  bronze {
-    path = "s3a://lakehouse/bronze/news"
-  }
-  spark {
-    master = "local[*]"
-  }
-  s3 {
-    endpoint = "http://localhost:9000"
-    path-style-access = true
-    access-key = "minioadmin"
-    secret-key = "minioadminpassword"
-    bucket = "lakehouse"
-  }
-}
-  poll-interval-seconds = 300
-  kafka {
-    bootstrap-servers = "localhost:9092"
-    raw-topic = "raw_rss"
-    group-id = "enrichment-group"
-  }
-  bronze {
-    path = "s3a://lakehouse/bronze/news"
-  }
-  spark {
-    master = "local[*]"
-  }
-  opencode {
-    model = "opencode/muse-spark-1.3-contributor-free"
-    timeout-seconds = 120
-  }
-  s3 {
-    endpoint = "http://localhost:9000"
-    path-style-access = true
-    access-key = "minioadmin"
-    secret-key = "minioadminpassword"
-    bucket = "lakehouse"
-  }
-}
+```sh
+rm pipelines/enrichment/src/main/resources/application.conf
 ```
 
-   Prove: `grep -q 'endpoint = "http://localhost:9000"' pipelines/enrichment/src/main/resources/application.conf && grep -q 'group-id' pipelines/enrichment/src/main/resources/application.conf`
+   Prove: `test ! -f pipelines/enrichment/src/main/resources/application.conf && echo REMOVED`
 
-3. Create `pipelines/enrichment/src/test/scala/newspipe/EnvPrecedenceSpec.scala` mirroring the ingestion spec, asserting the same three tiers plus the enrichment-only fields.
+3. Create `pipelines/enrichment/src/test/scala/newspipe/ConfLoaderSpec.scala`, byte-identical to the ingestion copy, then compile the tree.
 
 ```scala
 package newspipe
 
 import com.typesafe.config.ConfigFactory
-import newspipe.infrastructure.env.{DotEnv, Env}
+import newspipe.infrastructure.conf.ConfLoader
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
-class EnvPrecedenceSpec extends AnyFunSpec with Matchers:
-  private val cfg = ConfigFactory.parseString("""
-    newspipe {
-      poll-interval-seconds = 300
-      kafka { bootstrap-servers = "localhost:9092", raw-topic = "raw_rss", group-id = "enrichment-group" }
-      bronze { path = "s3a://lakehouse/bronze/news" }
-      spark { master = "local[*]" }
-      opencode { model = "opencode/test", timeout-seconds = 120 }
-      s3 {
-        endpoint = "http://conf:9000"
-        path-style-access = true
-        access-key = "confkey"
-        secret-key = "confsecret"
-        bucket = "confbucket"
-      }
-    }
-  """).getConfig("newspipe")
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
 
-  describe("ARCH.DOTENV.MERGE") {
-    it("falls back to application.conf when no .env key is present") {
-      val env = Env.load(cfg, DotEnv(Map.empty, None))
-      env.s3Endpoint shouldBe "http://conf:9000"
-      env.groupId shouldBe "enrichment-group"
-      env.opencodeModel shouldBe "opencode/test"
+class ConfLoaderSpec extends AnyFunSpec with Matchers:
+  private def chain(depth: Int): Path =
+    val root: Path = Files.createTempDirectory("conf-chain")
+    (0 until depth).foldLeft(root)((acc, _) => Files.createDirectories(acc.resolve("nested")))
+    root
+
+  private def write(dir: Path, name: String, body: String): Unit =
+    Files.createDirectories(dir)
+    Files.writeString(dir.resolve(name), body, StandardCharsets.UTF_8)
+
+  describe("ConfLoader.discover") {
+    it("finds conf/ by walking upward from a nested working directory") {
+      val root: Path = chain(3)
+      write(root.resolve("conf"), "feeds.conf", "newspipe { feeds = [\"http://a\"] }")
+      ConfLoader.discover(root.resolve("nested").resolve("nested")).map(_.getFileName.toString) shouldBe Some("conf")
     }
-    it("prefers a .env value over application.conf") {
-      Env.load(cfg, DotEnv(Map("NEWSPIPE_S3_ENDPOINT" -> "http://dotenv:9000"), None)).s3Endpoint shouldBe "http://dotenv:9000"
-    }
-    it("prefers a .env value for the enrichment-only keys") {
-      val dot = DotEnv(Map("NEWSPIPE_OPENCODE_MODEL" -> "opencode/from-dotenv", "NEWSPIPE_KAFKA_GROUP_ID" -> "g2"), None)
-      val env = Env.load(cfg, dot)
-      env.opencodeModel shouldBe "opencode/from-dotenv"
-      env.groupId shouldBe "g2"
-    }
-    it("reads the boolean tier through the same precedence") {
-      Env.load(cfg, DotEnv(Map("NEWSPIPE_S3_PATH_STYLE" -> "false"), None)).s3PathStyle shouldBe false
-    }
-    it("carries the object-store fields through to EnvConfig") {
-      val env = Env.load(cfg, DotEnv.empty)
-      env.s3Bucket shouldBe "confbucket"
-      env.s3AccessKey shouldBe "confkey"
-      env.s3SecretKey shouldBe "confsecret"
+    it("returns None when no conf/ exists on the path") {
+      ConfLoader.discover(Files.createTempDirectory("conf-none")) shouldBe None
     }
   }
+
+  describe("ConfLoader.load") {
+    it("reports a named failure when conf/ is absent") {
+      val result = ConfLoader.load("ingestion.conf", Files.createTempDirectory("conf-none"))
+      result.isLeft shouldBe true
+      result.left.map(_.contains("no 'conf' directory")) shouldBe Some(true)
+    }
+    it("reports a named failure when the pipeline file is missing") {
+      val root: Path = chain(1)
+      write(root.resolve("conf"), "feeds.conf", "newspipe { feeds = [] }")
+      val result = ConfLoader.load("ingestion.conf", root)
+      result.isLeft shouldBe true
+      result.left.map(_.contains("ingestion.conf")) shouldBe Some(true)
+    }
+    it("merges the shared file under the pipeline file") {
+      val root: Path = chain(1)
+      write(root.resolve("conf"), "feeds.conf", "newspipe { feeds = [\"http://shared\"]; poll-interval-seconds = 1 }")
+      write(root.resolve("conf"), "ingestion.conf", "newspipe { poll-interval-seconds = 300 }")
+      val cfg = ConfLoader.load("ingestion.conf", root).toOption.get.config.getConfig("newspipe")
+      cfg.getStringList("feeds").asScala.toList shouldBe List("http://shared")
+      cfg.getLong("poll-interval-seconds") shouldBe 300L
+    }
+  }
+
 ```
 
-   Prove: `cd pipelines/enrichment && sbt "testOnly newspipe.EnvPrecedenceSpec"`
+   Prove: `cd pipelines/enrichment && sbt "testOnly newspipe.ConfLoaderSpec"`
 
-Do NOT touch: `pipelines/ingestion/**` (cu-003 owns that tree), `pipelines/enrichment/build.sbt` (cu-006), `pipelines/enrichment/src/main/scala/newspipe/control/**` (cu-010), `pipelines/enrichment/src/main/scala/newspipe/application/**` (cu-008), `.LLMDD/**`, `conf/**`.
-Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.
+Do NOT touch: `pipelines/ingestion/**` (cu-003 owns that tree), `pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala` (cu-006), `conf/**`, `pipelines/enrichment/build.sbt` (cu-008), `.LLMDD/**`.
 Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

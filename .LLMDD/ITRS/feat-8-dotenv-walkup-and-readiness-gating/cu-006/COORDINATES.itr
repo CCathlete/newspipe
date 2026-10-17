@@ -1,8 +1,7 @@
 # COORDINATES: cu-006
 
-FILE.pipelines/enrichment/build.sbt
-FILE.pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala
-CODEX.pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala=CLASS:AppContainer
-TYPE.newspipe.control.dependencyInjection.AppContainer
+CODEX.pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala=OBJECT:Env
+TYPE.newspipe.infrastructure.env.EnvConfig
+REL.newspipe.infrastructure.env.Env->newspipe.infrastructure.conf.ConfLoader
 
 #

@@ -1,9 +1,11 @@
 # ACCEPTANCE: cu-009
 
-AC-1 Main calls the readiness gate before entering the poll loop.
-AC-2 A gate report with ready=false logs the failing dependency names and calls sys.exit(1).
-AC-3 The container is closed before the non-zero exit, so no Spark session or Kafka producer is left open.
-AC-4 ARCH.DI - AppContainer builds the gate from concrete adapters passed at the boundary; no service locator.
-AC-5 ARCH.LAYOUT_LAYOUT - Main.scala remains at control/entryPoint/.
-AC-6 `sbt compile` and `sbt test` exit 0 from `pipelines/ingestion`.
-AC-7 With the object store stopped, `sbt run` exits non-zero within the gate timeout naming the object store rather than looping.
+AC-1 ARCH.PORT_FLOW_OUT_IN - the three traits are declared in application/ports and implemented only in infrastructure.
+AC-2 ARCH.LAYOUT_LAYOUT - no probe sits at an infrastructure layer root; each lives in the folder of the port it serves.
+AC-9 ProbeResult is a sealed sum, so no other failure shape can be constructed.
+AC-6 A failing probe yields a NotReady carrying the dependency name and a detail string.
+AC-7 A gate over all-ready probes returns ReadinessReport(true, Nil).
+AC-7b A gate over two failing probes returns a report naming both.
+AC-8 A never-ready probe under maxWait returns ready=false rather than looping indefinitely; the specification injects a counting sleeper and asserts the count stays within maxWait.
+AC-10 The suite contacts no broker and no object store: every probe in ReadinessGateSpec is a stub.
+AC-11 `sbt compile` and `sbt "testOnly newspipe.ReadinessGateSpec"` exit 0 from `pipelines/ingestion`.

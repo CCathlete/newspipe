@@ -1,0 +1,9 @@
+# ACCEPTANCE: cu-012
+
+AC-1 Main calls the gate before entering the poll loop.
+AC-2 A ready=false report logs every failing dependency, including `opencode-cli` when the binary is absent, and exits non-zero.
+AC-3 The container is closed before the non-zero exit.
+AC-4 ARCH.DI - all three adapters are constructed in AppContainer and injected into the gate.
+AC-5 ARCH.STANDALONE - `grep -rn 'pipelines/ingestion' pipelines/enrichment/` prints nothing.
+AC-6 `sbt compile` and `sbt test` exit 0 from `pipelines/enrichment`.
+AC-7 With PATH lacking opencode, `sbt run` exits non-zero naming opencode-cli instead of looping.

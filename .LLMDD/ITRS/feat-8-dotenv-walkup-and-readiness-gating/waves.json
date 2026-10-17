@@ -1,7 +1,7 @@
 [
   {
     "wave": 1,
-    "description": "DotEnv loader plus specification, one CU per tree. No dependencies; the two trees are disjoint so they run in parallel.",
+    "description": "DotEnv loader plus specification, one CU per tree. No dependencies.",
     "cus": [
       "cu-001",
       "cu-002"
@@ -9,7 +9,7 @@
   },
   {
     "wave": 2,
-    "description": "Env.load three-tier precedence and the five object-store keys. Depends on the loader existing in the same tree.",
+    "description": "ConfLoader plus deletion of the classpath application.conf, one CU per tree. Must precede Env, which resolves configuration through it.",
     "cus": [
       "cu-003",
       "cu-004"
@@ -17,7 +17,7 @@
   },
   {
     "wave": 3,
-    "description": "hadoop-aws dependency and Spark fs.s3a wiring. Depends on EnvConfig carrying the object-store fields; independent of wave 2's wiring detail.",
+    "description": "Env.load three-tier precedence against conf/, plus object-store keys, one CU per tree.",
     "cus": [
       "cu-005",
       "cu-006"
@@ -25,7 +25,7 @@
   },
   {
     "wave": 4,
-    "description": "Readiness ports, probes, gate and specification. Depends on EnvConfig for probe configuration; independent of the Spark wiring.",
+    "description": "hadoop-aws dependency and Spark fs.s3a wiring, one CU per tree. Depends on EnvConfig carrying the object-store fields.",
     "cus": [
       "cu-007",
       "cu-008"
@@ -33,10 +33,18 @@
   },
   {
     "wave": 5,
-    "description": "Entry-point startup gate. Depends on AppContainer readiness from waves 3 and 4 in the same tree.",
+    "description": "Readiness ports, probes, gate and specification, one CU per tree. Enrichment adds the opencode CLI probe.",
     "cus": [
       "cu-009",
       "cu-010"
+    ]
+  },
+  {
+    "wave": 6,
+    "description": "Entry-point startup gate, one CU per tree. Depends on AppContainer readiness from waves 4 and 5.",
+    "cus": [
+      "cu-011",
+      "cu-012"
     ]
   }
 ]

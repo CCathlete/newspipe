@@ -1,3 +1,3 @@
 # REQUIREMENTS: cu-006
 
-Mirror cu-005 into the enrichment tree. DeltaMergeSink also writes to s3a://, so the enrichment SparkSession needs the identical hadoop-aws dependency and the same four fs.s3a settings. ARCH.STANDALONE requires the duplication rather than a shared module.
+Mirror cu-005 into the enrichment tree. The enrichment EnvConfig differs: no feeds, and it carries groupId, opencodeModel and opencodeTimeoutSeconds. Only the precedence tiers and the object-store fields are shared.

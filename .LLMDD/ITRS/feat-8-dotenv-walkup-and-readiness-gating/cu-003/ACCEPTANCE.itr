@@ -1,11 +1,12 @@
 # ACCEPTANCE: cu-003
 
-AC-1 ARCH.DOTENV.MERGE - a key present in .env but absent from the process environment resolves to the .env value.
-AC-2 ARCH.DOTENV.MERGE - a key absent from both resolves to the application.conf value.
-AC-3 ARCH.DOTENV.MERGE - precedence is verified for String, Boolean and Long tiers.
-AC-4 ARCH.DOTENV.EXPANSION - a .env value containing a reference arrives already expanded, so Env sees the substituted form.
-AC-5 EnvConfig carries s3Endpoint, s3PathStyle, s3AccessKey, s3SecretKey and s3Bucket.
-AC-6 ARCH.ENV_ADAPTER - Env.scala remains at infrastructure/env/, never at a layer root.
-AC-7 The eleven feeds in application.conf survive the edit: `grep -c 'https://' pipelines/ingestion/src/main/resources/application.conf` prints 11.
-AC-8 `sbt compile` and `sbt "testOnly newspipe.EnvPrecedenceSpec"` exit 0 from `pipelines/ingestion`.
-AC-9 The pre-existing one-argument `Env.load(cfg)` overload still resolves.
+AC-1 ConfLoader.discover returns the nearest conf/ directory walking upward from a nested working directory.
+AC-2 ConfLoader.discover returns None when no conf/ exists on the path to the filesystem root.
+AC-3 A missing conf/ directory yields a Left naming the directory and the start path, not an empty configuration.
+AC-4 A missing pipeline file yields a Left naming that file.
+AC-5 A key defined in both feeds.conf and the pipeline file resolves to the pipeline file's value.
+AC-6 A key defined only in feeds.conf survives the merge.
+AC-7 pipelines/ingestion/src/main/resources/application.conf no longer exists.
+AC-8 ARCH.LAYOUT_LAYOUT - ConfLoader.scala sits at infrastructure/conf/, a nested folder.
+AC-9 The specification reads no repository configuration file and contacts no network.
+AC-10 `sbt compile` and `sbt "testOnly newspipe.ConfLoaderSpec"` exit 0 from `pipelines/ingestion`.

@@ -1,92 +1,210 @@
 # IMPLEMENTATION_STEPS: cu-009
 
-1. Change `pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` to construct the readiness gate from the two probes and expose it as a val. Both probes are injected from the boundary so AppContainer stays the only place where concrete adapters meet the application layer.
+1. Change `pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala` to add the readiness port vocabulary. ProbeResult is a sealed sum so a failure carries both the dependency name and a human-readable detail, which the gate surfaces verbatim in its report.
 
 ```scala
-package newspipe.control.dependencyInjection
+package newspipe.application.ports
 
-import newspipe.application.services.{IngestionService, ReadinessGate}
-import newspipe.infrastructure.bronze.{DeltaBronzeSink, HttpObjectStoreReadinessProbe}
-import newspipe.infrastructure.env.EnvConfig
-import newspipe.infrastructure.messagequeue.{KafkaRawPublisher, TcpKafkaReadinessProbe}
-import newspipe.infrastructure.rss.RomeRssClient
-import org.apache.spark.sql.SparkSession
+sealed trait ProbeResult
 
+object ProbeResult:
+  case object Ready extends ProbeResult
+  final case class NotReady(dependency: String, detail: String) extends ProbeResult
+
+trait DependencyProbe:
+  def name: String
+  def check(): ProbeResult
+
+trait KafkaReadinessProbe extends DependencyProbe
+
+trait ObjectStoreReadinessProbe extends DependencyProbe
+```
+
+   Prove: `grep -q 'trait KafkaReadinessProbe' pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala && cd pipelines/ingestion && sbt compile`
+
+2. Create `pipelines/ingestion/src/main/scala/newspipe/infrastructure/message-queue/KafkaReadinessProbe.scala` and `pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala`, each implementing the port from the matching folder.
+
+```scala
+package newspipe.infrastructure.messagequeue
+
+import newspipe.application.ports.{KafkaReadinessProbe, ProbeResult}
+
+import java.net.{InetSocketAddress, Socket}
+import scala.util.Try
+
+final class TcpKafkaReadinessProbe(bootstrap: String, timeoutMillis: Int) extends KafkaReadinessProbe:
+  def name: String = "kafka"
+
+  def check(): ProbeResult =
+    val endpoints: List[String] = bootstrap.split(",").toList.map(_.trim).filter(_.nonEmpty)
+    if endpoints.isEmpty then ProbeResult.NotReady(name, "no bootstrap server configured")
+    else
+      val results: List[Either[String, String]] = endpoints.map(reachable)
+      results.collectFirst { case Left(detail) => detail } match
+        case Some(detail) => ProbeResult.NotReady(name, detail)
+        case None => ProbeResult.Ready
+
+  private def reachable(endpoint: String): Either[String, String] =
+    val idx: Int = endpoint.lastIndexOf(':')
+    if idx <= 0 then Left(s"malformed bootstrap '$endpoint'")
+    else
+      val host: String = endpoint.substring(0, idx)
+      val port: Int = Try(endpoint.substring(idx + 1).toInt).getOrElse(-1)
+      if port <= 0 then Left(s"malformed port in '$endpoint'")
+      else
+        Try:
+          val socket: Socket = new Socket()
+          try socket.connect(new InetSocketAddress(host, port), timeoutMillis)
+          finally socket.close()
+          Right(endpoint)
+        .toEither.left.map(_ => s"cannot reach $endpoint")
+
+```
+
+```scala
+package newspipe.infrastructure.bronze
+
+import newspipe.application.ports.{ObjectStoreReadinessProbe, ProbeResult}
+
+import java.io.{InputStream, OutputStream}
+import java.net.{HttpURLConnection, URI}
+import scala.util.Try
+
+final class HttpObjectStoreReadinessProbe(
+    endpoint: String,
+    bucket: String,
+    accessKey: String,
+    secretKey: String,
+    timeoutMillis: Int
+) extends ObjectStoreReadinessProbe:
+  def name: String = "object-store"
+
+  def check(): ProbeResult =
+    if endpoint.isEmpty then ProbeResult.NotReady(name, "no endpoint configured")
+    else if bucket.isEmpty then ProbeResult.NotReady(name, "no bucket configured")
+    else
+      val uri: URI = URI.create(s"$endpoint/$bucket")
+      Try:
+        val conn: HttpURLConnection = uri.toURL.openConnection().asInstanceOf[HttpURLConnection]
+        try
+          conn.setRequestMethod("HEAD")
+          conn.setConnectTimeout(timeoutMillis)
+          conn.setReadTimeout(timeoutMillis)
+          conn.setRequestProperty("Authorization", s"Bearer $accessKey:$secretKey")
+          conn.connect()
+          val code: Int = conn.getResponseCode
+          conn.disconnect()
+          code
+        catch case e: Exception => throw e
+      match
+        case scala.util.Success(code) if code >= 200 && code < 400 => ProbeResult.Ready
+        case scala.util.Success(code) => ProbeResult.NotReady(name, s"bucket '$bucket' returned HTTP $code")
+        case scala.util.Failure(e) => ProbeResult.NotReady(name, s"cannot reach $endpoint: ${e.getMessage}")
+```
+
+   Prove: `test -f pipelines/ingestion/src/main/scala/newspipe/infrastructure/message-queue/KafkaReadinessProbe.scala && test -f pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala && cd pipelines/ingestion && sbt compile`
+
+3. Create `pipelines/ingestion/src/main/scala/newspipe/application/services/ReadinessGate.scala`. Sleep is injected rather than called directly so the specification can drive the loop without real delay.
+
+```scala
+package newspipe.application.services
+
+import newspipe.application.ports.{DependencyProbe, ProbeResult}
+
+import java.time.Instant
+import scala.concurrent.duration.FiniteDuration
+
+final case class ReadinessReport(ready: Boolean, failures: List[String]):
+  def describe: String =
+    if ready then "all dependencies ready"
+    else failures.mkString("not ready: ", "; ", "")
+
+final class ReadinessGate(
+    probes: List[DependencyProbe],
+    maxWait: FiniteDuration,
+    interval: FiniteDuration,
+    sleep: FiniteDuration => Unit
+):
+  def await(start: Instant): ReadinessReport =
+    val deadline: Instant = start.plusMillis(maxWait.toMillis)
+    var last: List[String] = Nil
+    var continue: Boolean = true
+    while continue do
+      last = probes.flatMap: probe =>
+        probe.check() match
+          case ProbeResult.Ready => Nil
+          case ProbeResult.NotReady(dep, detail) => List(s"$dep: $detail")
+      if last.isEmpty then continue = false
+      else if !start.isBefore(deadline) then continue = false
+      else sleep(interval)
+    ReadinessReport(last.isEmpty, last)
+```
+
+   Prove: `grep -q 'final class ReadinessGate' pipelines/ingestion/src/main/scala/newspipe/application/services/ReadinessGate.scala && cd pipelines/ingestion && sbt compile`
+
+4. Create `pipelines/ingestion/src/test/scala/newspipe/ReadinessGateSpec.scala` using stub probes, so no broker or object store is contacted by the suite.
+
+```scala
+package newspipe
+
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+import java.time.Instant
 import scala.concurrent.duration.*
 
-final class AppContainer(env: EnvConfig):
-  val spark: SparkSession = SparkSession.builder()
-    .appName("newspipe-ingestion")
-    .master(env.sparkMaster)
-    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-    .config("spark.hadoop.fs.s3a.endpoint", env.s3Endpoint)
-    .config("spark.hadoop.fs.s3a.path.style.access", env.s3PathStyle.toString)
-    .config("spark.hadoop.fs.s3a.access.key", env.s3AccessKey)
-    .config("spark.hadoop.fs.s3a.secret.key", env.s3SecretKey)
-    .getOrCreate()
-  val rss = new RomeRssClient(env.feeds)
-  val sink = new DeltaBronzeSink(spark, env.bronzePath)
-  val raw = new KafkaRawPublisher(env.kafkaBootstrap, env.rawTopic)
-  val service = new IngestionService(rss, sink, raw)
-  val readiness: ReadinessGate = new ReadinessGate(
-    List(
-      new TcpKafkaReadinessProbe(env.kafkaBootstrap, 3000),
-      new HttpObjectStoreReadinessProbe(env.s3Endpoint, env.s3Bucket, env.s3AccessKey, env.s3SecretKey, 3000)
-    ),
-    maxWait = 60.seconds,
-    interval = 2.seconds,
-    sleep = d => Thread.sleep(d.toMillis)
-  )
+package newspipe
 
-  def close(): Unit =
-    raw.close()
-    spark.stop()
+import newspipe.application.ports.{DependencyProbe, ProbeResult}
+import newspipe.application.services.ReadinessGate
+
+import java.time.Instant
+import scala.concurrent.duration.*
+
+class ReadinessGateSpec extends AnyFunSpec with Matchers:
+  private class FixedProbe(n: String, r: ProbeResult) extends DependencyProbe:
+    def name: String = n
+    def check(): ProbeResult = r
+
+  private val instant = Instant.parse("2026-10-17T00:00:00Z")
+
+  describe("ReadinessGate") {
+    it("reports ready when every probe passes") {
+      val gate = new ReadinessGate(List(FixedProbe("a", ProbeResult.Ready), FixedProbe("b", ProbeResult.Ready)), 5.seconds, 1.second, _ => ())
+      gate.await(instant).ready shouldBe true
+      gate.await(instant).failures shouldBe empty
+    }
+
+    it("names every failing dependency") {
+      val gate = new ReadinessGate(
+        List(
+          FixedProbe("kafka", ProbeResult.NotReady("kafka", "cannot reach localhost:9092")),
+          FixedProbe("object-store", ProbeResult.NotReady("object-store", "bucket missing"))
+        ),
+        5.seconds, 1.second, _ => ())
+      val report = gate.await(instant)
+      report.ready shouldBe false
+      report.failures.size shouldBe 2
+      report.describe should include("kafka")
+      report.describe should include("object-store")
+    }
+
+    it("returns not-ready rather than blocking past maxWait") {
+      var slept: Int = 0
+      val gate = new ReadinessGate(List(FixedProbe("kafka", ProbeResult.NotReady("kafka", "down"))), 2.seconds, 1.second, _ => slept += 1)
+      val report = gate.await(instant)
+      report.ready shouldBe false
+      slept should be <= 2
+    }
+
+    it("returns not-ready immediately when maxWait is zero") {
+      val gate = new ReadinessGate(List(FixedProbe("kafka", ProbeResult.NotReady("kafka", "down"))), Duration.Zero, 1.second, _ => ())
+      gate.await(instant).ready shouldBe false
+    }
+  }
 ```
 
-   Prove: `grep -q 'val readiness' pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala && cd pipelines/ingestion && sbt compile`
+   Prove: `cd pipelines/ingestion && sbt "testOnly newspipe.ReadinessGateSpec"`
 
-2. Change `pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala` so the gate runs before the poll loop and a failure exits non-zero naming every unsatisfied dependency.
-
-```scala
-package newspipe.control.entryPoint
-
-import com.typesafe.scalalogging.LazyLogging
-import newspipe.control.dependencyInjection.AppContainer
-import newspipe.infrastructure.env.Env
-
-import java.time.{Duration, Instant}
-
-object Main extends LazyLogging:
-  def main(args: Array[String]): Unit =
-    val env = Env.load()
-    val app = new AppContainer(env)
-    sys.addShutdownHook { app.close() }
-    val poll = Duration.ofSeconds(env.pollIntervalSeconds)
-        val report = app.readiness.await(Instant.now())
-    if !report.ready then
-      logger.error("startup aborted, " + report.describe)
-      app.close()
-      sys.exit(1)
-
-    logger.info("newspipe-ingestion polling " + env.feeds.size + " feeds every " + poll)
-    while true do
-      try
-        val n = app.service.runOnce(Instant.now())
-        logger.info("poll wrote " + n + " bronze units")
-      catch case e: Exception => logger.error("poll iteration failed", e)
-      Thread.sleep(poll.toMillis)
-```
-
-   Prove: `grep -q 'report.ready' pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala && grep -q 'sys.exit(1)' pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala`
-
-3. Run the ingestion suite so the rewritten entry point is proven to compile against the injected gate.
-
-```sh
-cd pipelines/ingestion && sbt compile && sbt test
-```
-
-   Prove: `cd pipelines/ingestion && sbt test | tail -5`
-
-Do NOT touch: `pipelines/enrichment/**` (cu-010), `pipelines/ingestion/src/main/scala/newspipe/application/**` (cu-007), `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/**` (cu-001, cu-003), `pipelines/ingestion/build.sbt` (cu-005), `.LLMDD/**`.
+Do NOT touch: `pipelines/enrichment/**` (cu-012), `pipelines/ingestion/src/main/scala/newspipe/control/**` (cu-011), `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/**` (cu-001, cu-003), `pipelines/ingestion/build.sbt` (cu-011), `.LLMDD/**`.
 Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

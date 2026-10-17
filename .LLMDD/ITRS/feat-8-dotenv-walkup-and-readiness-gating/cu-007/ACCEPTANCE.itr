@@ -1,11 +1,9 @@
 # ACCEPTANCE: cu-007
 
-AC-1 ARCH.PORT_FLOW_OUT_IN - the three traits are declared in application/ports and implemented only in infrastructure.
-AC-2 ARCH.LAYOUT_LAYOUT - no probe sits at an infrastructure layer root; each lives in the folder of the port it serves.
-AC-9 ProbeResult is a sealed sum, so no other failure shape can be constructed.
-AC-6 A failing probe yields a NotReady carrying the dependency name and a detail string.
-AC-7 A gate over all-ready probes returns ReadinessReport(true, Nil).
-AC-7b A gate over two failing probes returns a report naming both.
-AC-8 A never-ready probe under maxWait returns ready=false rather than looping indefinitely; the specification injects a counting sleeper and asserts the count stays within maxWait.
-AC-10 The suite contacts no broker and no object store: every probe in ReadinessGateSpec is a stub.
-AC-11 `sbt compile` and `sbt "testOnly newspipe.ReadinessGateSpec"` exit 0 from `pipelines/ingestion`.
+AC-1 hadoop-aws is declared in pipelines/ingestion/build.sbt at the version Spark 3.5.1 was built against, with CrossVersion.for3Use2_13.
+AC-2 `grep -c 'fs.s3a' pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` prints 4.
+AC-3 All four settings are read from EnvConfig, none is a string literal in AppContainer.
+AC-4 ARCH.DIP - AppContainer depends on EnvConfig and on no concrete configuration library beyond the Spark builder it already used.
+AC-5 ARCH.BRONZE_IS_RAW - no enrichment value is filtered, coerced or dropped by this CU.
+AC-6 `sbt compile` and `sbt test` exit 0 from `pipelines/ingestion`, with DeltaBronzeSpec still green.
+AC-7 ARCH.LAYOUT_LAYOUT - AppContainer.scala remains at control/dependencyInjection/.

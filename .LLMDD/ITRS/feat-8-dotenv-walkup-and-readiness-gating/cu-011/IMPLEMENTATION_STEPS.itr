@@ -1,0 +1,92 @@
+# IMPLEMENTATION_STEPS: cu-011
+
+1. Change `pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` to construct the readiness gate from the two probes and expose it as a val. Both probes are injected from the boundary so AppContainer stays the only place where concrete adapters meet the application layer.
+
+```scala
+package newspipe.control.dependencyInjection
+
+import newspipe.application.services.{IngestionService, ReadinessGate}
+import newspipe.infrastructure.bronze.{DeltaBronzeSink, HttpObjectStoreReadinessProbe}
+import newspipe.infrastructure.env.EnvConfig
+import newspipe.infrastructure.messagequeue.{KafkaRawPublisher, TcpKafkaReadinessProbe}
+import newspipe.infrastructure.rss.RomeRssClient
+import org.apache.spark.sql.SparkSession
+
+import scala.concurrent.duration.*
+
+final class AppContainer(env: EnvConfig):
+  val spark: SparkSession = SparkSession.builder()
+    .appName("newspipe-ingestion")
+    .master(env.sparkMaster)
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+    .config("spark.hadoop.fs.s3a.endpoint", env.s3Endpoint)
+    .config("spark.hadoop.fs.s3a.path.style.access", env.s3PathStyle.toString)
+    .config("spark.hadoop.fs.s3a.access.key", env.s3AccessKey)
+    .config("spark.hadoop.fs.s3a.secret.key", env.s3SecretKey)
+    .getOrCreate()
+  val rss = new RomeRssClient(env.feeds)
+  val sink = new DeltaBronzeSink(spark, env.bronzePath)
+  val raw = new KafkaRawPublisher(env.kafkaBootstrap, env.rawTopic)
+  val service = new IngestionService(rss, sink, raw)
+  val readiness: ReadinessGate = new ReadinessGate(
+    List(
+      new TcpKafkaReadinessProbe(env.kafkaBootstrap, 3000),
+      new HttpObjectStoreReadinessProbe(env.s3Endpoint, env.s3Bucket, env.s3AccessKey, env.s3SecretKey, 3000)
+    ),
+    maxWait = 60.seconds,
+    interval = 2.seconds,
+    sleep = d => Thread.sleep(d.toMillis)
+  )
+
+  def close(): Unit =
+    raw.close()
+    spark.stop()
+```
+
+   Prove: `grep -q 'val readiness' pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala && cd pipelines/ingestion && sbt compile`
+
+2. Change `pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala` so the gate runs before the poll loop and a failure exits non-zero naming every unsatisfied dependency.
+
+```scala
+package newspipe.control.entryPoint
+
+import com.typesafe.scalalogging.LazyLogging
+import newspipe.control.dependencyInjection.AppContainer
+import newspipe.infrastructure.env.Env
+
+import java.time.{Duration, Instant}
+
+object Main extends LazyLogging:
+  def main(args: Array[String]): Unit =
+    val env = Env.load()
+    val app = new AppContainer(env)
+    sys.addShutdownHook { app.close() }
+    val poll = Duration.ofSeconds(env.pollIntervalSeconds)
+        val report = app.readiness.await(Instant.now())
+    if !report.ready then
+      logger.error("startup aborted, " + report.describe)
+      app.close()
+      sys.exit(1)
+
+    logger.info("newspipe-ingestion polling " + env.feeds.size + " feeds every " + poll)
+    while true do
+      try
+        val n = app.service.runOnce(Instant.now())
+        logger.info("poll wrote " + n + " bronze units")
+      catch case e: Exception => logger.error("poll iteration failed", e)
+      Thread.sleep(poll.toMillis)
+```
+
+   Prove: `grep -q 'report.ready' pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala && grep -q 'sys.exit(1)' pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala`
+
+3. Run the ingestion suite so the rewritten entry point is proven to compile against the injected gate.
+
+```sh
+cd pipelines/ingestion && sbt compile && sbt test
+```
+
+   Prove: `cd pipelines/ingestion && sbt test | tail -5`
+
+Do NOT touch: `pipelines/enrichment/**` (cu-012), `pipelines/ingestion/src/main/scala/newspipe/application/**` (cu-011), `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/**` (cu-001, cu-003), `pipelines/ingestion/build.sbt` (cu-011), `.LLMDD/**`.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.
