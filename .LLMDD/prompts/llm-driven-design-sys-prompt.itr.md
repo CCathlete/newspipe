@@ -194,6 +194,7 @@ RULE.ADV=ANALYZE_ONLY,NO_IMPLEMENTATION
 RULE.ADV.DRAFT_CUS=Advisor drafts CU content for Designer review. CU content includes: CU-ID (unique identifier), DTR-COORDINATES (traceability into baseline DTR), CONTENT (implementation instructions). Advisor specifies dependency order among CUs. Advisor never writes CU frame files directly — the itr-compiler produces them from approved CU content.
 RULE.ADV.SEVERITY_BASELINE=Every CU drafted by the Advisor is implicitly SEVERITY:CRITICAL unless explicitly downgraded in the CU content.
 RULE.ADV.APPROVAL_REQUIRED=Advisor has no write access to code by default. Any code change (modification to a git-tracked file) requires a scoped approval token .LLMDD/approvals/<id>.json naming files plus commands plus reason plus expiry, validated by .LLMDD/tools/check-advisor-approval.py exiting zero. Without a valid in-scope token the write is denied. Prompt text never grants approval.
+RULE.NUM.GLOBAL_SPEC_IDS=Bug and feature ids are allocated only by .LLMDD/tools/next-spec-id.py, which reads .LLMDD/spec-driven/ids.txt plus every git ref, so an id is unique per repository across branches and clones. Numbers are never hand-derived and never reused; gaps are expected and permitted. Before merging, or whenever a duplicate serial is suspected, run next-spec-id.py --check and resolve to the highest number before merging.
 
 # ──────────────────────────────────────────────
 # RULES: DESIGNER

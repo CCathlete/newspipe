@@ -1,6 +1,6 @@
 ---
 name: bug
-description: Create a new spec-driven bug file under .LLMDD/spec-driven/bugs/ with a serial bug-<n>-<name> id, bug detail, resolution status, and (when resolved) fix summary plus proving tests. Use whenever a defect is reported in LLMDD v9.
+description: Create a new spec-driven bug file under .LLMDD/spec-driven/bugs/ with a serial bug-<n>-<name> id allocated by .LLMDD/tools/next-spec-id.py and unique per repository across branches, bug detail, resolution status, and (when resolved) fix summary plus proving tests. Use whenever a defect is reported in LLMDD v9.
 ---
 
 # bug
@@ -11,11 +11,13 @@ alongside features — each bug flows through reproduction, fix (via
 
 ## Naming
 
-`bug-<n>-<short-name>.md`, e.g. `bug-3-force-flag-skips-frames.md`.
+`bug-<n>-<short-name>.md`, for example `bug-6-force-flag-skips-frames.md`.
 
-- `<n>` is a serial integer: scan `.LLMDD/spec-driven/bugs/` for the
-  highest existing `bug-N-*` and use `N+1`. Never reuse a number.
-- `<short-name>` is kebab-case, symptom-oriented, ≤6 words.
+- `<n>` comes from the allocator, never from a directory scan. Run
+  `python3 .LLMDD/tools/next-spec-id.py --kind bug` from the repo root and
+  use the id it prints; the tool reads the counter and every git ref, so
+  two branches never receive the same serial. Never reuse a number.
+- `<short-name>` is kebab-case, symptom-oriented, at most six words.
 
 ## File location
 

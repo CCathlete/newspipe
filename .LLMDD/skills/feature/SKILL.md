@@ -1,6 +1,6 @@
 ---
 name: feature
-description: Create a new spec-driven feature file under .LLMDD/spec-driven/features/ with a serial feat-<n>-<name> id (bugfix-feature-<n>-<name> for bug/bugs fixes), motivation synopsis, implementation status, acceptance criteria and tests. Use whenever a new feature is scoped in LLMDD v9.
+description: Create a new spec-driven feature file under .LLMDD/spec-driven/features/ with a serial feat-<n>-<name> id (bugfix-feature-<n>-<name> for bug or bugs fixes) allocated by .LLMDD/tools/next-spec-id.py and unique per repository across branches, motivation synopsis, implementation status, acceptance criteria and tests. Use whenever a new feature is scoped in LLMDD v9.
 ---
 
 # feature
@@ -11,18 +11,18 @@ development steps in LLMDD v9 — each feature flows through Advisor design,
 
 ## Naming
 
-`feat-<n>-<short-name>.md`, e.g. `feat-1-add-dtr-pointer-to-cu.md`.
+`feat-<n>-<short-name>.md`, for example `feat-6-add-dtr-pointer.md`.
 
-- `<n>` is a serial integer: scan `.LLMDD/spec-driven/features/` for the
-  highest existing `feat-N-*` and use `N+1`. Never reuse a number.
-- `<short-name>` is kebab-case, imperative, ≤6 words.
+- `<n>` comes from the allocator, never from a directory scan. Run
+  `python3 .LLMDD/tools/next-spec-id.py --kind feature` from the repo root
+  and use the id it prints. For a bug or bugs fix, also pass
+  `--prefix bugfix-feature-` and the tool prints
+  `bugfix-feature-<n>-`. The tool reads the counter and every git ref, so
+  two branches never receive the same serial. Never reuse a number.
+- `<short-name>` is kebab-case, imperative, at most six words.
 
-When the feature is a bug/bugs fix, prefix the name with `bugfix-`:
-`bugfix-feature-<n>-<short-name>.md`,
-e.g. `bugfix-feature-2-fix-compiler-parsing-and-layout.md`. The serial `<n>`
-shares the same sequence (highest `feat-N-*` or `bugfix-feature-N-*` + 1),
-and the Feature ID is the full prefixed name
-(`bugfix-feature-<n>-<short-name>`).
+The bugfix feature serial shares the feature sequence, exactly as the
+rules section below already requires.
 
 ## File location
 

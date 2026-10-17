@@ -39,9 +39,7 @@ find .LLMDD/spec-driven/bugs -mindepth 1 -maxdepth 1 ! -name 'README.md' -exec r
 
 ## Rules
 
-- Delete only inside these four directories: `.LLMDD/ITRS/`,
-  `.LLMDD/DTRS/`, `.LLMDD/spec-driven/features/`,
-  `.LLMDD/spec-driven/bugs/`.
+- Delete .LLMDD/ITRS/, .LLMDD/DTRS/, .LLMDD/spec-driven/features/, .LLMDD/spec-driven/bugs/ and .LLMDD/spec-driven/ids.txt, leaving each present but empty, so a fresh repository restarts at serial 1.
 - Never delete `.LLMDD/ITRS/templates/` or any `README.md`.
 - Never delete or modify `.LLMDD/tools/`, `.LLMDD/instructions/`,
   `.LLMDD/agents/`, `.LLMDD/prompts/`, `.LLMDD/skills/`.
