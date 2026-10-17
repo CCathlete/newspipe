@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-009
+
+Replace the unbounded error loop with a bounded startup gate. Today Main enters `while true` immediately and every poll failure is logged and swallowed, so starting before Kafka or the object store is reachable produces an unbounded error log rather than a fast, actionable failure. AppContainer must first expose the gate, which this CU receives from cu-007; cu-005 already made the SparkSession resolve the object store. The process still exits non-zero on failure so an orchestrator can observe it.

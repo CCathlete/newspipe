@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-005
+
+Make the bronze path resolve to the local object store instead of the public internet. Neither build.sbt carries hadoop-aws, so no S3 filesystem implementation is on the classpath at all, and AppContainer passes no fs.s3a.* settings, so s3a:// falls through to Spark's built-in default of s3a.amazonaws.com. DeltaBronzeSpec does not catch this because it writes to a local temp directory. This CU adds the dependency and the Spark configuration, sourced from the values cu-003 added to EnvConfig. hadoop-aws is Provided, matching spark-sql, because build.sbt already runs from Compile/fullClasspath precisely to keep Provided jars on the runtime classpath.

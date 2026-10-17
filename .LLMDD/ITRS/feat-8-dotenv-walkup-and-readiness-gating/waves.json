@@ -1,0 +1,42 @@
+[
+  {
+    "wave": 1,
+    "description": "DotEnv loader plus specification, one CU per tree. No dependencies; the two trees are disjoint so they run in parallel.",
+    "cus": [
+      "cu-001",
+      "cu-002"
+    ]
+  },
+  {
+    "wave": 2,
+    "description": "Env.load three-tier precedence and the five object-store keys. Depends on the loader existing in the same tree.",
+    "cus": [
+      "cu-003",
+      "cu-004"
+    ]
+  },
+  {
+    "wave": 3,
+    "description": "hadoop-aws dependency and Spark fs.s3a wiring. Depends on EnvConfig carrying the object-store fields; independent of wave 2's wiring detail.",
+    "cus": [
+      "cu-005",
+      "cu-006"
+    ]
+  },
+  {
+    "wave": 4,
+    "description": "Readiness ports, probes, gate and specification. Depends on EnvConfig for probe configuration; independent of the Spark wiring.",
+    "cus": [
+      "cu-007",
+      "cu-008"
+    ]
+  },
+  {
+    "wave": 5,
+    "description": "Entry-point startup gate. Depends on AppContainer readiness from waves 3 and 4 in the same tree.",
+    "cus": [
+      "cu-009",
+      "cu-010"
+    ]
+  }
+]

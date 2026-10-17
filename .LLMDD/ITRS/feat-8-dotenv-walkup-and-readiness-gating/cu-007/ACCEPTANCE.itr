@@ -1,0 +1,11 @@
+# ACCEPTANCE: cu-007
+
+AC-1 ARCH.PORT_FLOW_OUT_IN - the three traits are declared in application/ports and implemented only in infrastructure.
+AC-2 ARCH.LAYOUT_LAYOUT - no probe sits at an infrastructure layer root; each lives in the folder of the port it serves.
+AC-9 ProbeResult is a sealed sum, so no other failure shape can be constructed.
+AC-6 A failing probe yields a NotReady carrying the dependency name and a detail string.
+AC-7 A gate over all-ready probes returns ReadinessReport(true, Nil).
+AC-7b A gate over two failing probes returns a report naming both.
+AC-8 A never-ready probe under maxWait returns ready=false rather than looping indefinitely; the specification injects a counting sleeper and asserts the count stays within maxWait.
+AC-10 The suite contacts no broker and no object store: every probe in ReadinessGateSpec is a stub.
+AC-11 `sbt compile` and `sbt "testOnly newspipe.ReadinessGateSpec"` exit 0 from `pipelines/ingestion`.

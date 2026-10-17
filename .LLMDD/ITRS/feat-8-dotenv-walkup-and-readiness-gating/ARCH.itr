@@ -1,0 +1,20 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-17T09:51:41.353312184Z
+# DTR-COORDINATES: 
+
+ARCH=HEX,DI,DIP,NO_CROSS_LAYER,PORT_FLOW_OUT_IN,DOTENV_WALKUP,LAYOUT_LAYOUT,NO_LAYER_ROOT_FILES,ENV_ADAPTER,SEVERITY
+ARCH.HEX=Hexagonal. domain innermost, application owns ports, infrastructure provides adapters, control wires and starts.
+ARCH.DI=All dependencies constructed in control/dependencyInjection/AppContainer and passed in. No service locators, no globals.
+ARCH.DIP=Port traits live in application/ports. Adapters in infrastructure/<port-folder>/ implement them. Domain imports nothing from application or infrastructure.
+ARCH.NO_CROSS_LAYER=Each layer depends only on the layer directly below it. domain <- application <- infrastructure <- control.
+ARCH.PORT_FLOW_OUT_IN=Outbound port defined in application/ports, inbound adapter in infrastructure/<port-folder>/.
+ARCH.DOTENV_WALKUP=MANDATORY. Walk up from the application root toward the filesystem root, first .env hit loads, none found yields an empty DotEnv. System environment variables override .env values. ${VAR} expands inside values, depth limit 10, circular and self references are a hard error. Unquoted and double-quoted values expand; single-quoted values are literal.
+ARCH.LAYOUT_LAYOUT=application divides into services, ports, useCases and nothing else. infrastructure divides into one folder per application port plus the Env adapter. domain contains models and valueObjects only. control divides into dependencyInjection and entryPoint.
+ARCH.NO_LAYER_ROOT_FILES=HARD_FAIL. No source file sits directly in a layer root; every file lives in a nested folder.
+ARCH.ENV_ADAPTER=infrastructure/env is the Env adapter. Env.load resolves configuration. After this feature it consults the process environment first, then the discovered .env, then application.conf.
+ARCH.SEVERITY=Every CU in this ITR is implicitly SEVERITY:CRITICAL. A stub, a missing feature, or a DIP violation is a hard fail. Report and stop.
+ARCH.SCALA=This is Scala 3.3.4. Significant indentation syntax, no braces for blocks. Match the surrounding file style exactly.
+ARCH.STANDALONE=bugfix-feature-5 criterion 4 stands: the two pipeline trees reference only their own files. No shared module. Code duplicated across trees is correct, not a defect.
+ARCH.BRONZE_IS_RAW=Bronze lands what arrives, unfiltered. Do not reject, coerce, normalise or drop enrichment values at the sink. Filtering and vocabulary normalisation are silver-layer concerns and are out of scope for every CU here.
+ARCH.OUT_OF_SCOPE=Silver, gold, deduplication, taxonomy and the launcher executable are not addressed by any CU in this ITR.

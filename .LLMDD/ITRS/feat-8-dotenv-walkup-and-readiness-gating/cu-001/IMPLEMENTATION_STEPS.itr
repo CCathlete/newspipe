@@ -1,0 +1,180 @@
+# IMPLEMENTATION_STEPS: cu-001
+
+0. Add the DotEnv loader at `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala`. It satisfies ARCH.DOTENV.DISCOVERY, ARCH.DOTENV.MERGE, ARCH.DOTENV.EXPANSION and ARCH.DOTENV.QUOTING in one object.
+
+```scala
+package newspipe.infrastructure.env
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
+import scala.annotation.tailrec
+import scala.collection.mutable
+
+final case class DotEnv(values: Map[String, String], source: Option[Path]):
+  def get(key: String): Option[String] = values.get(key)
+  def keys: Set[String] = values.keySet
+
+object DotEnv:
+  private val MaxDepth = 10
+
+  def empty: DotEnv = DotEnv(Map.empty, None)
+
+  def discover(start: Path): DotEnv =
+    @tailrec def walk(dir: Path): DotEnv =
+      if dir == null then empty
+      else
+        val candidate: Path = dir.resolve(".env")
+        if Files.isRegularFile(candidate) then
+          val text: String = Files.readString(candidate, StandardCharsets.UTF_8)
+          DotEnv(expand(parse(text)).fold(m => Map.empty, identity), Some(candidate))
+        else walk(dir.getParent)
+    walk(start.toAbsolutePath.normalize())
+
+  private def parse(text: String): Map[String, String] =
+    val acc: mutable.Map[String, String] = mutable.Map.empty
+    text.linesIterator.foreach: line =>
+      val trimmed: String = line.trim
+      if trimmed.nonEmpty && !trimmed.startsWith("#") then
+        val idx: Int = trimmed.indexOf('=')
+        if idx > 0 then
+          acc.update(trimmed.substring(0, idx).trim, unquote(trimmed.substring(idx + 1).trim))
+    acc.toMap
+
+  private def unquote(raw: String): String =
+    val quoted: Boolean = raw.length >= 2 &&
+      ((raw.startsWith("'") && raw.endsWith("'")) || (raw.startsWith("\"") && raw.endsWith("\"")))
+    if quoted then raw.substring(1, raw.length - 1) else raw
+
+  def expand(raw: Map[String, String]): Either[String, Map[String, String]] =
+    val out: mutable.Map[String, String] = mutable.Map.empty
+    val keys: List[String] = raw.keys.toList.sorted
+    keys.foreach: key =>
+      resolve(key, raw, 0, Nil) match
+        case Right(v) => out.update(key, v)
+        case Left(e) => return Left(e)
+    Right(out.toMap)
+
+  private def resolve(key: String, raw: Map[String, String], depth: Int, seen: List[String]): Either[String, String] =
+    if depth > MaxDepth then Left(s"expansion depth exceeded resolving '$key'")
+    else if seen.contains(key) then Left(s"circular reference: ${(seen :+ key).mkString(" -> ")}")
+    else
+      raw.get(key) match
+        case None => Right("")
+        case Some(v) => substitute(v, raw, depth + 1, seen :+ key)
+
+  private def substitute(text: String, raw: Map[String, String], depth: Int, seen: List[String]): Either[String, String] =
+    val out: StringBuilder = StringBuilder.newBuilder
+    var idx: Int = 0
+    while idx < text.length do
+      text.charAt(idx) match
+        case '$' if idx + 1 < text.length && text.charAt(idx + 1) == '{' =>
+          val close: Int = text.indexOf('}', idx + 2)
+          if close < 0 then
+            out.append(text.substring(idx))
+            idx = text.length
+          else
+            resolve(text.substring(idx + 2, close), raw, depth, seen) match
+              case Right(v) => out.append(v)
+              case Left(e) => return Left(e)
+            idx = close + 1
+        case c =>
+          out.append(c)
+          idx = idx + 1
+    Right(out.result())
+```
+
+   Prove: `test -f pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala && grep -c 'def discover' pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala`
+
+2. Add the specification at `pipelines/ingestion/src/test/scala/newspipe/DotEnvSpec.scala`. Every clause of ARCH.DOTENV gets one case, and the fixtures are created under the system temp directory so no test writes into the repository.
+
+```scala
+package newspipe
+
+import newspipe.infrastructure.env.DotEnv
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
+import scala.jdk.CollectionConverters.*
+
+class DotEnvSpec extends AnyFunSpec with Matchers:
+  private def chain(depth: Int): Path =
+    val root: Path = Files.createTempDirectory("dotenv-chain")
+    (0 until depth).foldLeft(root)((acc, _) => Files.createDirectories(acc.resolve("a")))
+    root
+
+  private def write(dir: Path, body: String): Path =
+    val f: Path = dir.resolve(".env")
+    Files.writeString(f, body, StandardCharsets.UTF_8)
+    f
+
+  describe("DotEnv.discover") {
+    it("returns an empty map when no .env exists on the path to the root") {
+      DotEnv.discover(Files.createTempDirectory("dotenv-none")).values shouldBe empty
+      DotEnv.discover(Files.createTempDirectory("dotenv-none")).source shouldBe None
+    }
+    it("returns the first .env found walking upward") {
+      val root: Path = chain(3)
+      write(root.resolve("a").resolve("a"), "NEWSPIPE_BRONZE_BUCKET=from-top\n")
+      write(root.resolve("a"), "NEWSPIPE_BRONZE_BUCKET=from-middle\n")
+      val found: DotEnv = DotEnv.discover(root.resolve("a").resolve("a"))
+      found.get("NEWSPIPE_BRONZE_BUCKET") shouldBe Some("from-top")
+      found.source.map(_.getFileName.toString) shouldBe Some(".env")
+    }
+    it("prefers the nearest .env over one further up") {
+      val root: Path = chain(2)
+      write(root.resolve("a"), "K=upper\n")
+      write(root, "K=nearest\n")
+      DotEnv.discover(root.resolve("a")).get("K") shouldBe Some("nearest")
+    }
+  }
+
+  describe("DotEnv.expand") {
+    it("expands a bare value") {
+      DotEnv.expand(Map("A" -> "plain")).toOption.get("A") shouldBe Some("plain")
+    }
+    it("expands a reference") {
+      DotEnv.expand(Map("A" -> "x", "B" -> "${A}y")).toOption.get("B") shouldBe Some("xy")
+    }
+    it("expands a nested reference") {
+      DotEnv.expand(Map("A" -> "1", "B" -> "${A}", "C" -> "${B}${A}")).toOption.get("C") shouldBe Some("11")
+    }
+    it("treats a self reference as a hard error") {
+      DotEnv.expand(Map("A" -> "${A}")).isLeft shouldBe true
+    }
+    it("treats a circular reference as a hard error") {
+      DotEnv.expand(Map("A" -> "${B}", "B" -> "${A}")).isLeft shouldBe true
+    }
+    it("bounds expansion depth at ten") {
+      val deep: Map[String, String] = (0 to 12).map(i => s"V$i" -> s"${if i == 12 then "end" else s"V${i + 1}"}").toMap
+      DotEnv.expand(deep).isLeft shouldBe true
+    }
+  }
+
+  describe("quoting") {
+    it("keeps a single-quoted value literal") {
+      DotEnv.expand(Map("A" -> "'${A}'")).toOption.get("A") shouldBe Some("${A}")
+    }
+    it("expands a double-quoted value") {
+      DotEnv.expand(Map("A" -> "1", "B" -> "\"${A}\"")).toOption.get("B") shouldBe Some("${A}")
+    }
+    it("leaves an unquoted value alone when it has no reference") {
+      DotEnv.expand(Map("A" -> "plain")).toOption.get("A") shouldBe Some("plain")
+    }
+  }
+```
+
+   Prove: `cd pipelines/ingestion && sbt "testOnly newspipe.DotEnvSpec"`
+
+3. Confirm the suite is green and nothing else moved, from `pipelines/ingestion`.
+
+```sh
+sbt compile && sbt test
+```
+
+   Prove: `cd pipelines/ingestion && sbt test | tail -5`
+
+Do NOT touch: `pipelines/enrichment/**` (a sibling CU owns the mirrored copy), `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala` (cu-003), `pipelines/ingestion/build.sbt` (cu-005), `pipelines/ingestion/src/main/scala/newspipe/control/**` (cu-009), `pipelines/ingestion/src/main/scala/newspipe/application/**` (cu-007), `pipelines/ingestion/src/main/resources/**`, `.LLMDD/**`, `conf/**`.
+
+Stop when `sbt test` in `pipelines/ingestion` reports zero failures and `DotEnvSpec` reports every case passed. If a case fails, report the failing case name and the observed value in per-CU feedback rather than relaxing the assertion.

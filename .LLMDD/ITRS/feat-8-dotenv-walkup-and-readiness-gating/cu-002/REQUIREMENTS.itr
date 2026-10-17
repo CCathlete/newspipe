@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+Mirror cu-001's loader into the enrichment tree. ARCH.STANDALONE forbids a shared module, so the two files are byte-identical duplicates rather than a shared artifact. The package is `newspipe.infrastructure.env` in both trees, so no package or import adjustment is needed. This CU delivers the loader and its specification only; cu-004 performs the Env wiring.

@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-010
+
+Mirror cu-009 into the enrichment tree. Enrichment awaits three dependencies rather than two: Kafka, the object store, and the `opencode` binary, whose adapter arrives with cu-008. A missing opencode binary previously surfaced only as a failed enrichment call inside the swallowed poll exception.

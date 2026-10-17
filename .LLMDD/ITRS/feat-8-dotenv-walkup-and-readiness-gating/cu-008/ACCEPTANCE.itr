@@ -1,0 +1,9 @@
+# ACCEPTANCE: cu-008
+
+AC-1 ARCH.PORT_FLOW_OUT_IN - four traits declared in application/ports, four adapters in infrastructure.
+AC-2 ARCH.LAYOUT_LAYOUT - the CLI adapter sits in infrastructure/llm-data-enricher/, not at a layer root.
+AC-3 CliReadinessProbe reports NotReady naming `opencode-cli` when the binary is absent from PATH.
+AC-4 The three probe files shared with ingestion are byte-identical apart from the package line.
+AC-5 The ReadinessGateSpec contacts no broker, no object store and runs no child process.
+AC-6 ARCH.STANDALONE - `grep -rn 'pipelines/ingestion' pipelines/enrichment/` prints nothing.
+AC-7 `sbt compile` and `sbt "testOnly newspipe.ReadinessGateSpec"` exit 0 from `pipelines/enrichment`.

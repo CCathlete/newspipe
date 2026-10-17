@@ -1,0 +1,17 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. Copy `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala` to `pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/DotEnv.scala`. The copy is byte-identical; ARCH.STANDALONE requires duplication, not abstraction.
+
+   Prove: `test -f pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/DotEnv.scala && diff -q pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/DotEnv.scala && echo IDENTICAL`
+
+2. Copy `pipelines/ingestion/src/test/scala/newspipe/DotEnvSpec.scala` to `pipelines/enrichment/src/test/scala/newspipe/DotEnvSpec.scala`, byte-identical, then run the suite from `pipelines/enrichment`.
+
+   Prove: `cd pipelines/enrichment && sbt "testOnly newspipe.DotEnvSpec"`
+
+3. Compile the enrichment tree so the new adapter is proven to resolve against the existing sources.
+
+   Prove: `cd pipelines/enrichment && sbt compile`
+
+Do NOT touch: `pipelines/enrichment/**` unless this CU names it, `pipelines/ingestion/**` (cu-001 owns that tree's copy), `.LLMDD/**`, `conf/**`, `README.md`.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

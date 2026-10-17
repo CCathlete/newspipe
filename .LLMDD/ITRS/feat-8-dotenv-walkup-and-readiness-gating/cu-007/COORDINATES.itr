@@ -1,0 +1,11 @@
+# COORDINATES: cu-007
+
+CODEX.pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala=OBJECT:Ports
+FILE.pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala
+FILE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/message-queue/KafkaRawPublisher.scala (folder reference)
+FILE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/DeltaBronzeSink.scala (folder reference)
+TYPE.newspipe.application.ports.ProbeResult (new)
+TYPE.newspipe.application.services.ReadinessGate (new)
+REL.newspipe.application.services.ReadinessGate->newspipe.application.ports.DependencyProbe (new, outbound)
+
+#

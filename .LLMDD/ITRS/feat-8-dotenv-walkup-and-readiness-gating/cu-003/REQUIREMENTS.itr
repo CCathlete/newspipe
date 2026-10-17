@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-003
+
+Wire the loader into configuration loading so ARCH.DOTENV.MERGE becomes real. Env.load must resolve each key as system environment, then the discovered .env, then application.conf, in that order. Today it reads sys.env and falls straight through to Typesafe Config, with no discovery, no expansion and no third tier. This CU also introduces the five object-store keys, because without them the Spark wiring in cu-005 has nothing to read.

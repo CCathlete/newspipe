@@ -1,0 +1,9 @@
+# ACCEPTANCE: cu-006
+
+AC-1 hadoop-aws is declared at the Spark-matched version with CrossVersion.for3Use2_13.
+AC-2 `grep -c 'fs.s3a' pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` prints 4.
+AC-3 All four settings are read from EnvConfig, none is a string literal.
+AC-4 ARCH.DIP - AppContainer gains no dependency beyond what it already held.
+AC-5 ARCH.BRONZE_IS_RAW - DeltaMergeSink still receives enrichment values unfiltered.
+AC-6 `sbt compile` and `sbt test` exit 0 from `pipelines/enrichment`, with MergeBackfillSpec green.
+AC-7 ARCH.STANDALONE - `grep -rn 'pipelines/ingestion' pipelines/enrichment/` prints nothing.

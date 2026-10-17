@@ -29,11 +29,30 @@ Scope (in):
 - Readiness ports in `application/ports/` and adapters in
   `infrastructure/<port-folder>/`, one folder per port per `LAYER_LAYOUT`:
   Kafka (broker reachable, raw topic present), object store (endpoint
-  reachable, bucket present), and `opencode` on PATH for enrichment only
+  reachable, bucket present), and `opencode` on PATH for enrichment only.
+  The object store is RustFS at `http://localhost:9000`, per
+  `pipeline_infra` feat-1; the bucket is `lakehouse`
 - `ReadinessGate` service returning typed `NotReady(reasons)` / `Ready`,
   called by both `Main`s before the first poll under a configurable timeout
 - Spark S3 wiring: `hadoop-aws` dependency and `fs.s3a.*` settings applied in
-  each `AppContainer` SparkSession builder, sourced from the dotenv values
+  each `AppContainer` SparkSession builder, sourced from the dotenv values.
+  The concrete keys the `.env` is expected to supply:
+
+  ```
+  NEWSPIPE_S3_ENDPOINT=http://localhost:9000
+  NEWSPIPE_S3_PATH_STYLE=true
+  NEWSPIPE_S3_ACCESS_KEY=minioadmin
+  NEWSPIPE_S3_SECRET_KEY=minioadminpassword
+  NEWSPIPE_BRONZE_BUCKET=lakehouse
+  ```
+
+  Path-style addressing is required: S3-compatible stores on a single host
+  answer virtual-host-style bucket names only via DNS, which `localhost`
+  cannot serve. Credentials match `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY`
+  in `pipeline_infra/variables.tf`. Spark must be given these through
+  `spark.hadoop.fs.s3a.*` before the first Delta read or write; left
+  unconfigured, `s3a://` resolves to Spark's built-in default of
+  `s3a.amazonaws.com`
 
 Scope (out):
 - The single launcher executable and its infra up/down lifecycle (separate
@@ -67,6 +86,9 @@ Proposed. No CUs assigned yet.
 9. Readiness probes use a raw socket and an HTTP `HEAD`; no AWS SDK and no new
    runtime dependency beyond `hadoop-aws` is added to either `build.sbt`.
 10. The bronze bucket is created if absent before the gate reports ready.
+    The bucket is `lakehouse` and the endpoint is `http://localhost:9000`;
+    both are read from configuration rather than hardcoded, so a different
+    store is reachable without a code change.
 11. Both pipelines remain standalone: `grep` proves neither tree references
     the other, mirroring bugfix-feature-5 criterion 4.
 12. `sbt compile` and `sbt test` exit 0 in both `pipelines/ingestion` and
@@ -95,6 +117,9 @@ Proposed. No CUs assigned yet.
 - Manual smoke: with the object store and Kafka down, `./sbt run` in
   `pipelines/ingestion` exits non-zero within the gate timeout naming Kafka
   and the object store, instead of looping (criterion 8)
-- Manual smoke: with both dependencies up and `NEWSPIPE_BRONZE_PATH` set to
-  the bucket, one poll writes a row readable back through
-  `spark.read.format("delta")` (criteria 9, 10)
+- Manual smoke: with RustFS and Kafka up, a `.env` supplying the five
+  `NEWSPIPE_S3_*` keys above, one poll writes a row readable back through
+  `spark.read.format("delta").load("s3a://lakehouse/bronze/news")`
+  (criteria 9, 10). This is the first test in this repository that would
+  exercise the object-store path at all; `DeltaBronzeSpec` writes to a
+  local temp directory and no prior test has touched `s3a://`.

@@ -1,0 +1,18 @@
+# CU-ID: legend
+# CU-TYPE: LegendCU
+# TIMESTAMP: 2026-10-17T09:51:41.355011799Z
+# DTR-COORDINATES: 
+
+LEGEND.SCALA_SIG=Significant-indentation Scala 3. A method body is introduced by `:` and indented; `do` introduces loops; `then` introduces conditionals.
+LEGEND.OPAQUE_TYPE=An opaque type alias over a primitive. `opaque type GeoArea = String` gives a distinct static type but permits any String. It is NOT a closed vocabulary.
+LEGEND.SEALED_TRAIT=A closed algebraic type. The permitted inhabitants are exactly the case objects or case classes listed. No other value can be constructed, which is how a controlled vocabulary is enforced at compile time.
+LEGEND.EITHER=Sum type. Left is the failure, Right the success. Preferred over exceptions for expected failures per ARCH.PYTHON.MONADIC_ERROR, applied here by analogy since the codebase is Scala.
+LEGEND.PROVE_LINE=A `Prove: ` backtick-quoted shell command that proves the preceding step succeeded. Every numbered step carries one.
+LEGEND.DO_NOT_TOUCH=A closed list of paths the Coder must not modify. Violation is a MAJOR architecture deviation.
+LEGEND.STOP_WHEN=The condition under which the Coder halts and reports rather than continuing.
+LEGEND.MIRROR_CU=A CU whose deliverable is a byte-identical copy of another CU's file into the sibling pipeline tree, required by ARCH.STANDALONE.
+LEGEND.CRITERION_REF=An ARCH.DOTENV clause or numbered acceptance criterion from the feat-8 specification.
+LEGEND.S3A=Hadoop's S3 filesystem. Spark resolves an s3a:// URI through it. Without hadoop-aws on the classpath and fs.s3a.* settings supplied, s3a:// falls back to the public AWS endpoint.
+LEGEND.PATH_STYLE=Address form where the bucket is a path segment (http://host:port/bucket/key) rather than a DNS subdomain. Required for single-host S3-compatible stores; localhost cannot serve virtual-host-style names.
+LEGEND.CU_ID=Zero-padded three-digit identifier, cu-001 through cu-010.
+LEGEND.WAVE=An ordered group of CUs that may run in parallel because they touch disjoint files.

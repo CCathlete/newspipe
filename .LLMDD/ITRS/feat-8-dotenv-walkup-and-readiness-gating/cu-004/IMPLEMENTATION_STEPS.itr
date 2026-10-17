@@ -1,0 +1,189 @@
+# IMPLEMENTATION_STEPS: cu-004
+
+1. Change `pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala` so EnvConfig carries the object-store fields alongside the existing enrichment fields, and Env.load resolves system environment, then .env, then application.conf. Feeds are absent from this tree because enrichment never polls an RSS source.
+
+```scala
+package newspipe.infrastructure.env
+
+import com.typesafe.config.{Config, ConfigFactory}
+
+import java.nio.file.Paths
+import scala.jdk.CollectionConverters.*
+
+final case class EnvConfig(
+    groupId: String,
+    opencodeModel: String,
+    opencodeTimeoutSeconds: Int,
+    pollIntervalSeconds: Long,
+    kafkaBootstrap: String,
+    rawTopic: String,
+    bronzePath: String,
+    sparkMaster: String,
+    s3Endpoint: String,
+    s3PathStyle: Boolean,
+    s3AccessKey: String,
+    s3SecretKey: String,
+    s3Bucket: String
+)
+
+object Env:
+  private val EnvFileName = ".env"
+
+  def load(): EnvConfig =
+    load(ConfigFactory.load().getConfig("newspipe"), DotEnv.discover(Paths.get("").toAbsolutePath))
+
+  def load(cfg: Config): EnvConfig =
+    load(cfg, DotEnv.discover(Paths.get("").toAbsolutePath))
+
+  def load(cfg: Config, dot: DotEnv): EnvConfig =
+    def pick(key: String, fallback: => String): String =
+      sys.env.get(key).orElse(dot.get(key)).getOrElse(fallback)
+    def pickLong(key: String, fallback: => Long): Long =
+      sys.env.get(key).map(_.toLong).orElse(dot.get(key).map(_.toLong)).getOrElse(fallback)
+    def pickBool(key: String, fallback: => Boolean): Boolean =
+      sys.env.get(key).map(_.toBoolean).orElse(dot.get(key).map(_.toBoolean)).getOrElse(fallback)
+
+    EnvConfig(
+      groupId = pick("NEWSPIPE_KAFKA_GROUP_ID", cfg.getString("kafka.group-id")),
+      opencodeModel = pick("NEWSPIPE_OPENCODE_MODEL", cfg.getString("opencode.model")),
+      opencodeTimeoutSeconds = pick("NEWSPIPE_OPENCODE_TIMEOUT_SECONDS", cfg.getInt("opencode.timeout-seconds").toLong).toInt,
+      pollIntervalSeconds = pickLong("NEWSPIPE_POLL_INTERVAL_SECONDS", cfg.getLong("poll-interval-seconds")),
+      kafkaBootstrap = pick("NEWSPIPE_KAFKA_BOOTSTRAP", cfg.getString("kafka.bootstrap-servers")),
+      rawTopic = pick("NEWSPIPE_RAW_TOPIC", cfg.getString("kafka.raw-topic")),
+      bronzePath = pick("NEWSPIPE_BRONZE_PATH", cfg.getString("bronze.path")),
+      sparkMaster = pick("NEWSPIPE_SPARK_MASTER", cfg.getString("spark.master")),
+      s3Endpoint = pick("NEWSPIPE_S3_ENDPOINT", cfg.getString("s3.endpoint")),
+      s3PathStyle = pickBool("NEWSPIPE_S3_PATH_STYLE", cfg.getBoolean("s3.path-style-access")),
+      s3AccessKey = pick("NEWSPIPE_S3_ACCESS_KEY", cfg.getString("s3.access-key")),
+      s3SecretKey = pick("NEWSPIPE_S3_SECRET_KEY", cfg.getString("s3.secret-key")),
+      s3Bucket = pick("NEWSPIPE_BRONZE_BUCKET", cfg.getString("s3.bucket"))
+    )
+```
+
+   Prove: `cd pipelines/enrichment && sbt compile`
+
+2. Change `pipelines/enrichment/src/main/resources/application.conf` to add the `s3` block. The existing kafka, bronze, spark and opencode blocks are unchanged.
+
+```hocon
+newspipe {
+  feeds = []
+#    "https://news.google.com/rss/search?q=geopolitics&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=geopolitics+OR+%22foreign+policy%22+when:7d&hl=en-US&gl=US&ceid=US:en",
+    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "https://foreignpolicy.com/feed/",
+    "https://thediplomat.com/feed/",
+    "https://warontherocks.com/feed/",
+    "https://www.crisisgroup.org/rss.xml",
+    "https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml",
+    "https://www.rfi.fr/en/rss",
+    "https://www.scmp.com/rss/91/feed"
+  ]
+  poll-interval-seconds = 300
+  kafka {
+    bootstrap-servers = "localhost:9092"
+    raw-topic = "raw_rss"
+  }
+  bronze {
+    path = "s3a://lakehouse/bronze/news"
+  }
+  spark {
+    master = "local[*]"
+  }
+  s3 {
+    endpoint = "http://localhost:9000"
+    path-style-access = true
+    access-key = "minioadmin"
+    secret-key = "minioadminpassword"
+    bucket = "lakehouse"
+  }
+}
+  poll-interval-seconds = 300
+  kafka {
+    bootstrap-servers = "localhost:9092"
+    raw-topic = "raw_rss"
+    group-id = "enrichment-group"
+  }
+  bronze {
+    path = "s3a://lakehouse/bronze/news"
+  }
+  spark {
+    master = "local[*]"
+  }
+  opencode {
+    model = "opencode/muse-spark-1.3-contributor-free"
+    timeout-seconds = 120
+  }
+  s3 {
+    endpoint = "http://localhost:9000"
+    path-style-access = true
+    access-key = "minioadmin"
+    secret-key = "minioadminpassword"
+    bucket = "lakehouse"
+  }
+}
+```
+
+   Prove: `grep -q 'endpoint = "http://localhost:9000"' pipelines/enrichment/src/main/resources/application.conf && grep -q 'group-id' pipelines/enrichment/src/main/resources/application.conf`
+
+3. Create `pipelines/enrichment/src/test/scala/newspipe/EnvPrecedenceSpec.scala` mirroring the ingestion spec, asserting the same three tiers plus the enrichment-only fields.
+
+```scala
+package newspipe
+
+import com.typesafe.config.ConfigFactory
+import newspipe.infrastructure.env.{DotEnv, Env}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+class EnvPrecedenceSpec extends AnyFunSpec with Matchers:
+  private val cfg = ConfigFactory.parseString("""
+    newspipe {
+      poll-interval-seconds = 300
+      kafka { bootstrap-servers = "localhost:9092", raw-topic = "raw_rss", group-id = "enrichment-group" }
+      bronze { path = "s3a://lakehouse/bronze/news" }
+      spark { master = "local[*]" }
+      opencode { model = "opencode/test", timeout-seconds = 120 }
+      s3 {
+        endpoint = "http://conf:9000"
+        path-style-access = true
+        access-key = "confkey"
+        secret-key = "confsecret"
+        bucket = "confbucket"
+      }
+    }
+  """).getConfig("newspipe")
+
+  describe("ARCH.DOTENV.MERGE") {
+    it("falls back to application.conf when no .env key is present") {
+      val env = Env.load(cfg, DotEnv(Map.empty, None))
+      env.s3Endpoint shouldBe "http://conf:9000"
+      env.groupId shouldBe "enrichment-group"
+      env.opencodeModel shouldBe "opencode/test"
+    }
+    it("prefers a .env value over application.conf") {
+      Env.load(cfg, DotEnv(Map("NEWSPIPE_S3_ENDPOINT" -> "http://dotenv:9000"), None)).s3Endpoint shouldBe "http://dotenv:9000"
+    }
+    it("prefers a .env value for the enrichment-only keys") {
+      val dot = DotEnv(Map("NEWSPIPE_OPENCODE_MODEL" -> "opencode/from-dotenv", "NEWSPIPE_KAFKA_GROUP_ID" -> "g2"), None)
+      val env = Env.load(cfg, dot)
+      env.opencodeModel shouldBe "opencode/from-dotenv"
+      env.groupId shouldBe "g2"
+    }
+    it("reads the boolean tier through the same precedence") {
+      Env.load(cfg, DotEnv(Map("NEWSPIPE_S3_PATH_STYLE" -> "false"), None)).s3PathStyle shouldBe false
+    }
+    it("carries the object-store fields through to EnvConfig") {
+      val env = Env.load(cfg, DotEnv.empty)
+      env.s3Bucket shouldBe "confbucket"
+      env.s3AccessKey shouldBe "confkey"
+      env.s3SecretKey shouldBe "confsecret"
+    }
+  }
+```
+
+   Prove: `cd pipelines/enrichment && sbt "testOnly newspipe.EnvPrecedenceSpec"`
+
+Do NOT touch: `pipelines/ingestion/**` (cu-003 owns that tree), `pipelines/enrichment/build.sbt` (cu-006), `pipelines/enrichment/src/main/scala/newspipe/control/**` (cu-010), `pipelines/enrichment/src/main/scala/newspipe/application/**` (cu-008), `.LLMDD/**`, `conf/**`.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

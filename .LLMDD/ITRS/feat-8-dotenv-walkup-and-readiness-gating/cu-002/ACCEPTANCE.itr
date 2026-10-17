@@ -1,0 +1,7 @@
+# ACCEPTANCE: cu-002
+
+AC-1 ARCH.STANDALONE - `grep -rn 'pipelines/ingestion' pipelines/enrichment/` prints nothing.
+AC-2 The two DotEnv.scala files are byte-identical: `diff -q pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/DotEnv.scala` exits 0.
+AC-3 ARCH.LAYOUT_LAYOUT - the file sits at infrastructure/env/, a nested folder.
+AC-4 `sbt compile` and `sbt "testOnly newspipe.DotEnvSpec"` exit 0 from `pipelines/enrichment`.
+AC-5 ARCH.DOTENV.EXPANSION - `grep -n 'throw' pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/DotEnv.scala` prints nothing.

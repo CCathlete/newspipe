@@ -1,0 +1,94 @@
+# IMPLEMENTATION_STEPS: cu-010
+
+1. Change `pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` to construct the gate from three probes, the third being the CLI probe cu-008 delivers.
+
+```scala
+package newspipe.control.dependencyInjection
+
+import newspipe.application.services.{EnrichmentService, ReadinessGate}
+import newspipe.infrastructure.bronze.{DeltaMergeSink, HttpObjectStoreReadinessProbe}
+import newspipe.infrastructure.env.EnvConfig
+import newspipe.infrastructure.kafka.{KafkaRawConsumer, TcpKafkaReadinessProbe}
+import newspipe.infrastructure.llmdataenricher.{OpenCodeCliClient, OpenCodeCliReadinessProbe}
+import org.apache.spark.sql.SparkSession
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.*
+
+final class AppContainer(env: EnvConfig):
+  val spark: SparkSession = SparkSession.builder()
+    .appName("newspipe-enrichment")
+    .master(env.sparkMaster)
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+    .config("spark.hadoop.fs.s3a.endpoint", env.s3Endpoint)
+    .config("spark.hadoop.fs.s3a.path.style.access", env.s3PathStyle.toString)
+    .config("spark.hadoop.fs.s3a.access.key", env.s3AccessKey)
+    .config("spark.hadoop.fs.s3a.secret.key", env.s3SecretKey)
+    .getOrCreate()
+  val consumer = new KafkaRawConsumer(env.kafkaBootstrap, env.rawTopic, env.groupId)
+  val enrich = new OpenCodeCliClient(env.opencodeModel, FiniteDuration(env.opencodeTimeoutSeconds, TimeUnit.SECONDS))
+  val sink = new DeltaMergeSink(spark, env.bronzePath)
+  val service = new EnrichmentService(consumer, enrich, sink)
+  val readiness: ReadinessGate = new ReadinessGate(
+    List(
+      new TcpKafkaReadinessProbe(env.kafkaBootstrap, 3000),
+      new HttpObjectStoreReadinessProbe(env.s3Endpoint, env.s3Bucket, env.s3AccessKey, env.s3SecretKey, 3000),
+      new OpenCodeCliReadinessProbe("opencode")
+    ),
+    maxWait = 60.seconds,
+    interval = 2.seconds,
+    sleep = d => Thread.sleep(d.toMillis)
+  )
+
+  def close(): Unit =
+    consumer.close()
+    spark.stop()
+```
+
+   Prove: `grep -c 'new .*ReadinessProbe' pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala && cd pipelines/enrichment && sbt compile`
+
+2. Change `pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala` so the gate runs before the poll loop and a failure exits non-zero.
+
+```scala
+package newspipe.control.entryPoint
+
+import com.typesafe.scalalogging.LazyLogging
+import newspipe.control.dependencyInjection.AppContainer
+import newspipe.infrastructure.env.Env
+
+import java.time.{Duration, Instant}
+
+object Main extends LazyLogging:
+  def main(args: Array[String]): Unit =
+    val env = Env.load()
+    val app = new AppContainer(env)
+    sys.addShutdownHook { app.close() }
+    val poll = Duration.ofSeconds(env.pollIntervalSeconds)
+        val report = app.readiness.await(Instant.now())
+    if !report.ready then
+      logger.error("startup aborted, " + report.describe)
+      app.close()
+      sys.exit(1)
+
+    logger.info("newspipe-enrichment polling " + env.feeds.size + " feeds every " + poll)
+    while true do
+      try
+        val n = app.service.runOnce(Instant.now())
+        logger.info("poll merged " + n + " enriched units")
+      catch case e: Exception => logger.error("poll iteration failed", e)
+      Thread.sleep(poll.toMillis)
+```
+
+   Prove: `grep -q 'sys.exit(1)' pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala && grep -q 'report.ready' pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala`
+
+3. Run the enrichment suite so the rewritten entry point compiles against the injected gate.
+
+```sh
+cd pipelines/enrichment && sbt compile && sbt test
+```
+
+   Prove: `cd pipelines/enrichment && sbt test | tail -5`
+
+Do NOT touch: `pipelines/ingestion/**` (cu-009), `pipelines/enrichment/src/main/scala/newspipe/application/**` (cu-008), `pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/**` (cu-002, cu-004), `pipelines/enrichment/build.sbt` (cu-006), `.LLMDD/**`.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

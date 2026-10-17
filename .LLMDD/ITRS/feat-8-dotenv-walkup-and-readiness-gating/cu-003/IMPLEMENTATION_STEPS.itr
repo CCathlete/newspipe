@@ -1,0 +1,162 @@
+# IMPLEMENTATION_STEPS: cu-003
+
+1. Change `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala` so EnvConfig carries the five object-store fields and Env.load resolves system environment, then .env, then application.conf. The three-argument overload is additive so existing callers of the one-argument form keep compiling.
+
+```scala
+package newspipe.infrastructure.env
+
+import com.typesafe.config.{Config, ConfigFactory}
+
+import java.nio.file.Paths
+import scala.jdk.CollectionConverters.*
+
+final case class EnvConfig(
+    feeds: List[String],
+    pollIntervalSeconds: Long,
+    kafkaBootstrap: String,
+    rawTopic: String,
+    bronzePath: String,
+    sparkMaster: String,
+    s3Endpoint: String,
+    s3PathStyle: Boolean,
+    s3AccessKey: String,
+    s3SecretKey: String,
+    s3Bucket: String
+)
+
+object Env:
+  private val EnvFileName = ".env"
+
+  def load(): EnvConfig =
+    load(ConfigFactory.load().getConfig("newspipe"), DotEnv.discover(Paths.get("").toAbsolutePath))
+
+  def load(cfg: Config): EnvConfig =
+    load(cfg, DotEnv.discover(Paths.get("").toAbsolutePath))
+
+  def load(cfg: Config, dot: DotEnv): EnvConfig =
+    def pick(key: String, fallback: => String): String =
+      sys.env.get(key).orElse(dot.get(key)).getOrElse(fallback)
+    def pickLong(key: String, fallback: => Long): Long =
+      sys.env.get(key).map(_.toLong).orElse(dot.get(key).map(_.toLong)).getOrElse(fallback)
+    def pickBool(key: String, fallback: => Boolean): Boolean =
+      sys.env.get(key).map(_.toBoolean).orElse(dot.get(key).map(_.toBoolean)).getOrElse(fallback)
+
+    EnvConfig(
+      feeds = pick("NEWSPIPE_FEEDS", cfg.getStringList("feeds").asScala.mkString(","))
+        .split(",").toList.map(_.trim).filter(_.nonEmpty),
+      pollIntervalSeconds = pickLong("NEWSPIPE_POLL_INTERVAL_SECONDS", cfg.getLong("poll-interval-seconds")),
+      kafkaBootstrap = pick("NEWSPIPE_KAFKA_BOOTSTRAP", cfg.getString("kafka.bootstrap-servers")),
+      rawTopic = pick("NEWSPIPE_RAW_TOPIC", cfg.getString("kafka.raw-topic")),
+      bronzePath = pick("NEWSPIPE_BRONZE_PATH", cfg.getString("bronze.path")),
+      sparkMaster = pick("NEWSPIPE_SPARK_MASTER", cfg.getString("spark.master")),
+      s3Endpoint = pick("NEWSPIPE_S3_ENDPOINT", cfg.getString("s3.endpoint")),
+      s3PathStyle = pickBool("NEWSPIPE_S3_PATH_STYLE", cfg.getBoolean("s3.path-style-access")),
+      s3AccessKey = pick("NEWSPIPE_S3_ACCESS_KEY", cfg.getString("s3.access-key")),
+      s3SecretKey = pick("NEWSPIPE_S3_SECRET_KEY", cfg.getString("s3.secret-key")),
+      s3Bucket = pick("NEWSPIPE_BRONZE_BUCKET", cfg.getString("s3.bucket"))
+    )
+```
+
+   Prove: `cd pipelines/ingestion && sbt compile`
+
+2. Change `pipelines/ingestion/src/main/resources/application.conf` to add the `s3` block holding the same defaults the spec pins. The existing keys are untouched, including the eleven feeds.
+
+```hocon
+newspipe {
+  feeds = [
+    "https://news.google.com/rss/search?q=geopolitics&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=geopolitics+OR+%22foreign+policy%22+when:7d&hl=en-US&gl=US&ceid=US:en",
+    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "https://foreignpolicy.com/feed/",
+    "https://thediplomat.com/feed/",
+    "https://warontherocks.com/feed/",
+    "https://www.crisisgroup.org/rss.xml",
+    "https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml",
+    "https://www.rfi.fr/en/rss",
+    "https://www.scmp.com/rss/91/feed"
+  ]
+  poll-interval-seconds = 300
+  kafka {
+    bootstrap-servers = "localhost:9092"
+    raw-topic = "raw_rss"
+  }
+  bronze {
+    path = "s3a://lakehouse/bronze/news"
+  }
+  spark {
+    master = "local[*]"
+  }
+  s3 {
+    endpoint = "http://localhost:9000"
+    path-style-access = true
+    access-key = "minioadmin"
+    secret-key = "minioadminpassword"
+    bucket = "lakehouse"
+  }
+}
+```
+
+   Prove: `grep -q 'endpoint = "http://localhost:9000"' pipelines/ingestion/src/main/resources/application.conf && grep -c 'https://' pipelines/ingestion/src/main/resources/application.conf`
+
+3. Create `pipelines/ingestion/src/test/scala/newspipe/EnvPrecedenceSpec.scala` proving the three tiers resolve in order. The DotEnv tier is exercised by constructing a DotEnv directly, because a filesystem fixture cannot safely mutate `sys.env` from a test JVM.
+
+```scala
+package newspipe
+
+import com.typesafe.config.ConfigFactory
+import newspipe.infrastructure.env.{DotEnv, Env}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+class EnvPrecedenceSpec extends AnyFunSpec with Matchers:
+  private val cfg = ConfigFactory.parseString("""
+    newspipe {
+      feeds = ["http://conf/only"]
+      poll-interval-seconds = 300
+      kafka { bootstrap-servers = "localhost:9092", raw-topic = "raw_rss" }
+      bronze { path = "s3a://lakehouse/bronze/news" }
+      spark { master = "local[*]" }
+      s3 {
+        endpoint = "http://conf:9000"
+        path-style-access = true
+        access-key = "confkey"
+        secret-key = "confsecret"
+        bucket = "confbucket"
+      }
+    }
+  """).getConfig("newspipe")
+
+  describe("ARCH.DOTENV.MERGE") {
+    it("falls back to application.conf when no .env key is present") {
+      val dot = DotEnv(Map.empty, None)
+      Env.load(cfg, dot).s3Endpoint shouldBe "http://conf:9000"
+      Env.load(cfg, dot).feeds shouldBe List("http://conf/only")
+    }
+    it("prefers a .env value over application.conf") {
+      val dot = DotEnv(Map("NEWSPIPE_S3_ENDPOINT" -> "http://dotenv:9000"), None)
+      Env.load(cfg, dot).s3Endpoint shouldBe "http://dotenv:9000"
+    }
+    it("reads the boolean and integer tiers through the same precedence") {
+      val dot = DotEnv(Map("NEWSPIPE_S3_PATH_STYLE" -> "false", "NEWSPIPE_POLL_INTERVAL_SECONDS" -> "42"), None)
+      val env = Env.load(cfg, dot)
+      env.s3PathStyle shouldBe false
+      env.pollIntervalSeconds shouldBe 42
+    }
+    it("keeps an expanded .env value intact") {
+      val raw = Map("NEWSPIPE_S3_ENDPOINT" -> "http://${NEWSPIPE_S3_HOST}:9000", "NEWSPIPE_S3_HOST" -> "rustfs")
+      Env.load(cfg, DotEnv.expand(raw).toOption.get, None).s3Endpoint shouldBe "http://rustfs:9000"
+    }
+    it("carries the object-store fields through to EnvConfig") {
+      val env = Env.load(cfg, DotEnv.empty)
+      env.s3Bucket shouldBe "confbucket"
+      env.s3AccessKey shouldBe "confkey"
+    }
+  }
+```
+
+   Prove: `cd pipelines/ingestion && sbt "testOnly newspipe.EnvPrecedenceSpec"`
+
+Do NOT touch: `pipelines/enrichment/**` (cu-004), `pipelines/ingestion/build.sbt` (cu-005), `pipelines/ingestion/src/main/scala/newspipe/control/**` (cu-009), `pipelines/ingestion/src/main/scala/newspipe/application/**` (cu-007), `.LLMDD/**`, `conf/**`.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

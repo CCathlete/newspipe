@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-004
+
+Mirror cu-003 into the enrichment tree. The enrichment EnvConfig differs from the ingestion one: it carries no feeds, and it adds groupId, opencodeModel and opencodeTimeoutSeconds. Only the object-store fields and the three-tier precedence are shared. ARCH.STANDALONE requires the duplication.

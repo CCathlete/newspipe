@@ -1,0 +1,7 @@
+# REQUIREMENTS: cu-001
+
+Satisfy the four clauses of ARCH.DOTENV, which the tensor marks MANDATORY and which both pipelines currently violate outright: ARCH.DOTENV.DISCOVERY (walk up from the application root toward the filesystem root, first .env hit loads, none found yields an empty DotEnv), ARCH.DOTENV.MERGE (system environment variables take precedence over .env values), ARCH.DOTENV.EXPANSION (${VAR} replaced inside values, depth limit 10, circular and self references a hard error) and ARCH.DOTENV.QUOTING (unquoted and double-quoted values expand, single-quoted values are literal).
+
+This CU delivers the loader and its specification only. It is not yet wired into Env.load; cu-003 performs that wiring, so nothing outside the test suite observes DotEnv after this CU lands. That is intentional: the loader is independently testable and the wiring becomes a separate, reviewable change.
+
+ARCH.NO_IMPLEMENTATION of the stub kind is a hard fail. Every method in the delivered file must carry a real body; no `???`, no `throw new NotImplementedError`, no empty match returning Nil to satisfy the type.

@@ -1,0 +1,9 @@
+# ACCEPTANCE: cu-005
+
+AC-1 hadoop-aws is declared in pipelines/ingestion/build.sbt at the version Spark 3.5.1 was built against, with CrossVersion.for3Use2_13.
+AC-2 `grep -c 'fs.s3a' pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` prints 4.
+AC-3 All four settings are read from EnvConfig, none is a string literal in AppContainer.
+AC-4 ARCH.DIP - AppContainer depends on EnvConfig and on no concrete configuration library beyond the Spark builder it already used.
+AC-5 ARCH.BRONZE_IS_RAW - no enrichment value is filtered, coerced or dropped by this CU.
+AC-6 `sbt compile` and `sbt test` exit 0 from `pipelines/ingestion`, with DeltaBronzeSpec still green.
+AC-7 ARCH.LAYOUT_LAYOUT - AppContainer.scala remains at control/dependencyInjection/.

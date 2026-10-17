@@ -1,0 +1,13 @@
+# ACCEPTANCE: cu-001
+
+AC-1 (ARCH.DOTENV.DISCOVERY) `DotEnv.discover` returns an empty map and a None source when no `.env` exists between the start directory and the filesystem root.
+AC-2 (ARCH.DOTENV.DISCOVERY) `DotEnv.discover` returns the FIRST `.env` encountered walking upward, and the nearest one when several exist on the path.
+AC-3 (ARCH.DOTENV.EXPANSION) A value referencing another key expands; nested references expand transitively.
+AC-4 (ARCH.DOTENV.EXPANSION) A self reference and a two-key circular reference both return Left, not an empty string and not an exception.
+AC-5 (ARCH.DOTENV.EXPANSION) A chain deeper than ten returns Left rather than recursing without bound.
+AC-6 (ARCH.DOTENV.QUOTING) A single-quoted value survives expansion with its ${...} intact; a double-quoted value expands.
+AC-7 ARCH.LAYOUT_LAYOUT u2014 DotEnv.scala sits at infrastructure/env/, a nested folder, never at an infrastructure layer root.
+AC-8 ARCH.STANDALONE u2014 `grep -rn 'pipelines/enrichment' pipelines/ingestion/` prints nothing.
+AC-9 No stub: `grep -nE '\?\?\?|NotImplementedError' pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala` prints nothing.
+AC-10 `sbt compile` and `sbt test` exit 0 from `pipelines/ingestion`.
+AC-11 ARCH.DOTENV.EXPANSION u2014 `grep -n 'throw' pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala` prints nothing, so a circular reference surfaces as `Left` from `expand` and never as a thrown exception.

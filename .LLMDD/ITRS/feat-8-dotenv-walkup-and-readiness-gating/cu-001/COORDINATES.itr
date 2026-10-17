@@ -1,0 +1,13 @@
+# COORDINATES: cu-001
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala (sibling in the same adapter folder; not modified by this CU)
+FILE.pipelines/ingestion/src/main/scala/newspipe/domain/valueObjects/GeoArea.scala (reference for the opaque-type style this file does NOT use)
+FILE.pipelines/ingestion/src/main/scala/newspipe/domain/valueObjects/Urgency.scala (reference for the opaque-type style this file does NOT use)
+CODEX.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala=OBJECT:Env
+CODEX.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala=FUNCTION:load:EnvConfig
+TYPE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala (new, absent from the baseline DTR u2014 creation)
+TYPE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala=DotEnv (new)
+REL.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala->java.nio.file.Files (new, IO boundary)
+FILE.pipelines/ingestion/src/test/scala/newspipe/DeltaBronzeSpec.scala (reference for the ScalaTest spec style used in this tree)
+
+#

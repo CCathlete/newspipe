@@ -1,0 +1,61 @@
+# IMPLEMENTATION_STEPS: cu-005
+
+1. Change `pipelines/ingestion/build.sbt` to add hadoop-aws. Spark 3.5.1 ships Hadoop 3.3.4, so the version must match the one Spark was built against, and the artifact is Scala-2.13 only, hence CrossVersion.for3Use2_13.
+
+```scala
+      ("org.apache.hadoop" % "hadoop-aws" % "3.3.4" % Provided).cross(CrossVersion.for3Use2_13),
+```
+
+   Prove: `grep -q 'hadoop-aws' pipelines/ingestion/build.sbt && cd pipelines/ingestion && sbt compile`
+
+2. Change `pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` so the SparkSession builder receives the four fs.s3a settings. Path-style addressing is required because a single-host S3-compatible store cannot answer virtual-host-style bucket names over localhost.
+
+```scala
+package newspipe.control.dependencyInjection
+
+import newspipe.application.services.IngestionService
+import newspipe.infrastructure.bronze.DeltaBronzeSink
+import newspipe.infrastructure.env.EnvConfig
+import newspipe.infrastructure.messagequeue.KafkaRawPublisher
+import newspipe.infrastructure.rss.RomeRssClient
+import org.apache.spark.sql.SparkSession
+
+final class AppContainer(env: EnvConfig):
+  val spark: SparkSession = SparkSession.builder()
+    .appName("newspipe-ingestion")
+    .master(env.sparkMaster)
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+    .config("spark.hadoop.fs.s3a.endpoint", env.s3Endpoint)
+    .config("spark.hadoop.fs.s3a.path.style.access", env.s3PathStyle.toString)
+    .config("spark.hadoop.fs.s3a.access.key", env.s3AccessKey)
+    .config("spark.hadoop.fs.s3a.secret.key", env.s3SecretKey)
+    .getOrCreate()
+  val rss = new RomeRssClient(env.feeds)
+  val sink = new DeltaBronzeSink(spark, s3a(env.bronzePath))
+  val raw = new KafkaRawPublisher(env.kafkaBootstrap, env.rawTopic)
+  val service = new IngestionService(rss, sink, raw)
+
+  private def s3a(path: String): String =
+    if env.s3Bucket.nonEmpty && path.startsWith("s3a://") && !path.contains("/", "s3a://".length + 1) then path
+    else if env.s3Bucket.nonEmpty && path.startsWith("s3a://") then path
+    else path
+
+  def close(): Unit =
+    raw.close()
+    spark.stop()
+```
+
+   Prove: `grep -q 'fs.s3a.endpoint' pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala && cd pipelines/ingestion && sbt compile`
+
+3. Run the ingestion suite to prove the SparkSession change does not disturb DeltaBronzeSpec, which builds its own session and must stay unaffected.
+
+   ```sh
+cd pipelines/ingestion && sbt test
+```
+
+   Prove: `cd pipelines/ingestion && sbt test`
+
+Do NOT touch: `pipelines/enrichment/**` (cu-006), `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/**` (cu-001, cu-003), `pipelines/ingestion/src/main/scala/newspipe/application/**` (cu-007), `pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/**` (cu-009), `.LLMDD/**`.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

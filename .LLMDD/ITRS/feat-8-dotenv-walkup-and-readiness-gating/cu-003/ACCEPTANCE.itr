@@ -1,0 +1,11 @@
+# ACCEPTANCE: cu-003
+
+AC-1 ARCH.DOTENV.MERGE - a key present in .env but absent from the process environment resolves to the .env value.
+AC-2 ARCH.DOTENV.MERGE - a key absent from both resolves to the application.conf value.
+AC-3 ARCH.DOTENV.MERGE - precedence is verified for String, Boolean and Long tiers.
+AC-4 ARCH.DOTENV.EXPANSION - a .env value containing a reference arrives already expanded, so Env sees the substituted form.
+AC-5 EnvConfig carries s3Endpoint, s3PathStyle, s3AccessKey, s3SecretKey and s3Bucket.
+AC-6 ARCH.ENV_ADAPTER - Env.scala remains at infrastructure/env/, never at a layer root.
+AC-7 The eleven feeds in application.conf survive the edit: `grep -c 'https://' pipelines/ingestion/src/main/resources/application.conf` prints 11.
+AC-8 `sbt compile` and `sbt "testOnly newspipe.EnvPrecedenceSpec"` exit 0 from `pipelines/ingestion`.
+AC-9 The pre-existing one-argument `Env.load(cfg)` overload still resolves.

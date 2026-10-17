@@ -1,0 +1,10 @@
+# COORDINATES: cu-003
+
+CODEX.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala=OBJECT:Env
+CODEX.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala=FUNCTION:load:EnvConfig
+TYPE.newspipe.infrastructure.env.EnvConfig
+FILE.pipelines/ingestion/src/main/resources/application.conf
+REL.newspipe.infrastructure.env.Env->newspipe.infrastructure.env.DotEnv (new, same-layer port-free call)
+REL.newspipe.infrastructure.env.Env->com.typesafe.config.Config
+
+#

@@ -1,0 +1,8 @@
+# COORDINATES: cu-002
+
+FILE.pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/DotEnv.scala (new, absent from the baseline DTR - creation)
+FILE.pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala (sibling; cu-004 owns it)
+REL.pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/DotEnv.scala->java.nio.file.Files (new, IO boundary)
+CODEX.pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala=OBJECT:Env
+
+#
