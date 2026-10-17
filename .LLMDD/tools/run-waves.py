@@ -26,12 +26,31 @@ from typing import Generic, Iterator, Literal, Optional, Sequence, TypeAlias, Ty
 DEFAULT_CODER_MODEL: str = "nvidia/z-ai/glm-5.3-flash"
 DEFAULT_LEAD_MODEL: str = "nvidia/nvidia/nemotron-3.5-lightning-30b-a3b"
 DEFAULT_CU_TIMEOUT: int = 300
-DEFAULT_LEAD_TIMEOUT: int = 600
+DEFAULT_LEAD_TIMEOUT: int = 300
 DEFAULT_MAX_FIX_ITERATIONS: int = 3
 
 # ── Fallback defaults ───────────────────────────────────────────────
+# Coder fallbacks: small, fast Nvidia models tried in order when the
+# primary coder fails (refusal, error, or activity timeout). Ordered by
+# observed latency (diffgemma ~2s, gpt-oss ~3s, laguna ~60s,
+# deepseek ~260s). Nvidia-only by policy: no cross-provider entries.
+# Dead models removed after live probes: kimi-k3 (EOL 2026-10-15),
+# magistral-small-2506 (HTTP 404), mistral-7b-instruct-v0.3 (not found).
 DEFAULT_CODER_FALLBACKS: list[str] = [
-    "opencode/big-pickle",
+    "nvidia/google/diffusiongemma-26b-a4b-it",
+    "nvidia/openai/gpt-oss-20b",
+    "nvidia/poolside/laguna-xs-2.1",
+    "nvidia/deepseek-ai/deepseek-v4.1-flash",
+]
+# Lead fallbacks: larger Nvidia models tried in order when the primary
+# lead fails (activity timeout or non-zero exit). Ordered by observed
+# latency (gpt-oss ~8s, nemotron-120b ~11s, glimmer ~60s, glm-5.3 ~240s).
+# Dead models removed after live probes: mistral-medium-3 (HTTP 404).
+DEFAULT_LEAD_FALLBACKS: list[str] = [
+    "nvidia/openai/gpt-oss-20b",
+    "nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b",
+    "nvidia/meta/muse-glimmer-30b",
+    "nvidia/z-ai/glm-5.3",
 ]
 
 # ── Monadic Result Type ────────────────────────────────────────────
@@ -633,6 +652,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="Kill coder if no activity for N seconds (activity-based timeout)")
     p.add_argument("--lead-timeout", type=int, default=DEFAULT_LEAD_TIMEOUT,
                    help="Kill lead if no activity for N seconds (activity-based timeout)")
+    p.add_argument("--lead-fallbacks", nargs="*", default=DEFAULT_LEAD_FALLBACKS,
+                   help="Fallback models for lead review, tried in order on timeout or failure")
     p.add_argument("--project", default=None,
                    help="Project root directory (default: auto-detect from .opencode/agents/)")
     p.add_argument("--dry-run", action="store_true")
@@ -1032,7 +1053,11 @@ def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
                         stream_rc = rc
                     case Err(e):
                         log_fh.close()
-                        return Err(e)
+                        if isinstance(e, TimeoutError) and model_idx < len(fallback_chain) - 1:
+                            _warn(f"Model {C.BOLD}{model}{C.RESET} timed out after {timeout}s \u2014 rotating to next fallback")
+                            stream_rc = 124
+                        else:
+                            return Err(e)
                 log_fh.close()
             case Err(e):
                 return Err(e)
@@ -1182,8 +1207,8 @@ VERIFICATION_DETAILS=CU not implemented
 
 def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
                   feedback_dir: Path, log_dir: Path, timeout: int,
-                  project_dir: Path, wave_cus: list[str]) -> tuple[int, TokenUsage]:
-    log_file: Path = log_dir / f"lead-wave-{wave}.log"
+                  project_dir: Path, wave_cus: list[str],
+                  fallback_models: Sequence[str] = ()) -> tuple[int, TokenUsage]:
     colour: str = C.BR_MAG
     prefix: str = "[LEAD]"
     usage: TokenUsage = TokenUsage()
@@ -1214,40 +1239,57 @@ def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
         f"Max fix iterations: {max_iterations}"
     )
 
-    cmd: list[str] = [
-        "opencode", "run",
-        "--model", model,
-        "--agent", "verifier",
-        "--format", "json",
-        "--auto",
-        prompt,
-    ]
+    print(f"  {colour}{C.BOLD}\u25b8{C.RESET} {colour}{C.BOLD}Code Lead \u2014 Wave {wave} review{C.RESET}")
+    print(f"    {C.DIM}{'\u2500' * 55}{C.RESET}")
 
-    print(f"  {colour}{C.BOLD}▸{C.RESET} {colour}{C.BOLD}Code Lead — Wave {wave} review{C.RESET}")
-    print(f"    {C.DIM}{'─' * 55}{C.RESET}")
+    chain: ModelFallbackChain = ModelFallbackChain(model, tuple(fallback_models))
+    rc: int = 1
+    attempt: int
+    attempt_model: str
+    for attempt, attempt_model in enumerate(chain):
+        log_file: Path = log_dir / f"lead-wave-{wave}.attempt-{attempt}.log"
+        if attempt > 0:
+            _warn(f"Lead fallback attempt {attempt}: trying {C.BOLD}{attempt_model}{C.RESET}")
 
-    log_fh: typing.TextIO
-    rc: int
-    e: Exception
-    match _open_file(log_file, "w"):
-        case Ok(log_fh):
-            match _stream_process_json(cmd, log_fh, colour, prefix,
-                                      timeout, project_dir, usage):
-                case Ok(rc):
-                    pass
-                case Err(e):
-                    log_fh.close()
-                    _fail(f"Lead review failed: {e}")
-                    return 1, usage
-            log_fh.close()
-        case Err(e):
-            _fail(f"Cannot open log: {e}")
-            return 1, usage
+        cmd: list[str] = [
+            "opencode", "run",
+            "--model", attempt_model,
+            "--agent", "verifier",
+            "--format", "json",
+            "--auto",
+            prompt,
+        ]
 
-    if rc == 0:
-        _success(f"Lead review completed")
+        log_fh: typing.TextIO
+        e: Exception
+        match _open_file(log_file, "w"):
+            case Ok(log_fh):
+                match _stream_process_json(cmd, log_fh, colour, prefix,
+                                           timeout, project_dir, usage):
+                    case Ok(rc):
+                        pass
+                    case Err(e):
+                        log_fh.close()
+                        if isinstance(e, TimeoutError) and attempt < len(chain) - 1:
+                            _warn(f"Lead model {C.BOLD}{attempt_model}{C.RESET} timed out after {timeout}s \u2014 rotating to next fallback")
+                            continue
+                        _fail(f"Lead review failed: {e}")
+                        return 1, usage
+                log_fh.close()
+            case Err(e):
+                _fail(f"Cannot open log: {e}")
+                return 1, usage
+
+        if rc == 0:
+            if attempt > 0:
+                _success(f"Lead review completed with fallback {C.BOLD}{attempt_model}{C.RESET}")
+            else:
+                _success(f"Lead review completed")
+            break
+        if attempt < len(chain) - 1:
+            _warn(f"Lead model {C.BOLD}{attempt_model}{C.RESET} exited {rc} \u2014 rotating to next fallback")
     else:
-        _fail(f"Lead review failed (exit {rc})")
+        _fail(f"Lead review failed on all {len(chain)} model(s) (last exit {rc})")
 
     line: str = _usage_line(usage)
     if line:
@@ -1256,14 +1298,12 @@ def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
     return rc, usage
 
 
-
-
 def run_per_cu_lead(cu_id: str, cu_file: Path, model: str, max_iterations: int,
-                    feedback_dir: Path, log_dir: Path, timeout: int,
-                    project_dir: Path) -> Ok[tuple[int, TokenUsage]] | Err[Exception]:
+                     feedback_dir: Path, log_dir: Path, timeout: int,
+                     project_dir: Path,
+                     fallback_models: Sequence[str] = ()) -> Ok[tuple[int, TokenUsage]] | Err[Exception]:
     """Run code lead for a single escalated CU immediately.
     Returns Ok((rc, usage)) or Err."""
-    log_file: Path = log_dir / f"lead-{cu_id}.log"
     colour: str = C.BR_MAG
     prefix: str = f"[LEAD-{cu_id}]"
     usage: TokenUsage = TokenUsage()
@@ -1278,37 +1318,56 @@ def run_per_cu_lead(cu_id: str, cu_file: Path, model: str, max_iterations: int,
         f"Max fix iterations: {max_iterations}"
     )
 
-    cmd: list[str] = [
-        "opencode", "run",
-        "--model", model,
-        "--agent", "verifier",
-        "--format", "json",
-        "--auto",
-        prompt,
-    ]
-
     print(f"  {colour}{C.BOLD}\u25b8 {colour}{C.BOLD}Lead \u2014 fixing {cu_id}{C.RESET}")
     print(f"    {C.DIM}{'\u2500' * 55}{C.RESET}")
 
-    log_fh: typing.TextIO
-    rc: int
-    e: Exception
-    match _open_file(log_file, "w"):
-        case Ok(log_fh):
-            match _stream_process_json(cmd, log_fh, colour, prefix,
-                                      timeout, project_dir, usage):
-                case Ok(rc):
-                    pass
-                case Err(e):
-                    log_fh.close()
-                    return Err(e)
-            log_fh.close()
-        case Err(e):
-            return Err(e)
+    chain: ModelFallbackChain = ModelFallbackChain(model, tuple(fallback_models))
+    rc: int = 1
+    attempt: int
+    attempt_model: str
+    for attempt, attempt_model in enumerate(chain):
+        log_file: Path = log_dir / f"lead-{cu_id}.attempt-{attempt}.log"
+        if attempt > 0:
+            _warn(f"Lead fallback attempt {attempt}: trying {C.BOLD}{attempt_model}{C.RESET}")
+
+        cmd: list[str] = [
+            "opencode", "run",
+            "--model", attempt_model,
+            "--agent", "verifier",
+            "--format", "json",
+            "--auto",
+            prompt,
+        ]
+
+        log_fh: typing.TextIO
+        e: Exception
+        match _open_file(log_file, "w"):
+            case Ok(log_fh):
+                match _stream_process_json(cmd, log_fh, colour, prefix,
+                                           timeout, project_dir, usage):
+                    case Ok(rc):
+                        pass
+                    case Err(e):
+                        log_fh.close()
+                        if isinstance(e, TimeoutError) and attempt < len(chain) - 1:
+                            _warn(f"Lead model {C.BOLD}{attempt_model}{C.RESET} timed out after {timeout}s \u2014 rotating to next fallback")
+                            continue
+                        return Err(e)
+                log_fh.close()
+            case Err(e):
+                return Err(e)
+
+        if rc == 0:
+            break
+        if attempt < len(chain) - 1:
+            _warn(f"Lead model {C.BOLD}{attempt_model}{C.RESET} exited {rc} \u2014 rotating to next fallback")
 
     match rc:
         case 0:
-            _success(f"Lead fixed {cu_id}")
+            if attempt > 0:
+                _success(f"Lead fixed {cu_id} with fallback {C.BOLD}{attempt_model}{C.RESET}")
+            else:
+                _success(f"Lead fixed {cu_id}")
         case _:
             _fail(f"Lead failed on {cu_id} (exit {rc})")
 
@@ -1317,6 +1376,7 @@ def run_per_cu_lead(cu_id: str, cu_file: Path, model: str, max_iterations: int,
         print(line)
     print()
     return Ok((rc, usage))
+
 
 def _is_escalated(cu_id: str, feedback_dir: Path) -> bool:
     """Check if a specific CU has ESCALATION status."""
@@ -1386,6 +1446,7 @@ async def run_wave_parallel(
     cu_timeout: int,
     lead_model: str,
     lead_timeout: int,
+    lead_fallbacks: list[str],
     max_fix_iterations: int,
     no_per_cu_lead: bool,
 ) -> tuple[dict[str, list[str]], bool]:
@@ -1465,6 +1526,7 @@ async def run_wave_parallel(
                 match run_per_cu_lead(
                     cu_id, cu_file, lead_model, max_fix_iterations,
                     feedback_dir, log_dir, lead_timeout, project_dir,
+                    lead_fallbacks,
                 ):
                     case Ok((lead_rc, lead_usage)):
                         tracker.accumulate(lead_usage)
@@ -1551,7 +1613,9 @@ async def main_async(args: argparse.Namespace) -> None:
     _info(f"App:           {C.BOLD}{app_name}{C.RESET}")
     _info(f"CUs found:     {C.BOLD}{len(cu_map)}{C.RESET}")
     _info(f"Coder model:   {args.coder_model}")
+    _info(f"Coder fallbacks: {', '.join(args.coder_fallbacks) if args.coder_fallbacks else '(none)'}")
     _info(f"Lead model:    {args.lead_model}")
+    _info(f"Lead fallbacks: {', '.join(args.lead_fallbacks) if args.lead_fallbacks else '(none)'}")
     _info(f"CU timeout:    {args.cu_timeout}s")
     _info(f"Lead timeout:  {args.lead_timeout}s")
     print()
@@ -1626,6 +1690,7 @@ async def main_async(args: argparse.Namespace) -> None:
             args.coder_model, args.coder_fallbacks,
             args.cu_timeout,
             args.lead_model, args.lead_timeout,
+            args.lead_fallbacks,
             args.max_fix_iterations,
             args.no_per_cu_lead,
         )
@@ -1657,7 +1722,7 @@ async def main_async(args: argparse.Namespace) -> None:
         lead_rc, lead_usage = run_code_lead(
             wave_num, num_waves, args.lead_model, args.max_fix_iterations,
             feedback_dir, log_dir, args.lead_timeout,
-            project_dir, wave_cus,
+            project_dir, wave_cus, args.lead_fallbacks,
         )
         tracker.accumulate(lead_usage)
         lead_ok: bool = lead_rc == 0

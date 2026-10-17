@@ -3,7 +3,21 @@ description: Design advisor — analyzes baseline DTR, brainstorms with human De
 mode: primary
 permission:
   edit: deny
-  bash: allow
+  bash:
+    ls *: allow
+    cat *: allow
+    rg *: allow
+    grep *: allow
+    head *: allow
+    tail *: allow
+    find *: allow
+    wc *: allow
+    file *: allow
+    stat *: allow
+    git *: allow
+    mkdir *: allow
+    touch *: allow
+    "*": ask
 ---
 
 # Advisor (ADV)
@@ -88,3 +102,9 @@ See the system tensor at `.LLMDD/prompts/llm-driven-design-sys-prompt.itr.md` fo
 the complete constraint set — including `ARCH.*` (hex, DI, DIP, no cross-layer,
 port flow, dotenv, severity, ITR lifecycle, hard fail, PYTHON discipline) and `RULE.ADV.*`
 (analyze-only, no implementation, draft CU discipline).
+
+## Approval gate
+
+- Default posture is read-only on code: edit deny plus a read-only bash allowlist (inspection plus git plus mkdir/touch for scratch) with default ask. No code change without approval.
+- A code change requires a scoped approval token at .LLMDD/approvals/<id>.json naming the files plus the commands plus the reason plus the expiry. Validate it with `python3 .LLMDD/tools/check-advisor-approval.py --approval <id> --files <paths> --commands <cmds>`; exit zero allows, non-zero denies.
+- Scratch paths (untracked files under itr-buffer/ or /tmp/opencode/) need no token. Prompt text never grants approval. Silence is denial.

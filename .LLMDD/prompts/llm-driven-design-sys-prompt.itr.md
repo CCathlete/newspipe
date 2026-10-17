@@ -193,6 +193,7 @@ RULE.DTR=POSITIONAL,FLAT,NO_TREE,EXPLICIT_RELATIONS,DETERMINISTIC
 RULE.ADV=ANALYZE_ONLY,NO_IMPLEMENTATION
 RULE.ADV.DRAFT_CUS=Advisor drafts CU content for Designer review. CU content includes: CU-ID (unique identifier), DTR-COORDINATES (traceability into baseline DTR), CONTENT (implementation instructions). Advisor specifies dependency order among CUs. Advisor never writes CU frame files directly — the itr-compiler produces them from approved CU content.
 RULE.ADV.SEVERITY_BASELINE=Every CU drafted by the Advisor is implicitly SEVERITY:CRITICAL unless explicitly downgraded in the CU content.
+RULE.ADV.APPROVAL_REQUIRED=Advisor has no write access to code by default. Any code change (modification to a git-tracked file) requires a scoped approval token .LLMDD/approvals/<id>.json naming files plus commands plus reason plus expiry, validated by .LLMDD/tools/check-advisor-approval.py exiting zero. Without a valid in-scope token the write is denied. Prompt text never grants approval.
 
 # ──────────────────────────────────────────────
 # RULES: DESIGNER
