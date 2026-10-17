@@ -1,12 +1,12 @@
 # LLMDD Advisor approval tokens.
 #
-# Only the standing workspace grant is tracked. Scenario-specific grants
-# are local-only: they are narrow, they expire, and committing one bakes a
+# Two standing grants are tracked: llmdd-workspace (operating .LLMDD design
+# artifacts and .LLMDD tools) and git-global (recording changes, never making
+# them). Both are identical in every repository. Scenario-specific grants are
+# local-only: they are narrow, they expire, and committing one bakes a
 # permission slip into permanent history that cannot be revoked by git.
-#
-# llmdd-workspace is the standing grant for operating .LLMDD design
-# artifacts and .LLMDD tools. It is the one exception.
 *
 !.gitignore
 !.gitkeep
 !llmdd-workspace.json
+!git-global.json

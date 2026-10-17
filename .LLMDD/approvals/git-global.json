@@ -1,0 +1,16 @@
+{
+  "id": "git-global",
+  "files": [],
+  "commands": [
+    "git add *",
+    "git commit *",
+    "git status *",
+    "git diff *",
+    "git log *",
+    "git show *",
+    "git ls-files *"
+  ],
+  "reason": "Designer: git add and git commit are global. This token authorises RECORDING only, never CHANGING -- its files list is empty, so it can never widen what an agent may edit. Every file committed must already be in scope of whichever token authorised editing it (verified separately against that token). Splitting the two keeps the file allowlist meaningful while removing the need for a per-file git grant. git push remains deliberately absent: the pre-push hook blocks agents.",
+  "granted_by": "Designer, in-session: \"git add and git commit are absolutely global\"",
+  "expires": "2099-12-31"
+}
