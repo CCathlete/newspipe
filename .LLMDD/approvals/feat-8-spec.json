@@ -1,8 +1,0 @@
-{
-  "id": "feat8-spec",
-  "files": [".LLMDD/spec-driven/features/feat-8-dotenv-walkup-and-readiness-gating.md"],
-  "commands": ["python3 .LLMDD/tools/next-spec-id.py --kind feature"],
-  "reason": "Advisor drafts feat-8 spec for Designer review",
-  "granted_by": "Designer",
-  "expires": "2026-10-31"
-}
