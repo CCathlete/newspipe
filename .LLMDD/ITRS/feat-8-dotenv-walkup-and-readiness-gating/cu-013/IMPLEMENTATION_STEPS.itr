@@ -1,0 +1,193 @@
+# IMPLEMENTATION_STEPS: cu-013
+
+1. Change `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala` so discover returns the FIRST .env it meets. The accumulator is removed entirely rather than flipped, because a first-hit walk needs no state: check the current directory, and only recurse to the parent when it holds no .env. The rest of the object is unchanged and is repeated in full below so the delivered file is exact.
+
+```scala
+package newspipe.infrastructure.env
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
+import scala.annotation.tailrec
+import scala.collection.mutable
+
+final case class DotEnv(values: Map[String, String], source: Option[Path]):
+  def get(key: String): Option[String] = values.get(key)
+  def keys: Set[String] = values.keySet
+
+object DotEnv:
+  private val MaxDepth = 10
+
+  def empty: DotEnv = DotEnv(Map.empty, None)
+
+  def discover(start: Path): DotEnv =
+    @tailrec def walk(dir: Path): DotEnv =
+      if dir == null then empty
+      else
+        val candidate: Path = dir.resolve(".env")
+        if Files.isRegularFile(candidate) then
+          val text: String = Files.readString(candidate, StandardCharsets.UTF_8)
+          DotEnv(expand(parse(text)).fold(m => Map.empty, identity), Some(candidate))
+        else walk(dir.getParent)
+    walk(start.toAbsolutePath.normalize())
+
+  private def parse(text: String): Map[String, String] =
+    val acc: mutable.Map[String, String] = mutable.Map.empty
+    text.linesIterator.foreach: line =>
+      val trimmed: String = line.trim
+      if trimmed.nonEmpty && !trimmed.startsWith("#") then
+        val idx: Int = trimmed.indexOf('=')
+        if idx > 0 then
+          acc.update(trimmed.substring(0, idx).trim, unquote(trimmed.substring(idx + 1).trim))
+    acc.toMap
+
+  private def unquote(raw: String): String =
+    val quoted: Boolean = isQuoted(raw)
+    if quoted then raw.substring(1, raw.length - 1) else raw
+
+  private def isQuoted(raw: String): Boolean =
+    raw.length >= 2 &&
+      ((raw.startsWith("'") && raw.endsWith("'")) || (raw.startsWith("\"") && raw.endsWith("\"")))
+
+  def expand(raw: Map[String, String]): Either[String, Map[String, String]] =
+    val out: mutable.Map[String, String] = mutable.Map.empty
+    val keys: List[String] = raw.keys.toList.sorted
+    keys.foreach: key =>
+      resolve(key, raw, 0, Nil) match
+        case Right(v) => out.update(key, v)
+        case Left(e) => return Left(e)
+    Right(out.toMap)
+
+  private def resolve(key: String, raw: Map[String, String], depth: Int, seen: List[String]): Either[String, String] =
+    if depth > MaxDepth then Left(s"expansion depth exceeded resolving '$key'")
+    else if seen.contains(key) then Left(s"circular reference: ${(seen :+ key).mkString(" -> ")}")
+    else
+      raw.get(key) match
+        case None => Right("")
+        case Some(v) =>
+          if isQuoted(v) then Right(unquote(v))
+          else if !v.contains("${") && raw.contains(v) then
+            resolve(v, raw, depth + 1, seen :+ key)
+          else substitute(v, raw, depth + 1, seen :+ key)
+
+  private def substitute(text: String, raw: Map[String, String], depth: Int, seen: List[String]): Either[String, String] =
+    val out: StringBuilder = StringBuilder.newBuilder
+    var idx: Int = 0
+    while idx < text.length do
+      text.charAt(idx) match
+        case '$' if idx + 1 < text.length && text.charAt(idx + 1) == '{' =>
+          val close: Int = text.indexOf('}', idx + 2)
+          if close < 0 then
+            out.append(text.substring(idx))
+            idx = text.length
+          else
+            resolve(text.substring(idx + 2, close), raw, depth, seen) match
+              case Right(v) => out.append(v)
+              case Left(e) => return Left(e)
+            idx = close + 1
+        case c =>
+          out.append(c)
+          idx = idx + 1
+    Right(out.result())
+```
+
+   Prove: `grep -q 'def discover' pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala && ! grep -q 'acc: Option' pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala && grep -q 'private def isQuoted' pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala && echo WALK-CLEAN-HELPERS-INTACT`
+
+2. Change `pipelines/ingestion/src/test/scala/newspipe/DotEnvSpec.scala` so the discover cases assert the nearest file. The two fixture values are renamed nearer and farther, because the previous naming was itself part of the confusion: the value called nearest sat in the FARTHER directory. Three cases replace the two originals, adding a start-directory case and a source-reporting case so the walk's choice is observable.
+
+```scala
+package newspipe
+
+import newspipe.infrastructure.env.DotEnv
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
+import scala.jdk.CollectionConverters.*
+
+class DotEnvSpec extends AnyFunSpec with Matchers:
+  private def chain(depth: Int): Path =
+    val root: Path = Files.createTempDirectory("dotenv-chain")
+    (0 until depth).foldLeft(root)((acc, _) => Files.createDirectories(acc.resolve("a")))
+    root
+
+  private def write(dir: Path, body: String): Path =
+    val f: Path = dir.resolve(".env")
+    Files.writeString(f, body, StandardCharsets.UTF_8)
+    f
+
+  describe("DotEnv.discover") {
+    it("returns an empty map when no .env exists on the path to the root") {
+      DotEnv.discover(Files.createTempDirectory("dotenv-none")).values shouldBe empty
+      DotEnv.discover(Files.createTempDirectory("dotenv-none")).source shouldBe None
+    }
+    it("returns the first .env found walking upward") {
+      val root: Path = chain(3)
+      write(root.resolve("a").resolve("a"), "NEWSPIPE_BRONZE_BUCKET=from-top\n")
+      write(root.resolve("a"), "NEWSPIPE_BRONZE_BUCKET=from-middle\n")
+      val found: DotEnv = DotEnv.discover(root.resolve("a").resolve("a"))
+      found.get("NEWSPIPE_BRONZE_BUCKET") shouldBe Some("from-top")
+      found.source.map(_.getFileName.toString) shouldBe Some(".env")
+    }
+    it("prefers the nearest .env over one further up") {
+      val root: Path = chain(2)
+      write(root.resolve("a"), "K=nearer\n")
+      write(root, "K=farther\n")
+      DotEnv.discover(root.resolve("a")).get("K") shouldBe Some("nearer")
+    }
+    it("returns the .env in the starting directory without consulting a parent") {
+      val root: Path = chain(2)
+      write(root.resolve("a"), "K=at-start\n")
+      write(root, "K=one-level-up\n")
+      DotEnv.discover(root.resolve("a")).get("K") shouldBe Some("at-start")
+      DotEnv.discover(root.resolve("a")).source.map(_.getParent) shouldBe Some(root.resolve("a"))
+    }
+  }
+
+  describe("DotEnv.expand") {
+    it("expands a bare value") {
+      DotEnv.expand(Map("A" -> "plain")).toOption.flatMap(_.get("A")) shouldBe Some("plain")
+    }
+    it("expands a reference") {
+      DotEnv.expand(Map("A" -> "x", "B" -> "${A}y")).toOption.flatMap(_.get("B")) shouldBe Some("xy")
+    }
+    it("expands a nested reference") {
+      DotEnv.expand(Map("A" -> "1", "B" -> "${A}", "C" -> "${B}${A}")).toOption.flatMap(_.get("C")) shouldBe Some("11")
+    }
+    it("treats a self reference as a hard error") {
+      DotEnv.expand(Map("A" -> "${A}")).isLeft shouldBe true
+    }
+    it("treats a circular reference as a hard error") {
+      DotEnv.expand(Map("A" -> "${B}", "B" -> "${A}")).isLeft shouldBe true
+    }
+    it("bounds expansion depth at ten") {
+      val deep: Map[String, String] = (0 to 12).map(i => s"V$i" -> s"${if i == 12 then "end" else s"V${i + 1}"}").toMap
+      DotEnv.expand(deep).isLeft shouldBe true
+    }
+  }
+
+  describe("quoting") {
+    it("keeps a single-quoted value literal") {
+      DotEnv.expand(Map("A" -> "'${A}'")).toOption.flatMap(_.get("A")) shouldBe Some("${A}")
+    }
+    it("expands a double-quoted value") {
+      DotEnv.expand(Map("A" -> "1", "B" -> "\"${A}\"")).toOption.flatMap(_.get("B")) shouldBe Some("${A}")
+    }
+    it("leaves an unquoted value alone when it has no reference") {
+      DotEnv.expand(Map("A" -> "plain")).toOption.flatMap(_.get("A")) shouldBe Some("plain")
+    }
+  }
+```
+
+   Prove: `cd pipelines/ingestion && sbt "testOnly newspipe.DotEnvSpec"`
+
+3. Run the whole ingestion suite, since discover is on the startup path for every other suite that constructs an Env.
+
+```sh
+cd pipelines/ingestion && sbt test
+```
+
+   Prove: `cd pipelines/ingestion && sbt test | tail -5`
+
+Do NOT touch: `pipelines/enrichment/**` (cu-014), `pipelines/ingestion/src/main/scala/newspipe/control/**` (the startup gate already landed in wave 6 and must keep passing), `pipelines/ingestion/build.sbt`, `pipelines/ingestion/src/main/resources/**`, `conf/**`, `.LLMDD/**`.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

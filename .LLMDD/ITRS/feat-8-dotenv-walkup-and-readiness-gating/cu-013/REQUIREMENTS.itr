@@ -1,0 +1,7 @@
+# REQUIREMENTS: cu-013
+
+Correct the DotEnv walk-up so it honours ARCH.DOTENV.DISCOVERY, and repair the test that was written against the wrong behaviour.
+
+The shipped discover accumulates the LAST .env seen while walking to the filesystem root and returns that, so it resolves the furthest file rather than the nearest. ARCH.DOTENV.DISCOVERY specifies first hit loads. The furthest-wins shape entered the tree through cu-001, whose frame contained a self-contradictory test: it wrote a nearer .env in the starting directory and a farther one above it, then asserted the FARTHER value, contradicting its own test name. Satisfying that assertion inverted the implementation and broke the correct test alongside it.
+
+Two changes, both in the ingestion tree. cu-014 mirrors both into the enrichment tree, where the files are byte-identical. Nothing outside these two files changes.

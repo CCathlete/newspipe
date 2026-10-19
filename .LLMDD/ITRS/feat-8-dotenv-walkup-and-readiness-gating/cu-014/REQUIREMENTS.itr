@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-014
+
+Mirror cu-013 into the enrichment tree. Both files are byte-identical across trees because both carry the same package and no tree-specific configuration, which ARCH.STANDALONE requires rather than a shared module. The copy is therefore a byte-for-byte file operation, not a re-derivation.

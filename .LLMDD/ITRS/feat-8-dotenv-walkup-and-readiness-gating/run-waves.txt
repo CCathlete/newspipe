@@ -1,1 +1,1 @@
-python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/feat-8-dotenv-walkup-and-readiness-gating --app newspipe --waves .LLMDD/ITRS/feat-8-dotenv-walkup-and-readiness-gating/waves.json
+python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/feat-8-dotenv-walkup-and-readiness-gating --app newspipe --waves .LLMDD/ITRS/feat-8-dotenv-walkup-and-readiness-gating/waves.json --cu-timeout 900 --lead-timeout 1200

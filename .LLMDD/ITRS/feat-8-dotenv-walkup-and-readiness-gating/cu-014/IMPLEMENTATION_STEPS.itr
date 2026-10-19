@@ -1,0 +1,20 @@
+# IMPLEMENTATION_STEPS: cu-014
+
+1. Copy `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala` over `pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/DotEnv.scala`. Byte-identical: the two trees declare the same package and this adapter reads no tree-specific value.
+
+   Prove: `diff -q pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/DotEnv.scala && echo IDENTICAL`
+
+2. Copy `pipelines/ingestion/src/test/scala/newspipe/DotEnvSpec.scala` over `pipelines/enrichment/src/test/scala/newspipe/DotEnvSpec.scala`, then run the suite in the enrichment tree.
+
+   Prove: `cd pipelines/enrichment && sbt "testOnly newspipe.DotEnvSpec"`
+
+3. Run the whole enrichment suite so the corrected adapter is proven against the startup gate, which constructs an Env on every run.
+
+```sh
+cd pipelines/enrichment && sbt test
+```
+
+   Prove: `cd pipelines/enrichment && sbt test | tail -5`
+
+Do NOT touch: `pipelines/ingestion/**` (cu-013 owns that tree), `pipelines/enrichment/src/main/scala/newspipe/control/**` (the startup gate already landed in wave 6 and must keep passing), `pipelines/enrichment/build.sbt`, `pipelines/enrichment/src/main/resources/**`, `conf/**`, `.LLMDD/**`.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

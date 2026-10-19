@@ -1,50 +1,10 @@
 [
   {
     "wave": 1,
-    "description": "DotEnv loader plus specification, one CU per tree. No dependencies.",
+    "description": "Corrective wave for the feat-8 discovery defect. Restores first-hit-wins in DotEnv.discover per ARCH.DOTENV.DISCOVERY and repairs the self-contradictory assertion that caused the inversion. One CU per tree; the files are byte-identical across trees, so the pair is disjoint and runs in parallel. Replaces the six-wave plan, which is preserved in git history at dbc2ccd.",
     "cus": [
-      "cu-001",
-      "cu-002"
-    ]
-  },
-  {
-    "wave": 2,
-    "description": "ConfLoader plus deletion of the classpath application.conf, one CU per tree. Must precede Env, which resolves configuration through it.",
-    "cus": [
-      "cu-003",
-      "cu-004"
-    ]
-  },
-  {
-    "wave": 3,
-    "description": "Env.load three-tier precedence against conf/, plus object-store keys, one CU per tree.",
-    "cus": [
-      "cu-005",
-      "cu-006"
-    ]
-  },
-  {
-    "wave": 4,
-    "description": "hadoop-aws dependency and Spark fs.s3a wiring, one CU per tree. Depends on EnvConfig carrying the object-store fields.",
-    "cus": [
-      "cu-007",
-      "cu-008"
-    ]
-  },
-  {
-    "wave": 5,
-    "description": "Readiness ports, probes, gate and specification, one CU per tree. Enrichment adds the opencode CLI probe.",
-    "cus": [
-      "cu-009",
-      "cu-010"
-    ]
-  },
-  {
-    "wave": 6,
-    "description": "Entry-point startup gate, one CU per tree. Depends on AppContainer readiness from waves 4 and 5.",
-    "cus": [
-      "cu-011",
-      "cu-012"
+      "cu-013",
+      "cu-014"
     ]
   }
 ]

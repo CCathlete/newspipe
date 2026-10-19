@@ -1,0 +1,10 @@
+# COORDINATES: cu-013
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala
+FILE.pipelines/ingestion/src/test/scala/newspipe/DotEnvSpec.scala
+CODEX.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala=OBJECT:DotEnv
+CODEX.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala=FUNCTION:discover:DotEnv
+TYPE.newspipe.infrastructure.env.DotEnv
+REL.newspipe.infrastructure.env.DotEnv->java.nio.file.Files
+
+#

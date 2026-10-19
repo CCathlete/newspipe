@@ -1,0 +1,12 @@
+# ACCEPTANCE: cu-014
+
+AC-1 ARCH.DOTENV.DISCOVERY - discover returns the .env in the starting directory when one exists, without consulting any parent.
+AC-2 ARCH.DOTENV.DISCOVERY - discover returns the nearest .env above the start when the start has none.
+AC-3 ARCH.DOTENV.DISCOVERY - discover walks upward past directories holding no .env and returns the first one it meets.
+AC-4 The DotEnv source field reports the directory actually loaded, so an unexpected choice is diagnosable without instrumenting the walk.
+AC-5 No .env anywhere on the path yields an empty map and a None source.
+AC-6 ARCH.DOTENV.EXPANSION and ARCH.DOTENV.QUOTING behaviour is unchanged: the six expansion and quoting cases still pass.
+AC-7 The walk no longer threads a candidate parameter: `grep -c 'acc: Option\[Path\]' DotEnv.scala` prints 0. A count of bare `acc` would be misleading, because parse legitimately accumulates parsed pairs under that name.
+AC-8 No self-contradictory test remains: every discover case asserts the nearest file, and no case name disagrees with its assertion.
+AC-9 `sbt test` from pipelines/enrichment reports zero failures.
+AC-10 ARCH.STANDALONE - `grep -rn 'pipelines/enrichment' pipelines/enrichment/` prints nothing.
