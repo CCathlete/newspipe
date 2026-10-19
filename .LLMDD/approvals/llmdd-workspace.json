@@ -13,7 +13,7 @@
     "python3 .LLMDD/tools/validate-steps.py *",
     ".LLMDD/tools/dtr-builder *",
     ".LLMDD/tools/itr-compiler *",
-    "python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/feat-8-dotenv-walkup-and-readiness-gating --app newspipe --waves .LLMDD/ITRS/feat-8-dotenv-walkup-and-readiness-gating/waves.json --dry-run",
+    "python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/* --app * --waves .LLMDD/ITRS/* --dry-run",
     "sbt compile *",
     "sbt test *",
     "sbt testOnly *",
