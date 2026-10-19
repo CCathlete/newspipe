@@ -2,6 +2,7 @@
   "id": "git-global",
   "files": [
     ".LLMDD/*",
+    "!.LLMDD/approvals",
     ".opencode/*",
     "conf/*",
     "pipelines/*",

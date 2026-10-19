@@ -4,7 +4,7 @@
     ".LLMDD/spec-driven/*",
     ".LLMDD/ITRS/*",
     ".LLMDD/DTRS/*",
-    ".LLMDD/approvals/*",
+    "!.LLMDD/approvals/*",
     ".LLMDD/tests/*"
   ],
   "commands": [

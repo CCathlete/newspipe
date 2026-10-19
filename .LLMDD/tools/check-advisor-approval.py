@@ -97,14 +97,41 @@ def load_token(path: Path) -> ApprovalToken | str:
     return token
 
 
+def entry_matches(entry: str, path: str) -> bool:
+    """Match one scope entry against a path.
+
+    A trailing "/*" or "/" covers the named directory itself and everything
+    beneath it. A bare entry matches itself exactly, plus anything beneath
+    it when it names a directory (so "!.LLMDD/approvals" prohibits the
+    whole approvals directory, not just a file literally named "approvals").
+    """
+    if entry.endswith("/*"):
+        stem: str = entry[:-2]
+        return path == stem or path.startswith(stem + "/")
+    if entry.endswith("/"):
+        stem = entry[:-1]
+        return path == stem or path.startswith(stem + "/")
+    return path == entry or path.startswith(entry + "/")
+
+
 def file_in_scope(path: str, scope: TokenFiles) -> bool:
+    """True when `path` is allowed by `scope` and not prohibited by it.
+
+    An entry prefixed "!" is a prohibition and always wins. Every
+    prohibition in the scope is evaluated before any allowance, so order in
+    the list is irrelevant and a broad allowance such as ".LLMDD/*" cannot
+    re-grant a path that a narrower entry like "!.LLMDD/approvals/*"
+    prohibits. A prohibition covering nothing is inert, exactly as an
+    allowance covering nothing is.
+    """
     entry: str
     for entry in scope:
-        if entry.endswith("/*"):
-            stem: str = entry[:-2]
-            if path == stem or path.startswith(stem + "/"):
-                return True
-        elif path == entry:
+        if entry.startswith("!") and entry_matches(entry[1:], path):
+            return False
+    for entry in scope:
+        if entry.startswith("!"):
+            continue
+        if entry_matches(entry, path):
             return True
     return False
 
