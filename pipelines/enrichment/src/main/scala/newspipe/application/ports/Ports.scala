@@ -20,3 +20,19 @@ trait RawConsumer:
 
 trait BronzeMergeSink:
   def merge(units: List[BronzeUnit]): Int
+
+sealed trait ProbeResult
+
+object ProbeResult:
+  case object Ready extends ProbeResult
+  final case class NotReady(dependency: String, detail: String) extends ProbeResult
+
+trait DependencyProbe:
+  def name: String
+  def check(): ProbeResult
+
+trait KafkaReadinessProbe extends DependencyProbe
+
+trait ObjectStoreReadinessProbe extends DependencyProbe
+
+trait CliReadinessProbe extends DependencyProbe

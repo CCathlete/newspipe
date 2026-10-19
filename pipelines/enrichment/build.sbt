@@ -26,6 +26,12 @@ lazy val root = (project in file("."))
       "com.typesafe" % "config" % "1.4.3",
       "org.apache.kafka" % "kafka-clients" % "3.7.0",
       ("org.apache.spark" %% "spark-sql" % "3.5.1" % Provided).cross(CrossVersion.for3Use2_13),
+      // Spark 3.5.1 was built against Hadoop 3.3.4. hadoop-aws is a pure-Java
+      // artifact with no Scala cross-version, so it is declared with % (no
+      // for3Use2_13 — that would resolve hadoop-aws_2.13, which does not
+      // exist). Needed for Spark to resolve s3a:// URIs (DeltaMergeSink
+      // writes bronze there).
+      ("org.apache.hadoop" % "hadoop-aws" % "3.3.4" % Provided),
       ("io.delta" %% "delta-spark" % "3.1.0").cross(CrossVersion.for3Use2_13),
       "org.scalatest" %% "scalatest" % "3.2.19" % Test,
       "org.typelevel" %% "cats-effect-testing-scalatest" % "1.5.0" % Test

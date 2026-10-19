@@ -1,40 +1,59 @@
 package newspipe.infrastructure.env
 
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
+import newspipe.infrastructure.conf.ConfLoader
 
+import java.nio.file.Paths
 import scala.jdk.CollectionConverters.*
 
 final case class EnvConfig(
+    groupId: String,
+    opencodeModel: String,
+    opencodeTimeoutSeconds: Int,
     pollIntervalSeconds: Long,
     kafkaBootstrap: String,
     rawTopic: String,
-    groupId: String,
     bronzePath: String,
     sparkMaster: String,
-    opencodeModel: String,
-    opencodeTimeoutSeconds: Long
+    s3Endpoint: String,
+    s3PathStyle: Boolean,
+    s3AccessKey: String,
+    s3SecretKey: String,
+    s3Bucket: String
 )
 
 object Env:
-  def load(): EnvConfig =
-    load(ConfigFactory.load().getConfig("newspipe"))
+  private val PipelineFile = "enrichment.conf"
+
+  def load(): Either[String, EnvConfig] =
+    for
+      loaded <- ConfLoader.load(PipelineFile, Paths.get("").toAbsolutePath)
+      dot = DotEnv.discover(Paths.get("").toAbsolutePath)
+    yield load(loaded.config.getConfig("newspipe"), dot)
 
   def load(cfg: Config): EnvConfig =
+    load(cfg, DotEnv.discover(Paths.get("").toAbsolutePath))
+
+  def load(cfg: Config, dot: DotEnv): EnvConfig =
+    def pick(key: String, fallback: => String): String =
+      sys.env.get(key).orElse(dot.get(key)).getOrElse(fallback)
+    def pickLong(key: String, fallback: => Long): Long =
+      sys.env.get(key).map(_.toLong).orElse(dot.get(key).map(_.toLong)).getOrElse(fallback)
+    def pickBool(key: String, fallback: => Boolean): Boolean =
+      sys.env.get(key).map(_.toBoolean).orElse(dot.get(key).map(_.toBoolean)).getOrElse(fallback)
+
     EnvConfig(
-      pollIntervalSeconds = sys.env.get("NEWSPIPE_POLL_INTERVAL_SECONDS").map(_.toLong)
-        .getOrElse(cfg.getLong("poll-interval-seconds")),
-      kafkaBootstrap = sys.env.get("NEWSPIPE_KAFKA_BOOTSTRAP")
-        .getOrElse(cfg.getString("kafka.bootstrap-servers")),
-      rawTopic = sys.env.get("NEWSPIPE_RAW_TOPIC")
-        .getOrElse(cfg.getString("kafka.raw-topic")),
-      groupId = sys.env.get("NEWSPIPE_GROUP_ID")
-        .getOrElse(cfg.getString("kafka.group-id")),
-      bronzePath = sys.env.get("NEWSPIPE_BRONZE_PATH")
-        .getOrElse(cfg.getString("bronze.path")),
-      sparkMaster = sys.env.get("NEWSPIPE_SPARK_MASTER")
-        .getOrElse(cfg.getString("spark.master")),
-      opencodeModel = sys.env.get("NEWSPIPE_OPENCODE_MODEL")
-        .getOrElse(cfg.getString("opencode.model")),
-      opencodeTimeoutSeconds = sys.env.get("NEWSPIPE_OPENCODE_TIMEOUT_SECONDS").map(_.toLong)
-        .getOrElse(cfg.getLong("opencode.timeout-seconds"))
+      groupId = pick("NEWSPIPE_KAFKA_GROUP_ID", cfg.getString("kafka.group-id")),
+      opencodeModel = pick("NEWSPIPE_OPENCODE_MODEL", cfg.getString("opencode.model")),
+      opencodeTimeoutSeconds = pick("NEWSPIPE_OPENCODE_TIMEOUT_SECONDS", cfg.getInt("opencode.timeout-seconds").toString).toInt,
+      pollIntervalSeconds = pickLong("NEWSPIPE_POLL_INTERVAL_SECONDS", cfg.getLong("poll-interval-seconds")),
+      kafkaBootstrap = pick("NEWSPIPE_KAFKA_BOOTSTRAP", cfg.getString("kafka.bootstrap-servers")),
+      rawTopic = pick("NEWSPIPE_RAW_TOPIC", cfg.getString("kafka.raw-topic")),
+      bronzePath = pick("NEWSPIPE_BRONZE_PATH", cfg.getString("bronze.path")),
+      sparkMaster = pick("NEWSPIPE_SPARK_MASTER", cfg.getString("spark.master")),
+      s3Endpoint = pick("NEWSPIPE_S3_ENDPOINT", cfg.getString("s3.endpoint")),
+      s3PathStyle = pickBool("NEWSPIPE_S3_PATH_STYLE", cfg.getBoolean("s3.path-style-access")),
+      s3AccessKey = pick("NEWSPIPE_S3_ACCESS_KEY", cfg.getString("s3.access-key")),
+      s3SecretKey = pick("NEWSPIPE_S3_SECRET_KEY", cfg.getString("s3.secret-key")),
+      s3Bucket = pick("NEWSPIPE_BRONZE_BUCKET", cfg.getString("s3.bucket"))
     )

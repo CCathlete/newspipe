@@ -26,6 +26,7 @@ lazy val root = (project in file("."))
       "com.typesafe" % "config" % "1.4.3",
       "org.apache.kafka" % "kafka-clients" % "3.7.0",
       ("org.apache.spark" %% "spark-sql" % "3.5.1" % Provided).cross(CrossVersion.for3Use2_13),
+      ("org.apache.hadoop" % "hadoop-aws" % "3.3.4" % Provided),
       ("io.delta" %% "delta-spark" % "3.1.0").cross(CrossVersion.for3Use2_13),
       "org.scalatest" %% "scalatest" % "3.2.19" % Test,
       "org.typelevel" %% "cats-effect-testing-scalatest" % "1.5.0" % Test
