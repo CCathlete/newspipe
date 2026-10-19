@@ -1,0 +1,1 @@
+python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/feat-9-single-launcher-and-legible-logs --app newspipe --waves .LLMDD/ITRS/feat-9-single-launcher-and-legible-logs/waves.json

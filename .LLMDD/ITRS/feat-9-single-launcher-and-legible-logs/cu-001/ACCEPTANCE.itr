@@ -1,0 +1,6 @@
+# ACCEPTANCE: cu-001
+
+AC-1 (criterion 1) `test -f conf/logback.xml` exits 0.
+AC-2 (criterion 1) `find pipelines -name 'logback*.xml' -not -path '*/target/*'` prints nothing, so conf/logback.xml is the only logging configuration.
+AC-3 The newspipe logger carries level INFO and the root logger carries level WARN: `grep -c 'name="newspipe" level="INFO"' conf/logback.xml` prints 1 and `grep -c '<root level="WARN">' conf/logback.xml` prints 1.
+AC-4 No file under `pipelines/**` changed: `git status --porcelain pipelines/` prints nothing.

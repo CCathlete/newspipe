@@ -1,0 +1,48 @@
+# IMPLEMENTATION_STEPS: cu-001
+
+1. Create `conf/logback.xml` at the repository root, beside `conf/feeds.conf`, with exactly this content.
+
+```xml
+<configuration>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%date{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <logger name="newspipe" level="INFO"/>
+  <logger name="org.apache.kafka" level="WARN"/>
+  <logger name="org.apache.spark" level="WARN"/>
+  <logger name="org.apache.hadoop" level="WARN"/>
+  <logger name="org.sparkproject" level="WARN"/>
+  <logger name="io.delta" level="WARN"/>
+
+  <root level="WARN">
+    <appender-ref ref="STDOUT"/>
+  </root>
+</configuration>
+```
+
+Prove: `test -f conf/logback.xml && grep -c '<root level="WARN">' conf/logback.xml`
+
+2. Confirm `conf/logback.xml` is the only logging configuration in the repository and that neither pipeline tree gained one.
+
+```sh
+test -f conf/logback.xml
+find pipelines -name 'logback*.xml' -not -path '*/target/*' | wc -l
+```
+
+Prove: `test -f conf/logback.xml && find pipelines -name 'logback*.xml' -not -path '*/target/*' | wc -l`
+
+3. Confirm the informative line's logger is covered by the `newspipe` logger level in `conf/logback.xml`, so criterion 2 can hold once a pipeline is started.
+
+```sh
+grep -n 'logger.info("poll merged' pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala
+grep -n 'name="newspipe" level="INFO"' conf/logback.xml
+```
+
+Prove: `grep -c 'name="newspipe" level="INFO"' conf/logback.xml`
+
+Do NOT touch: `pipelines/**`, `conf/feeds.conf`, `conf/ingestion.conf`, `conf/enrichment.conf`, `scripts/`, `~/Repos/pipeline_infra/**`, `.LLMDD/**`
+
+Stop when `conf/logback.xml` cannot be written at the repository root, or when step 2 prints a non-zero count, meaning a second logging configuration exists somewhere under `pipelines/`. Report which of the two happened rather than continuing.

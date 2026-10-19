@@ -1,0 +1,9 @@
+# REQUIREMENTS: cu-002
+
+Deliver feat-9 criteria 4, 7, 9, 10 and 11: one Python entry point exposing exactly four verbs, written to satisfy ARCH.PYTHON.* and proven by the mypy strict probe.
+
+scripts/newspipe.py is created from scratch. It is one file with four sections in layer order, because the feature ships a single launcher rather than a package: DOMAIN declares the Ok and Err monads, PipelineName, ReadinessReport, GroupOffset and StatusReport; APPLICATION declares the OpsPort abstract base class and the five use cases do_up, do_run, do_wait, do_down and do_status; INFRASTRUCTURE implements OpsPort as SubprocessOps over terraform, the three dependency probes and sbt child processes; CONTROL builds the argparse parser and dispatches.
+
+Three design decisions are settled here so no later CU has to rediscover them. First, both pipelines set run / fork := true, so a -D flag never reaches the application JVM, and editing build.sbt is forbidden by ARCH.NO_PIPELINE_EDIT. The launcher therefore appends -Dlogback.configurationFile=<absolute path to conf/logback.xml> to JAVA_TOOL_OPTIONS in the environment it spawns sbt with, which is the only channel that reaches the forked JVM. Second, down must stop children started by an earlier invocation, so pids are recorded in /tmp/newspipe-launcher.state, which is bookkeeping rather than a log: one line per child, three fields, no history. Third, terraform is invoked only by the up verb as terraform apply -auto-approve in ~/Repos/pipeline_infra; destroy never appears.
+
+The whole file arrives in step 1 as exact content. It is already proven against uvx mypy --strict, so a Coder who inserts it verbatim and runs the probe gets zero errors. The heavy end-to-end runs that need a live pipeline belong to a later CU and are deliberately absent here.

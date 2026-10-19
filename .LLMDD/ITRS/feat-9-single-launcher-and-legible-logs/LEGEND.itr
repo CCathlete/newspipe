@@ -1,0 +1,18 @@
+# CU-ID: legend
+# CU-TYPE: LegendCU
+# TIMESTAMP: 2026-10-19T16:30:33.790938493Z
+# DTR-COORDINATES: 
+
+LEGEND.PROVE_LINE=A `Prove: ` backtick-quoted shell command that proves the preceding step succeeded. Every numbered step carries one.
+LEGEND.DO_NOT_TOUCH=A closed list of paths the Coder must not modify. Violation is a MAJOR architecture deviation.
+LEGEND.STOP_WHEN=The condition under which the Coder halts and reports rather than continuing.
+LEGEND.OK_ERR=Ok and Err are the two monad data classes. A value you want is Ok(value), a failure you expect is Err(exception). Callers branch on isinstance(result, Err) instead of catching.
+LEGEND.MAYBE=A type written T | None is present-or-absent without an exception. None means the reading could not be taken, never that the value is zero.
+LEGEND.LITERAL=Literal[...] is a closed vocabulary of exact strings. PipelineName accepts exactly "ingestion" and "enrichment" and nothing else type-checks.
+LEGEND.ABC_PORT=An abstract base class whose @abstractmethod bodies raise NotImplementedError. It is the contract, SubprocessOps is the implementation.
+LEGEND.STATE_LINE=One tab-separated line in /tmp/newspipe-launcher.state: pid, pipeline name, newest observed poll line. Exactly three fields; any other shape is ignored.
+LEGEND.JAVA_TOOL_OPTIONS=An environment variable the JVM reads at startup and converts into -D system properties. Both pipelines set run / fork := true, so this is the only channel that reaches the forked application JVM without editing build.sbt. Its single cost is one "Picked up" line on stderr, which carries no HEARTBEAT and no poll line.
+LEGEND.READINESS=The three dependencies up waits for: Kafka on TCP 9092, RustFS answering 200 on /health, and opencode present on PATH. All three names come from ReadinessGate in the ingestion tree.
+LEGEND.CU_ID=Zero-padded three-digit identifier, cu-001 through cu-003.
+LEGEND.WAVE=An ordered group of CUs that may run in parallel because they touch disjoint files.
+LEGEND.CRITERION_REF=A numbered acceptance criterion from the feat-9 specification.

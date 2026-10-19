@@ -1,0 +1,9 @@
+# REQUIREMENTS: cu-001
+
+Deliver feat-9 criterion 1: a single external logging configuration at the repository root.
+
+The enrichment entry point logs one informative line per cycle, logger.info("poll merged " + n + " enriched units") in pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala, but no logback*.xml exists anywhere in either pipeline tree while logback-classic is on both dependency lists. Logback therefore falls back to BasicConfigurator, the root logger runs at DEBUG, and the Kafka coordinator heartbeat writes a DEBUG line every three seconds underneath the two lines that carry information.
+
+This CU writes conf/logback.xml beside the existing conf/feeds.conf, conf/ingestion.conf and conf/enrichment.conf, so logging levels become external user configuration in the same place as the other external settings. The newspipe logger is set to INFO so every newspipe.* record survives, the three noisy library families and the root logger are set to WARN so the heartbeat disappears, and the console appender keeps the existing line shape.
+
+The file is XML, not code, and it is the whole deliverable. The launcher is a separate CU and nothing else in this repository changes.

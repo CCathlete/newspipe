@@ -1,0 +1,8 @@
+# ACCEPTANCE: cu-002
+
+AC-1 (criterion 4) `python3 scripts/newspipe.py --help` exits 0 and its stdout lists exactly up, run, down and status, each on its own line, with no fifth verb.
+AC-2 (criterion 4) `python3 scripts/newspipe.py notaverb` exits 2 and prints `invalid choice`.
+AC-3 (criterion 10) `uvx mypy --strict scripts/newspipe.py` exits 0 and prints `Success: no issues found in 1 source file`.
+AC-4 (criterion 9, three of four readings) `python3 scripts/newspipe.py status` exits 0 and prints a line matching `infra present: kafka, rustfs, opencode`, a line matching `raw_rss: [0-9]+ message`, and a line matching `enrichment-group: committed=[0-9]+ end=[0-9]+ lag=[0-9]+`. The fourth reading, the newest poll line, needs a running pipeline and is asserted in the end-to-end CU.
+AC-5 (criterion 7, no-child case) `python3 scripts/newspipe.py down` exits 0 and prints `stopped 0 pipeline process(es)`, and `pgrep -af terraform` prints no process started by that invocation.
+AC-6 (criterion 11, post-implementation) `git status --porcelain pipelines/` prints nothing.

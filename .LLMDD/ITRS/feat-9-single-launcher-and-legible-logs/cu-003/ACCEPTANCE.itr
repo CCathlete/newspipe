@@ -1,0 +1,12 @@
+# ACCEPTANCE: cu-003
+
+AC-1 (criterion 1) After the run, `test -f conf/logback.xml` exits 0 and `find pipelines -name 'logback*.xml' -not -path '*/target/*'` prints nothing.
+AC-2 (criterion 2) `grep -c HEARTBEAT /tmp/newspipe-feat9-enrichment.log` prints 0, and the same capture contains a `newspipe` record at INFO, so the heartbeat flood is gone while informative records survive.
+AC-3 (criterion 3) The same capture contains at least one line matching `poll merged [0-9]+ enriched units`, visible without grep on the live output.
+AC-4 (criterion 5) The child counts printed for run ingestion, run enrichment and run both are 1, 1 and 2 respectively, and no verb started a pipeline it was not asked for.
+AC-5 (criterion 6) After down, /tmp/newspipe-launcher.state is absent, no launcher-recorded child survives, and `docker ps --format '{{.Names}}'` still lists kafka and rustfs.
+AC-6 (criterion 7) `python3 scripts/newspipe.py down` exits 0 while `pgrep -af terraform` shows no process started by it.
+AC-7 (criterion 8, negative) With rustfs stopped, `python3 scripts/newspipe.py up` exits non-zero and names rustfs in its output.
+AC-8 (criterion 8, positive) With kafka, rustfs and opencode all reachable, `python3 scripts/newspipe.py up` exits 0 and its last line matches `ready: kafka, rustfs, opencode`.
+AC-9 (criterion 9) /tmp/newspipe-feat9-status.log contains a `raw_rss` count line, an `enrichment-group` committed and lag line, and a line containing `poll merged`.
+AC-10 (criterion 11) `git status --porcelain pipelines/` prints nothing after the full run.

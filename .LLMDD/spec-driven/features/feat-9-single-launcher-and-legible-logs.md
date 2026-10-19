@@ -40,7 +40,7 @@ Scope (in):
   `feeds.conf`, `ingestion.conf` and `enrichment.conf`, so logging levels
   become external user configuration consistent with the rule feat-8
   established. Neither pipeline tree gains `src/main/resources/logback.xml`.
-- A Python launcher at `bin/newspipe.py` with four verbs:
+- A Python launcher at `scripts/newspipe.py` with four verbs:
   - `up` -- run `terraform apply` against the pipeline_infra repository, then
     poll the same three dependencies `ReadinessGate` checks (Kafka TCP,
     RustFS `/health`, `opencode` on PATH) and either report ready or name each
@@ -68,7 +68,7 @@ that variable reports `logback.configurationFile = <path>` in
 JAVA_TOOL_OPTIONS: ...` line on **stderr**, which does not enter the stdout
 stream the launcher parses.
 
-New paths outside the current standing approval tokens: `bin/newspipe.py` and
+New paths outside the current standing approval tokens: `scripts/newspipe.py` and
 any launcher unit tests. Implementation will need an approval token naming
 them; `pipelines/**` stays untouched.
 
@@ -108,7 +108,7 @@ Proposed. No CUs assigned yet.
 3. Started through the launcher, a completed poll cycle surfaces
    `poll merged N enriched units` on stdout, so the informative line is
    reachable without grep.
-4. `python3 bin/newspipe.py --help` exits 0 and lists exactly `up`, `run`,
+4. `python3 scripts/newspipe.py --help` exits 0 and lists exactly `up`, `run`,
    `down`, `status`.
 5. `run ingestion` starts only the ingestion pipeline, `run enrichment` only
    the enrichment pipeline, and `run both` starts exactly two pipeline child
@@ -124,7 +124,7 @@ Proposed. No CUs assigned yet.
 9. `status` prints, with no `docker exec` needed by the user: the `raw_rss`
    message count, the `enrichment-group` committed offset and lag, and the
    newest `poll merged` line for each running pipeline.
-10. `uvx mypy --strict bin/newspipe.py` exits 0 with zero errors.
+10. `uvx mypy --strict scripts/newspipe.py` exits 0 with zero errors.
 11. No file under `pipelines/**` is created, modified or deleted: after
     implementation and after a launcher run, `git status --porcelain pipelines/`
     is empty.
@@ -133,16 +133,16 @@ Proposed. No CUs assigned yet.
 
 - Config presence (criterion 1): `test -f conf/logback.xml` exits 0, and
   `find pipelines -name 'logback*.xml' -not -path '*/target/*'` prints nothing.
-- Verb surface (criterion 4): `python3 bin/newspipe.py --help` exits 0 with
+- Verb surface (criterion 4): `python3 scripts/newspipe.py --help` exits 0 with
   `up`, `run`, `down`, `status` in its stdout; an unrecognised verb exits
   non-zero.
-- Type probe (criterion 10): `uvx mypy --strict bin/newspipe.py` exits 0 with
+- Type probe (criterion 10): `uvx mypy --strict scripts/newspipe.py` exits 0 with
   zero errors.
 - Log legibility (criteria 2, 3): with Kafka and RustFS up, reset the
   enrichment group near the topic end so one cycle is short --
   `docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server
   localhost:9092 --group enrichment-group --topic raw_rss --reset-offsets
-  --shift-by -3 --execute` -- then run `python3 bin/newspipe.py run enrichment`
+  --shift-by -3 --execute` -- then run `python3 scripts/newspipe.py run enrichment`
   for one cycle. Assert stdout has `grep -c HEARTBEAT` == 0 and contains a line
   matching `poll merged [0-9]+ enriched units`.
 - Verb selection (criterion 5): invoke each verb in turn and assert the
@@ -151,9 +151,9 @@ Proposed. No CUs assigned yet.
   children are gone, `docker ps --format '{{.Names}}'` still lists `kafka` and
   `rustfs`, no `terraform` process appeared, and the exit code is 0.
 - `up` readiness, negative probe (criterion 8): `docker stop rustfs`, then
-  `python3 bin/newspipe.py up` must exit non-zero and name `rustfs`; restore
+  `python3 scripts/newspipe.py up` must exit non-zero and name `rustfs`; restore
   with `docker start rustfs`. With all three dependencies up, `up` exits 0.
-- `status` content (criterion 9): `python3 bin/newspipe.py status` stdout
+- `status` content (criterion 9): `python3 scripts/newspipe.py status` stdout
   contains the `raw_rss` count, the `enrichment-group` offset and lag, and a
   `poll merged` line.
 - Source integrity (criterion 11): `git status --porcelain pipelines/` empty

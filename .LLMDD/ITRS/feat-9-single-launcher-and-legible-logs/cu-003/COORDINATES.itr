@@ -1,0 +1,8 @@
+# COORDINATES: cu-003
+
+FILE.scripts/newspipe.py
+FILE.conf/logback.xml
+FILE.pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala
+FILE.pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala
+
+#

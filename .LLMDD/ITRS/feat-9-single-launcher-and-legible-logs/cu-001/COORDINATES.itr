@@ -1,0 +1,7 @@
+# COORDINATES: cu-001
+
+FILE.conf/logback.xml
+FILE.conf/feeds.conf
+FILE.pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala
+
+#

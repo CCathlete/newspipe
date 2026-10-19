@@ -1,0 +1,107 @@
+# IMPLEMENTATION_STEPS: cu-003
+
+1. Confirm `conf/logback.xml` exists and is the only logging configuration before any pipeline is started.
+
+```sh
+test -f conf/logback.xml
+find pipelines -name 'logback*.xml' -not -path '*/target/*' | wc -l
+```
+
+Prove: `test -f conf/logback.xml && find pipelines -name 'logback*.xml' -not -path '*/target/*' | wc -l`
+
+2. Shorten the next enrichment cycle so the `scripts/newspipe.py run enrichment` start in step 3 completes inside a wait, by shifting `enrichment-group` to three messages behind the topic end.
+
+```sh
+docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --group enrichment-group --topic raw_rss --reset-offsets --shift-by -3 --execute
+```
+
+Prove: `docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group enrichment-group`
+
+3. Start `scripts/newspipe.py run enrichment` in the background with its stdout captured to a scratch file, then wait for the poll line to appear in that file.
+
+```sh
+python3 scripts/newspipe.py run enrichment > /tmp/newspipe-feat9-enrichment.log 2>&1 &
+for i in $(seq 1 60); do grep -q 'poll merged [0-9]* enriched units' /tmp/newspipe-feat9-enrichment.log && break; sleep 5; done
+```
+
+Prove: `grep -c 'poll merged [0-9]* enriched units' /tmp/newspipe-feat9-enrichment.log`
+
+4. Assert the two log-legibility criteria on the captured stdout of `scripts/newspipe.py run enrichment`: zero heartbeat lines and at least one informative poll line.
+
+```sh
+grep -c HEARTBEAT /tmp/newspipe-feat9-enrichment.log || echo "zero HEARTBEAT lines"
+grep -E 'poll merged [0-9]+ enriched units' /tmp/newspipe-feat9-enrichment.log
+```
+
+Prove: `grep -c HEARTBEAT /tmp/newspipe-feat9-enrichment.log; grep -c 'poll merged [0-9]* enriched units' /tmp/newspipe-feat9-enrichment.log`
+
+5. Run `scripts/newspipe.py status` from a second invocation while the enrichment child is still running, and confirm all four readings including the newest poll line.
+
+```sh
+python3 scripts/newspipe.py status > /tmp/newspipe-feat9-status.log 2>&1
+cat /tmp/newspipe-feat9-status.log
+```
+
+Prove: `grep -cE 'raw_rss: [0-9]+ message|enrichment-group: committed=[0-9]+|poll merged' /tmp/newspipe-feat9-status.log`
+
+6. Stop the children with `scripts/newspipe.py down` and confirm they are gone while Kafka and RustFS stay up and no terraform process appeared.
+
+```sh
+python3 scripts/newspipe.py down
+test ! -f /tmp/newspipe-launcher.state && echo "no children recorded"
+docker ps --format '{{.Names}}' | grep -E '^(kafka|rustfs)$' | sort
+pgrep -af terraform | wc -l
+```
+
+Prove: `python3 scripts/newspipe.py down; test ! -f /tmp/newspipe-launcher.state && echo cleared`
+
+7. Assert criterion 5 by starting each selection through `scripts/newspipe.py run` in turn and counting the reported children as one, one and two, stopping between each.
+
+```sh
+python3 scripts/newspipe.py run ingestion > /tmp/newspipe-feat9-ingestion.log 2>&1 &
+sleep 30
+grep -c '^started pid=' /tmp/newspipe-feat9-ingestion.log
+python3 scripts/newspipe.py down
+python3 scripts/newspipe.py run enrichment > /tmp/newspipe-feat9-enrichment2.log 2>&1 &
+sleep 30
+grep -c '^started pid=' /tmp/newspipe-feat9-enrichment2.log
+python3 scripts/newspipe.py down
+python3 scripts/newspipe.py run both > /tmp/newspipe-feat9-both.log 2>&1 &
+sleep 30
+grep -c '^started pid=' /tmp/newspipe-feat9-both.log
+python3 scripts/newspipe.py down
+```
+
+Prove: `grep -c '^started pid=' /tmp/newspipe-feat9-both.log`
+
+8. Assert criterion 8's negative case on `scripts/newspipe.py up`: stop rustfs, expect a non-zero exit naming rustfs, then start rustfs again in the same step.
+
+```sh
+docker stop rustfs
+python3 scripts/newspipe.py up > /tmp/newspipe-feat9-up-fail.log 2>&1; echo "up exit=$?"
+grep -i rustfs /tmp/newspipe-feat9-up-fail.log
+docker start rustfs
+```
+
+Prove: `docker ps --format '{{.Names}}' | grep -c '^rustfs$'`
+
+9. Assert criterion 8's positive case on `scripts/newspipe.py up` once all three dependencies are reachable again.
+
+```sh
+docker ps --format '{{.Names}}' | grep -E '^(kafka|rustfs)$' | sort
+python3 scripts/newspipe.py up
+```
+
+Prove: `python3 scripts/newspipe.py up | tail -1`
+
+10. Assert criterion 11 after the full run: no file under `pipelines/**` was created, modified or deleted by any of the preceding steps.
+
+```sh
+git status --porcelain pipelines/
+```
+
+Prove: `git status --porcelain pipelines/ | wc -l`
+
+Do NOT touch: any file in this repository. This CU runs probes only. In particular `scripts/newspipe.py` and `conf/logback.xml` are read-only here, `pipelines/**` is read-only, and `~/Repos/pipeline_infra/**` is another repository that no CU in this ITR may modify. The only state the launcher writes outside the repository is /tmp/newspipe-launcher.state and the scratch capture files under /tmp.
+
+Stop when any probe disagrees with its acceptance line. Report the failing criterion number, the exact command and its output, and stop rather than editing `scripts/newspipe.py` or `conf/logback.xml` to make a probe pass. A repair belongs to a new CU issued by the Designer.

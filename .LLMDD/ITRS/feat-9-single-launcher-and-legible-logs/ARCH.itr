@@ -1,0 +1,28 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-19T16:30:33.788619406Z
+# DTR-COORDINATES: 
+
+ARCH=HEX,DI,DIP,NO_CROSS_LAYER,PORT_FLOW_OUT_IN,SEVERITY
+APP.NAME=newspipe
+APP.LANGUAGE=Python
+APP.VERSION=0.2.0-SNAPSHOT
+LAYER.ORDER=domain,application,infrastructure,control
+ARCH.HEX=Hexagonal. DOMAIN holds value types, APPLICATION owns the port and the use cases, INFRASTRUCTURE implements the port, CONTROL parses arguments, constructs the adapter and prints. The launcher is one file, so the four layers are four sections in that order from the top of scripts/newspipe.py to the bottom.
+ARCH.DI=CONTROL constructs SubprocessOps once and passes it to every use case. No service locator and no module-level mutable singleton.
+ARCH.DIP=OpsPort is an abstract base class declared in the APPLICATION section. SubprocessOps in the INFRASTRUCTURE section implements it. The use cases name OpsPort only and never name SubprocessOps.
+ARCH.NO_CROSS_LAYER=Section dependencies point one way. DOMAIN imports nothing from the other three sections, APPLICATION imports DOMAIN, INFRASTRUCTURE imports DOMAIN and APPLICATION, CONTROL imports all three above it.
+ARCH.PORT_FLOW_OUT_IN=Outbound port OpsPort declared in APPLICATION, adapter SubprocessOps in INFRASTRUCTURE implementing it.
+ARCH.SEVERITY=Every CU in this ITR is implicitly SEVERITY:CRITICAL. A stub, a missing verb, a missing annotation or a mypy error is a hard fail. Report and stop.
+ARCH.PYTHON.EXPLICIT_DECLARATION=MUST, CRITICAL. Every variable carries an annotation at first binding, either name: Type = value or name: Type before assignment. Every function parameter and return type is annotated too.
+ARCH.PYTHON.NO_ANY=MUST, CRITICAL. typing.Any never appears and no generic is left bare. dict, list, tuple and set always state their parameters, for example tuple[str, ...].
+ARCH.PYTHON.SLOTTED_FROZEN_DATACLASS=SHOULD, MAJOR by default. Data classes use @dataclass(slots=True, frozen=True) unless the class genuinely needs mutation. This ITR declares no exception.
+ARCH.PYTHON.MONADIC_ERROR=SHOULD, MAJOR by default. Expected failures travel as Ok or Err. try/except exists only to convert an OSError or a subprocess failure into Err, never to swallow it.
+ARCH.TYPE_PROBE=uvx mypy --strict scripts/newspipe.py must exit 0 with zero errors. No standalone mypy binary exists on this host, uvx is the runner.
+ARCH.NO_PIPELINE_EDIT=HARD_FAIL. Nothing under pipelines/** is created, modified or deleted by any CU here. The logback file reaches the forked application JVM through JAVA_TOOL_OPTIONS, never through build.sbt.
+ARCH.NO_INFRA_EDIT=HARD_FAIL. Nothing in ~/Repos/pipeline_infra is edited. terraform appears only as a command executed by the up verb.
+ARCH.NO_DESTROY=HARD_FAIL. terraform destroy appears in no step, no acceptance command and no CU. Every volume and the shared network carry prevent_destroy, so a destroy cannot succeed on this host.
+ARCH.LAUNCHER_STATE=/tmp/newspipe-launcher.state is launcher bookkeeping, not a log. One tab-separated line per recorded child: pid, pipeline name, newest poll line observed. No history and no rotation. It is the only file the launcher writes.
+ARCH.LOGGING_EXTERNAL=conf/logback.xml at the repository root is the only logging configuration in this repository. Neither pipeline tree gains src/main/resources/logback.xml.
+ARCH.STDOUT_ONLY=stdout only. No log shipping, aggregation, rotation or log file on disk anywhere in this ITR.
+ARCH.OUT_OF_SCOPE=Infra teardown, Trino, Hive Metastore, silver and gold layers and any edit to ~/Repos/pipeline_infra are addressed by no CU in this ITR.

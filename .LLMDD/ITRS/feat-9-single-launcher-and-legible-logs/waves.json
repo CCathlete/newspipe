@@ -1,0 +1,17 @@
+[
+  {
+    "wave": 1,
+    "description": "The two independent deliverables, in parallel because neither depends on the other. cu-001 writes conf/logback.xml, the external logging configuration that drops the Kafka heartbeat flood to WARN and keeps newspipe records at INFO. cu-002 creates scripts/newspipe.py in one shot with the four verbs, then proves it with uvx mypy --strict, the --help verb surface, the status readings, a no-child down and a clean pipelines/ status. cu-002 deliberately does not start a pipeline: its acceptance never touches the log stream, so the missing conf/logback.xml on the sibling CU cannot affect it, and the heavy end-to-end runs are held back for wave 2.",
+    "cus": [
+      "cu-001",
+      "cu-002"
+    ]
+  },
+  {
+    "wave": 2,
+    "description": "End-to-end verification, ordered last because it needs both wave 1 deliverables present at once. cu-003 runs the launcher as a user would against the live stack: it shortens one enrichment cycle, starts run enrichment in the background, asserts zero HEARTBEAT lines and a visible poll merged line, reads all four status readings from a second invocation, stops with down and confirms the children are gone while kafka and rustfs stay up and no terraform ran, counts 1, 1 and 2 children for the three run selections, and exercises up both with rustfs stopped (must fail naming rustfs) and with everything reachable (must exit 0). It creates and modifies no repository file; a failing probe is reported for a new CU rather than repaired in place.",
+    "cus": [
+      "cu-003"
+    ]
+  }
+]

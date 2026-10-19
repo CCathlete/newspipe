@@ -1,0 +1,8 @@
+# COORDINATES: cu-002
+
+FILE.scripts/newspipe.py
+FILE.conf/logback.xml
+FILE.pipelines/ingestion/build.sbt
+FILE.pipelines/enrichment/build.sbt
+
+#

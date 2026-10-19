@@ -1,0 +1,9 @@
+# REQUIREMENTS: cu-003
+
+Prove feat-9 end to end: criteria 1, 2, 3, 5, 6, 7, 8, 9 and 11 against the live stack, after the logging configuration and the launcher both exist.
+
+This CU creates, modifies and deletes no repository file. It runs the launcher as a user would and records what the probes print. Every child started here is stopped by the launcher's own down verb before this CU ends, and the one destructive-looking action in the whole feature, stopping the rustfs container for the negative readiness probe, is restored immediately in the same step.
+
+The end-to-end run is what no unit test can cover. Criterion 2 and criterion 3 are claims about a live Kafka consumer's stdout, and criterion 5, criterion 6 and criterion 7 are claims about process lifecycle across two separate launcher invocations. They are asserted here rather than in the creation CU so that the launcher's own creation CU can run in parallel with the logging CU, since neither of those two depends on the other.
+
+The negative readiness probe carries a risk worth stating plainly: terraform apply runs before the readiness check, and if the docker provider restarted a stopped container during apply the probe would heal itself. pipeline_infra declares rustfs as a docker_container resource with no start or must_run attribute, so an apply with a stopped container reports no configuration change and leaves it stopped, and the readiness check then fails as intended. If apply does restart it on this host, criterion 8's negative case cannot be proven and that fact is reported rather than worked around.
