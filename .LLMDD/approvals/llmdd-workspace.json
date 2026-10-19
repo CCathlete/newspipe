@@ -21,6 +21,7 @@
     "sbt assembly *",
     "git add *",
     "git commit *",
+    "git apply *",
     "git rm --cached *"
   ],
   "reason": "Standing Designer grant: the Advisor operates all .LLMDD design artifacts and .LLMDD tools freely, no per-run token needed, plus sbt compile/test/testOnly/assembly for verification (these write only gitignored target/). Scoped to AUTHORED paths only. Deliberately excluded: .LLMDD/prompts, .LLMDD/tools, .LLMDD/skills, .LLMDD/agents, .LLMDD/instructions (synced from the llm-driven-design repo -- local edits are drift the next sync clobbers); pipelines/** (application code, RULE.ADV.NO_IMPLEMENTATION, the Coder's); the operational run-waves.py run (spawns Coder sessions and spends credits -- the Designer's paste); git push (pre-push hook blocks agents).",
