@@ -1,0 +1,14 @@
+# ACCEPTANCE: cu-015
+
+AC-1 The probe sends no Authorization header. This is the defect: a fabricated header is what produced the 400 against a healthy bucket.
+AC-2 A store whose /health answers 200 yields ProbeResult.Ready.
+AC-3 A store whose /health answers 5xx yields NotReady naming the endpoint and the status.
+AC-4 An endpoint that refuses the connection yields NotReady rather than an exception escaping check().
+AC-5 An empty endpoint or an empty bucket yields NotReady with the specific message, before any request is attempted.
+AC-6 AppContainer constructs the probe with three arguments; `grep -c 'accessKey' ObjectStoreReadinessProbe.scala` prints 0.
+AC-7 ARCH.PYTHON.NO_ANY analogue for Scala -- no null is returned and no exception escapes check(); every failure path returns a NotReady value.
+AC-8 The specification drives a stub HTTP server, so it contacts no real object store and no network.
+AC-9 END TO END, the point of this CU: with RustFS and Kafka up, `sbt run` from pipelines/ingestion gets past the gate and reaches the poll loop instead of exiting 1. A pre-fix run exits 1 with "startup aborted, not ready: object-store: bucket 'lakehouse' returned HTTP 400".
+AC-10 The same run must not emit "HADOOP_HOME and hadoop.home.dir are unset" as a cause of failure. If it appears AND the poll loop does not start, report both verbatim in per-CU feedback rather than suppressing the message; that outcome means the warning is load-bearing and needs its own CU.
+AC-11 `sbt test` exits 0 from pipelines/ingestion.
+AC-12 ARCH.STANDALONE - `grep -rn 'pipelines/enrichment' pipelines/ingestion/` prints nothing.

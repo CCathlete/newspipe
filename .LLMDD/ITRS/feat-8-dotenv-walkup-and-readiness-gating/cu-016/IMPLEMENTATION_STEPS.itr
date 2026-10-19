@@ -1,0 +1,28 @@
+# IMPLEMENTATION_STEPS: cu-016
+
+1. Copy `pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala` over `pipelines/enrichment/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala`. Byte-identical: the same package, and the probe reads no tree-specific value.
+
+   Prove: `diff -q pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala pipelines/enrichment/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala && echo IDENTICAL`
+
+2. Change the constructor call in `pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` to three arguments. The third probe, OpenCodeCliReadinessProbe, and the gate timings stay as they are.
+
+```scala
+new HttpObjectStoreReadinessProbe(env.s3Endpoint, env.s3Bucket, 3000),
+```
+
+   Prove: `grep -c 'HttpObjectStoreReadinessProbe(env.s3Endpoint, env.s3Bucket, 3000)' pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala`
+
+3. Copy `pipelines/ingestion/src/test/scala/newspipe/ObjectStoreReadinessProbeSpec.scala` over `pipelines/enrichment/src/test/scala/newspipe/ObjectStoreReadinessProbeSpec.scala`, then compile the tree.
+
+   Prove: `cd pipelines/enrichment && sbt compile`
+
+4. Run the enrichment suite and then the pipeline end to end, with the opencode binary present on PATH so the third probe passes and the failure, if any, is attributable to the object store.
+
+```sh
+cd pipelines/enrichment && sbt test
+```
+
+   Prove: `cd pipelines/enrichment && sbt test | tail -5`
+
+Do NOT touch: `pipelines/ingestion/**` (cu-015 owns that tree), `pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/**` (the discovery fix landed in wave 7), `pipelines/enrichment/src/main/scala/newspipe/application/**` (the port vocabulary is correct and must not change), `pipelines/enrichment/build.sbt`, `conf/**`, `.LLMDD/**`.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

@@ -1,0 +1,9 @@
+# COORDINATES: cu-015
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala
+FILE.pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala
+CODEX.pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala=CLASS:HttpObjectStoreReadinessProbe
+CODEX.pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala=CLASS:AppContainer
+TYPE.newspipe.infrastructure.bronze.HttpObjectStoreReadinessProbe
+
+#

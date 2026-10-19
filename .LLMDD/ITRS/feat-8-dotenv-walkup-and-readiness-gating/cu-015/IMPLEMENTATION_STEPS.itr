@@ -1,0 +1,135 @@
+# IMPLEMENTATION_STEPS: cu-015
+
+1. Change `pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala` to probe `/health` with no Authorization header, and drop the two credential parameters. Everything else in the class, including the name string and the guard order, is preserved.
+
+```scala
+package newspipe.infrastructure.bronze
+
+import newspipe.application.ports.{ObjectStoreReadinessProbe, ProbeResult}
+
+import java.net.{HttpURLConnection, URI}
+import scala.util.Try
+
+final class HttpObjectStoreReadinessProbe(
+    endpoint: String,
+    bucket: String,
+    timeoutMillis: Int
+) extends ObjectStoreReadinessProbe:
+  def name: String = "object-store"
+
+  def check(): ProbeResult =
+    if endpoint.isEmpty then ProbeResult.NotReady(name, "no endpoint configured")
+    else if bucket.isEmpty then ProbeResult.NotReady(name, "no bucket configured")
+    else
+      val health: URI = URI.create(s"$endpoint/health")
+      Try:
+        val conn: HttpURLConnection = health.toURL.openConnection().asInstanceOf[HttpURLConnection]
+        try
+          conn.setRequestMethod("GET")
+          conn.setConnectTimeout(timeoutMillis)
+          conn.setReadTimeout(timeoutMillis)
+          conn.connect()
+          val code: Int = conn.getResponseCode
+          conn.disconnect()
+          code
+        catch case e: Exception => throw e
+      match
+        case scala.util.Success(code) if code >= 200 && code < 400 => ProbeResult.Ready
+        case scala.util.Success(code) => ProbeResult.NotReady(name, s"liveness probe at $endpoint/health returned HTTP $code")
+        case scala.util.Failure(e) => ProbeResult.NotReady(name, s"cannot reach $endpoint: ${e.getMessage}")
+```
+
+   Prove: `grep -q 'health' pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala && ! grep -q 'Authorization' pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala && ! grep -q 'accessKey' pipelines/ingestion/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala && echo NO-AUTH-NO-DEAD-PARAMS`
+
+2. Change `pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` so the probe is constructed with three arguments. The surrounding readiness wiring, including the Kafka probe and the gate timings, is unchanged.
+
+```scala
+new HttpObjectStoreReadinessProbe(env.s3Endpoint, env.s3Bucket, 3000)
+```
+
+   Prove: `grep -c 'HttpObjectStoreReadinessProbe(env.s3Endpoint, env.s3Bucket, 3000)' pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala`
+
+3. Create `pipelines/ingestion/src/test/scala/newspipe/ObjectStoreReadinessProbeSpec.scala`. It drives a JDK HTTP server bound to an ephemeral port, so the suite needs no object store and no network, and it asserts the Authorization header is absent, which is the actual regression.
+
+```scala
+package newspipe
+
+import newspipe.application.ports.ProbeResult
+import newspipe.infrastructure.bronze.HttpObjectStoreReadinessProbe
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
+
+import java.net.InetSocketAddress
+
+class ObjectStoreReadinessProbeSpec extends AnyFunSpec with Matchers:
+  private var server: HttpServer = _
+  private var lastAuth: String = null
+  private var status: Int = 200
+
+  private def start(): String =
+    server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0)
+    server.createContext("/health", new HttpHandler:
+      def handle(ex: HttpExchange): Unit =
+        lastAuth = ex.getRequestHeaders.getFirst("Authorization")
+        val body: Array[Byte] = Array.emptyByteArray
+        ex.sendResponseHeaders(status, body.length.toLong)
+        ex.getResponseBody.write(body)
+        ex.close()
+    )
+    server.start()
+    s"http://127.0.0.1:${server.getAddress.getPort}"
+
+  override def afterAll(): Unit = if server != null then server.stop(0)
+
+  private def probe(endpoint: String): ProbeResult =
+    new HttpObjectStoreReadinessProbe(endpoint, "lakehouse", 2000).check()
+
+  describe("HttpObjectStoreReadinessProbe") {
+    it("reports ready when the liveness endpoint answers 200") {
+      status = 200
+      probe(start()) shouldBe ProbeResult.Ready
+    }
+    it("sends no Authorization header at all") {
+      status = 200
+      probe(start())
+      lastAuth shouldBe null
+    }
+    it("reports not-ready naming the endpoint when the liveness probe fails") {
+      status = 503
+      val result = probe(start())
+      result match
+        case ProbeResult.NotReady(dep, detail) =>
+          dep shouldBe "object-store"
+          detail should include("503")
+        case other => fail(s"expected NotReady, got $other")
+    }
+    it("reports not-ready when the endpoint refuses the connection") {
+      val result = probe("http://127.0.0.1:1")
+      result shouldBe a[ProbeResult.NotReady]
+    }
+    it("reports not-ready when no endpoint is configured") {
+      new HttpObjectStoreReadinessProbe("", "lakehouse", 2000).check() shouldBe
+        ProbeResult.NotReady("object-store", "no endpoint configured")
+    }
+    it("reports not-ready when no bucket is configured") {
+      new HttpObjectStoreReadinessProbe("http://127.0.0.1:1", "", 2000).check() shouldBe
+        ProbeResult.NotReady("object-store", "no bucket configured")
+    }
+  }
+
+```
+
+   Prove: `cd pipelines/ingestion && sbt "testOnly newspipe.ObjectStoreReadinessProbeSpec"`
+
+4. Run the suite, then run the pipeline end to end against the live RustFS and Kafka. Step 4 is the reason this CU exists: the previous defect was invisible to every unit test, because both suites only ever exercised the negative path.
+
+```sh
+cd pipelines/ingestion && sbt test
+```
+
+   Prove: `cd pipelines/ingestion && sbt test | tail -5`
+
+Do NOT touch: `pipelines/enrichment/**` (cu-016), `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/**` (the discovery fix landed in wave 7), `pipelines/ingestion/src/main/scala/newspipe/application/**` (the port vocabulary is correct and must not change), `pipelines/ingestion/build.sbt`, `conf/**`, `.LLMDD/**`.
+Stop when the stated Prove command exits 0. On failure, record the failing case and the observed value in per-CU feedback rather than weakening an assertion.

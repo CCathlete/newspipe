@@ -1,0 +1,20 @@
+# REQUIREMENTS: cu-015
+
+Stop the readiness gate from reporting a healthy object store as missing.
+
+The probe sets `Authorization: Bearer <accessKey>:<secretKey>`. S3 has no Bearer scheme; it authenticates with SigV4. Measured against the RustFS instance on this host:
+
+```
+signed head-bucket, existing bucket      -> success
+signed head-bucket, nonexistent bucket   -> error
+unsigned HEAD /lakehouse                 -> 403
+unsigned HEAD /no-such-bkt               -> 403
+unsigned HEAD + fabricated Bearer header -> 400
+GET /health                              -> 200
+```
+
+So the fabricated header turns a healthy bucket into 400, and the gate blocks startup while the object store is UP. Dropping the header and accepting 403 would ALSO be wrong: RustFS answers 403 for a bucket that does not exist, so that would report ready when the bucket is absent. Only a SigV4-signed request distinguishes the two, and this CU does not implement SigV4.
+
+The probe therefore switches to `/health`, the store's own liveness endpoint, and drops the Authorization header entirely. The claim narrows honestly: it proves the store is live, not that the bucket exists. A missing bucket then surfaces at the first write, which reports it clearly. Criterion 10's promise that the gate verifies the bucket is explicitly withdrawn in the feature spec rather than silently unmet.
+
+The unused accessKey and secretKey parameters are removed and the AppContainer call site updated in the same CU, so no dead parameters survive.

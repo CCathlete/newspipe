@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-016
+
+Mirror cu-015 into the enrichment tree. The probe and its call site are byte-identical across trees, so both copies are file operations rather than re-derivations. The same end-to-end run applies, and it is more demanding here because enrichment additionally gates on the opencode binary.

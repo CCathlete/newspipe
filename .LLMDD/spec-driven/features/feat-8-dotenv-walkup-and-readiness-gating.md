@@ -70,6 +70,82 @@ Scope (out):
 - Any change to `~/Repos/pipeline_infra`; the S3 gateway decision lives there
 - Silver/gold, Trino, Hive Metastore
 
+## Post-implementation findings
+
+Recorded 2026-10-19 after waves 1-7 ran. The feature is NOT closable.
+These are findings from live runs, not from reading the code.
+
+### Corrected: DotEnv discovery inversion (waves 1-6, fixed in wave 7)
+
+`DotEnv.discover` walked to the filesystem root accumulating the LAST
+`.env` it met, so it resolved the furthest file rather than the nearest,
+violating ARCH.DOTENV.DISCOVERY. The cause was a self-contradictory test
+in the cu-001 frame: it wrote a nearer `.env` in the starting directory
+and a farther one above it, then asserted the FARTHER value. Satisfying
+that assertion inverted the implementation and broke the correct test
+alongside it. Fixed by cu-013/cu-014; suites re-run at 31/31 and 35/35.
+
+### Blocking: the object-store probe authenticates wrongly
+
+cu-009's `HttpObjectStoreReadinessProbe` sets
+`Authorization: Bearer <accessKey>:<secretKey>`. There is no Bearer
+scheme for S3; S3 uses SigV4. Measured against RustFS on this host:
+
+```
+signed head-bucket, existing bucket     -> success
+signed head-bucket, nonexistent bucket  -> error
+unsigned HEAD /lakehouse               -> 403
+unsigned HEAD /no-such-bkt             -> 403     (also 403!)
+unsigned HEAD + fabricated Bearer header -> 400
+GET /health                             -> 200     (does not inspect buckets)
+```
+
+Two consequences, both measured rather than assumed:
+
+1. The fabricated header turns a healthy bucket into `400`, so the probe
+   reports "bucket missing" against a bucket that is present and the gate
+   blocks startup when the object store is UP.
+
+2. Dropping the header and accepting `403` is NOT a sufficient fix. RustFS
+   answers `403` for a nonexistent bucket too, so that classification
+   would report ready when the bucket is absent. Distinguishing the two
+   cases requires a SigV4-signed request.
+
+### The data path has never executed
+
+This is the headline finding and it predates feat-8. No row has ever been
+written to the lakehouse. `DeltaBronzeSpec` writes to a local temp
+directory, and `s3a://` was never exercised by any test before this
+feature. So the unit suites being green says nothing about whether the
+RSS -> Kafka -> s3a -> Delta path works at all; every prior feature closed
+on compile and unit evidence alone.
+
+Because the broken gate blocked startup, the data path stayed unexercised
+even after feat-8 landed. Fixing the probe unblocks it; it does not prove
+it.
+
+### Open and unproven: hadoop.home.dir
+
+`sbt run` logs `java.io.FileNotFoundException: HADOOP_HOME and
+hadoop.home.dir are unset`, because hadoop-aws is on the classpath without
+a Hadoop installation. This is an INFO-level message from
+`org.apache.hadoop.util.Shell` and no failure has been attributed to it.
+
+It is deliberately NOT fixed speculatively. The corrective CU makes the
+pipeline run end to end and asserts a row lands in the bucket; if this
+warning is load-bearing the assertion will fail and name it. Fixing a
+warning before demonstrating it breaks anything is how you end up with two
+unexplained changes instead of one.
+
+### Scope of the probe's claim after the fix
+
+Acceptance for the probe must state what it actually verifies. After the
+fix it proves the object store is live, because `/health` is the store's
+own liveness endpoint. It does NOT prove the bucket exists, because that
+needs SigV4 and is therefore left to the first write to surface. A gate
+that claims more than it checks is worse than a gate with a documented
+limit.
+
 ## Implementation status
 
 Proposed. No CUs assigned yet.

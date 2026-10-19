@@ -1,0 +1,9 @@
+# COORDINATES: cu-016
+
+FILE.pipelines/enrichment/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala
+FILE.pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala
+CODEX.pipelines/enrichment/src/main/scala/newspipe/infrastructure/bronze/ObjectStoreReadinessProbe.scala=CLASS:HttpObjectStoreReadinessProbe
+CODEX.pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala=CLASS:AppContainer
+TYPE.newspipe.infrastructure.bronze.HttpObjectStoreReadinessProbe
+
+#

@@ -1,10 +1,10 @@
 [
   {
-    "wave": 7,
-    "description": "Corrective wave for the feat-8 discovery defect. Restores first-hit-wins in DotEnv.discover per ARCH.DOTENV.DISCOVERY and repairs the self-contradictory assertion that caused the inversion. One CU per tree; the files are byte-identical across trees, so the pair is disjoint and runs in parallel. Replaces the six-wave plan, which is preserved in git history at dbc2ccd. Numbered 7, not 1: run-waves writes wave-N-verification.txt and wave-N-commit.txt, so a second run numbered 1 would overwrite the six wave summaries the first run produced. Per-CU feedback is unaffected either way, since those filenames carry the CU id.",
+    "wave": 8,
+    "description": "Fix the object-store readiness probe. It authenticates with an invented Bearer header, which S3 does not accept; measured against RustFS a healthy bucket answers 400 under that header, so the gate blocks startup while the object store is UP. The probe switches to the store's /health liveness endpoint and drops the header and the two dead credential parameters. Accepting 403 instead would be wrong: RustFS answers 403 for a nonexistent bucket too, so only SigV4 distinguishes the cases and this wave does not implement SigV4. Each CU ends by running the pipeline end to end, because no unit test could have caught this: both suites only ever exercised the negative path. Numbered 8 so this run does not overwrite wave 7's records.",
     "cus": [
-      "cu-013",
-      "cu-014"
+      "cu-015",
+      "cu-016"
     ]
   }
 ]
