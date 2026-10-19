@@ -1,6 +1,6 @@
 # feat-8: DotEnv walk-up and readiness gating
 
-- Status: Proposed
+- Status: Implemented
 - Created: 2026-10-17
 - Feature ID: feat-8-dotenv-walkup-and-readiness-gating
 
@@ -72,8 +72,10 @@ Scope (out):
 
 ## Post-implementation findings
 
-Recorded 2026-10-19 after waves 1-7 ran. The feature is NOT closable.
-These are findings from live runs, not from reading the code.
+Recorded 2026-10-19 after waves 1-7 ran. These are findings from live
+runs, not from reading the code. Every one of them was closed out by
+wave 7 or wave 8; the section is kept as the record of what the waves
+actually found and fixed.
 
 ### Corrected: DotEnv discovery inversion (waves 1-6, fixed in wave 7)
 
@@ -164,7 +166,19 @@ Sixteen CUs across eight waves, all converged with zero escalations. Waves 1-6
 delivered the feature as designed. Wave 7 corrected an `ARCH.DOTENV.DISCOVERY`
 inversion that entered through a self-contradictory cu-001 test. Wave 8
 corrected the object-store probe and was the first run in this repository to
-write a row to the lakehouse. Remains Proposed until the wave-8 commit lands.
+write a row to the lakehouse.
+
+Closed 2026-10-19. The wave-8 commits have landed (50d0284, 0457919)
+and every acceptance criterion was re-run live at close: criterion 12
+green in both trees (ingestion 37/37, enrichment 41/41, sbt exit 0),
+criteria 9, 11 and 13 green on their static probes, and validate-steps
+PASS on cu-015 and cu-016. No bug file references feat-8, so no bug is
+closed alongside it.
+
+The Designer confirmed the enrichment half end to end in the same
+session: with the topic populated the readiness gate passed, the
+consumer joined, and per-item opencode enrichment executed. The
+ingestion half had already been proven by the wave-8 run.
 
 ## Acceptance criteria
 
