@@ -34,9 +34,16 @@ class DotEnvSpec extends AnyFunSpec with Matchers:
     }
     it("prefers the nearest .env over one further up") {
       val root: Path = chain(2)
-      write(root.resolve("a"), "K=upper\n")
-      write(root, "K=nearest\n")
-      DotEnv.discover(root.resolve("a")).get("K") shouldBe Some("nearest")
+      write(root.resolve("a"), "K=nearer\n")
+      write(root, "K=farther\n")
+      DotEnv.discover(root.resolve("a")).get("K") shouldBe Some("nearer")
+    }
+    it("returns the .env in the starting directory without consulting a parent") {
+      val root: Path = chain(2)
+      write(root.resolve("a"), "K=at-start\n")
+      write(root, "K=one-level-up\n")
+      DotEnv.discover(root.resolve("a")).get("K") shouldBe Some("at-start")
+      DotEnv.discover(root.resolve("a")).source.map(_.getParent) shouldBe Some(root.resolve("a"))
     }
   }
 

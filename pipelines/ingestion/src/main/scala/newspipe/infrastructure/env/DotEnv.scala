@@ -15,18 +15,15 @@ object DotEnv:
   def empty: DotEnv = DotEnv(Map.empty, None)
 
   def discover(start: Path): DotEnv =
-    @tailrec def walk(dir: Path, acc: Option[Path]): DotEnv =
-      if dir == null then acc match
-        case Some(candidate) =>
-          val text: String = Files.readString(candidate, StandardCharsets.UTF_8)
-          DotEnv(expand(parse(text)).fold(m => Map.empty, identity), Some(candidate))
-        case None => DotEnv.empty
+    @tailrec def walk(dir: Path): DotEnv =
+      if dir == null then empty
       else
         val candidate: Path = dir.resolve(".env")
         if Files.isRegularFile(candidate) then
-          walk(dir.getParent, Some(candidate))
-        else walk(dir.getParent, acc)
-    walk(start.toAbsolutePath.normalize(), None)
+          val text: String = Files.readString(candidate, StandardCharsets.UTF_8)
+          DotEnv(expand(parse(text)).fold(m => Map.empty, identity), Some(candidate))
+        else walk(dir.getParent)
+    walk(start.toAbsolutePath.normalize())
 
   private def parse(text: String): Map[String, String] =
     val acc: mutable.Map[String, String] = mutable.Map.empty
