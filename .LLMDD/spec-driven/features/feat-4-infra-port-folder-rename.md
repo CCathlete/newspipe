@@ -1,6 +1,6 @@
 # feat-4: infra-port-folder-rename
 
-- Status: Proposed
+- Status: Implemented
 - Created: 2026-10-11
 - Feature ID: feat-4-infra-port-folder-rename
 
@@ -26,7 +26,18 @@ Scope (out):
 
 ## Implementation status
 
-Proposed. No CUs assigned yet.
+Implemented. Three CUs across three waves, CONVERGED, zero escalations
+(all coder 0 / lead 0). Landed in ad0df40 with frames from 6014b9b.
+
+Closed 2026-10-19 with every acceptance criterion re-verified live:
+`infrastructure/raw/` and `infrastructure/enrichment/` no longer exist
+(1, 2), `message-queue/KafkaRawPublisher.scala` carries package
+`newspipe.infrastructure.messagequeue` and
+`llm-data-enricher/OpenCodeCliClient.scala` carries
+`newspipe.infrastructure.llmdataenricher` (1, 2), zero references to
+the old package paths survive under `src/` (3), both suites are green
+-- ingestion 37/37, enrichment 41/41, sbt exit 0 (4) -- and the
+checklist names the new folder paths (5).
 
 ## Acceptance criteria
 

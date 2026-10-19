@@ -1,6 +1,6 @@
 # bugfix-feature-2: arch-scala3-compliance
 
-- Status: Proposed
+- Status: Implemented
 - Created: 2026-10-10
 - Feature ID: bugfix-feature-2-arch-scala3-compliance
 
@@ -32,11 +32,19 @@ Scope (out):
 
 ## Implementation status
 
-Open. Requires creation of architecture compliance checklist and build.sbt
-updates. After implementation, all 5 checklist items should be populated, `sbt
-compile` should exit 0, and the hexagonal layering constraint (domain >
-application > infrastructure > control) should be verified under Scala 3 type
-checking.
+Implemented. Two CUs across two waves, CONVERGED, zero escalations;
+landed in 49ae49b. Closed 2026-10-19.
+
+Criterion 4 (`scalafixAll` green) was NOT re-run at close and is recorded
+as UNVERIFIED. The closing session ran `sbt compile test` in both trees
+(ingestion 37/37, enrichment 41/41, exit 0), but scalafix is itself an
+sbt task and the Designer directed that no further sbt invocations run
+after an earlier invocation destabilised the host. The remaining six
+criteria were re-verified live: the checklist carries all 5 sections (1),
+compile exits 0 (2), the domain tree has zero infrastructure/kafka/spark/
+delta/rome imports (3), no `while (` survives in either tree (5), both
+build.sbt files cite `ARCH.scala3_compliance_checklist.md` (6), and the
+checklist cites this feature (7).
 
 ## Acceptance criteria
 

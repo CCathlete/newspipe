@@ -1,10 +1,10 @@
 # bug-4: dedup-before-sink-write-loses-data
 
-- Status: Open
+- Status: Resolved
 - Created: 2026-10-11
-- Resolved: -
+- Resolved: 2026-10-19
 - Bug ID: bug-4-dedup-before-sink-write-loses-data
-- Related features: -
+- Related features: bugfix-feature-5-split-standalone-pipelines
 
 ## Bug detail
 
@@ -35,18 +35,28 @@ Environment: repo checkout, `src/main/scala/newspipe/application/services/Ingest
 
 ## Resolution status
 
-Open. No fix merged.
+Resolved 2026-10-19 by bugfix-feature-5-split-standalone-pipelines
+(commit 6185bf5).
 
 ## Fix summary (Resolved only)
 
-Pending. Suggested direction: move the `seen.add` to after a successful
-`sink.write` (mark only written IDs), so a failed batch is retried on the
-next poll; consider lazy/session-recovering Spark construction in
-`AppContainer` so a transient Spark failure does not kill `Main`.
+`IngestionService.runOnce` now marks IDs only after the write succeeds:
+it computes `fresh`, calls `sink.write(units)`, and only then runs
+`units.foreach(u => seen.add(u.id))`. A write that throws leaves `seen`
+untouched, so the next poll refetches and retries the same articles
+instead of filtering them out; a successful write still dedups them.
+The suggested `AppContainer` session-recovery work was NOT done -- a Spark
+failure at boot still kills `Main` -- so the retry half of this bug is
+fixed and the eager-session half is deliberately left open.
 
 ## Tests proving resolution (Resolved only)
 
-Pending. Suggested: failing-sink test asserting the second `runOnce`
-returns the item count again (retry), then a recovering sink asserting the
-third `runOnce` writes and a fourth returns 0 (dedup intact); existing
-`PipelineSpec` dedup test keeps passing.
+Re-run live 2026-10-19 in `pipelines/ingestion`, 37/37 green:
+- `IngestionServiceSpec.scala:34` -- "retries the batch after a sink
+  failure instead of losing it": the second `runOnce` returns the item
+  count again after a failed write
+- `IngestionServiceSpec.scala:15` -- "publishes raw and writes raw-only
+  bronze rows, dedups second run": the dedup half still holds
+
+NOT proven: the recovering-sink / eager-`AppContainer` case, which remains
+out of scope per the fix summary above.

@@ -1,9 +1,10 @@
 # bug-1: arch-scala3-compliance
 
-- Status: Open
+- Status: Resolved
 - Created: 2026-10-10
+- Resolved: 2026-10-19
 - Bug ID: bug-1-arch-scala3-compliance
-- Related features: -
+- Related features: bugfix-feature-2-arch-scala3-compliance
 
 ## Bug detail
 
@@ -48,16 +49,32 @@ cross-version dependency choices could accumulate technical debt.
 
 ## Resolution status
 
-Open
+Resolved 2026-10-19 by bugfix-feature-2-arch-scala3-compliance
+(commit 49ae49b), its two CUs converged with zero escalations.
 
 ## Fix summary (Resolved only)
 
-Pending resolution — requires architecture audit and Scala 3 compliance review.
+The audit now exists: `.LLMDD/ARCH.scala3_compliance_checklist.md`, five
+sections, each naming evidence and a criterion. All five items raised here
+closed against it -- givens moved out of package objects into an object with
+an explicit `given` import at the call site, traits retained for the ports
+with the reasoning recorded, the cross-version shim documented in both
+build.sbt files against Spark 3.5.1 / Delta 3.1.0 publishing Scala 2.13
+artifacts only, a full boundary audit, and control-syntax consistency.
 
 ## Tests proving resolution (Resolved only)
 
-Pending — after the architecture audit, proving tests should validate:
-- `sbt scalafixAll` or equivalent rules pass for Scala 3 implicit/given
-- Cross-version dependency configuration is audited and documented
-- No cross-layer dependency violations under Scala 3 type checking
-- Control-flow syntax consistency across all source files
+Re-run live 2026-10-19:
+- `grep -rn '\bimplicit\b' pipelines/*/src` -> 0 hits; `^package object` -> 0
+- `grep -rn '^import' .../domain/` matched against infrastructure/kafka/
+  spark/delta/rome -> 0 hits (no cross-layer imports)
+- `grep -rn 'while (' pipelines/*/src` -> 0 hits; both trees use `while true do`
+- Both build.sbt files cite `ARCH.scala3_compliance_checklist.md`; the
+  checklist cites this feature
+- `sbt compile test` green in both trees: ingestion 37/37, enrichment 41/41,
+  exit 0
+
+UNVERIFIED: `sbt scalafixAll` itself was not re-run at close -- scalafix is
+an sbt task and no further sbt invocation was permitted after an earlier
+one destabilised the host. This is the one leg of the original proof that
+rests on the audit rather than on a fresh run.
