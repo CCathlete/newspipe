@@ -85,7 +85,7 @@ and a farther one above it, then asserted the FARTHER value. Satisfying
 that assertion inverted the implementation and broke the correct test
 alongside it. Fixed by cu-013/cu-014; suites re-run at 31/31 and 35/35.
 
-### Blocking: the object-store probe authenticates wrongly
+### Resolved 2026-10-19 (wave 8): the object-store probe authenticated wrongly
 
 cu-009's `HttpObjectStoreReadinessProbe` sets
 `Authorization: Bearer <accessKey>:<secretKey>`. There is no Bearer
@@ -124,6 +124,14 @@ Because the broken gate blocked startup, the data path stayed unexercised
 even after feat-8 landed. Fixing the probe unblocks it; it does not prove
 it.
 
+RESOLVED 2026-10-19 by wave 8. With the probe corrected and RustFS and Kafka
+up, `sbt run` from `pipelines/ingestion` passed the gate and completed two
+polls, writing 579 and then 17 bronze units with Delta commits under
+`s3a://lakehouse/bronze/news/_delta_log/`. The RSS -> Kafka -> s3a -> Delta
+path therefore works, and this is the first evidence in the repository that
+it does. The finding stands unretracted for every feature that closed before
+this one, all of which closed on compile and unit evidence alone.
+
 ### Open and unproven: hadoop.home.dir
 
 `sbt run` logs `java.io.FileNotFoundException: HADOOP_HOME and
@@ -137,6 +145,10 @@ warning is load-bearing the assertion will fail and name it. Fixing a
 warning before demonstrating it breaks anything is how you end up with two
 unexplained changes instead of one.
 
+RESOLVED 2026-10-19. The wave-8 end-to-end run logged the warning and then
+completed both polls successfully, so it is not load-bearing. Deferring it
+until the run could answer the question is what produced this answer.
+
 ### Scope of the probe's claim after the fix
 
 Acceptance for the probe must state what it actually verifies. After the
@@ -148,7 +160,11 @@ limit.
 
 ## Implementation status
 
-Proposed. No CUs assigned yet.
+Sixteen CUs across eight waves, all converged with zero escalations. Waves 1-6
+delivered the feature as designed. Wave 7 corrected an `ARCH.DOTENV.DISCOVERY`
+inversion that entered through a self-contradictory cu-001 test. Wave 8
+corrected the object-store probe and was the first run in this repository to
+write a row to the lakehouse. Remains Proposed until the wave-8 commit lands.
 
 ## Acceptance criteria
 
@@ -168,12 +184,25 @@ Proposed. No CUs assigned yet.
    than blocking indefinitely.
 8. Neither `Main` enters the poll loop while any dependency is unready, and
    the failure names the culprit.
-9. Readiness probes use a raw socket and an HTTP `HEAD`; no AWS SDK and no new
-   runtime dependency beyond `hadoop-aws` is added to either `build.sbt`.
-10. The bronze bucket is created if absent before the gate reports ready.
-    The bucket is `lakehouse` and the endpoint is `http://localhost:9000`;
-    both are read from configuration rather than hardcoded, so a different
-    store is reachable without a code change.
+9. No AWS SDK is used and no new runtime dependency beyond `hadoop-aws` is
+   added to either `build.sbt`. Kafka is probed with a raw TCP socket; the
+   object store is probed with an unauthenticated HTTP `GET` against its own
+   `/health` liveness endpoint.
+   Revised 2026-10-19. This criterion previously required an HTTP `HEAD`
+   against the bucket path. That probe carried a fabricated
+   `Authorization: Bearer <accessKey>:<secretKey>` header; S3 has no Bearer
+   scheme, so RustFS answered `400` against a healthy bucket and the gate
+   blocked startup while the store was UP.
+10. WITHDRAWN 2026-10-19, superseded by the narrowed claim below. The original
+    criterion required the gate to create the bronze bucket if absent and to
+    verify it before reporting ready. Distinguishing an absent bucket from a
+    present one needs a SigV4-signed request: RustFS answers `403` for a
+    nonexistent bucket exactly as it does for an unsigned request, so no
+    unsigned probe can separate the two cases. The gate now claims only what
+    it checks -- the store is live -- and a missing bucket surfaces at the
+    first write, which names it. The bucket is `lakehouse` and the endpoint is
+    `http://localhost:9000`; both are read from configuration rather than
+    hardcoded, so a different store is reachable without a code change.
 11. Both pipelines remain standalone: `grep` proves neither tree references
     the other, mirroring bugfix-feature-5 criterion 4.
 12. `sbt compile` and `sbt test` exit 0 in both `pipelines/ingestion` and
@@ -218,9 +247,17 @@ Proposed. No CUs assigned yet.
 - Manual smoke: with the object store and Kafka down, `./sbt run` in
   `pipelines/ingestion` exits non-zero within the gate timeout naming Kafka
   and the object store, instead of looping (criterion 8)
-- Manual smoke: with RustFS and Kafka up, a `.env` supplying the five
-  `NEWSPIPE_S3_*` keys above, one poll writes a row readable back through
-  `spark.read.format("delta").load("s3a://lakehouse/bronze/news")`
-  (criteria 9, 10). This is the first test in this repository that would
-  exercise the object-store path at all; `DeltaBronzeSpec` writes to a
-  local temp directory and no prior test has touched `s3a://`.
+- `ObjectStoreReadinessProbeSpec.scala` in both trees -- drives a JDK HTTP
+  server on an ephemeral port, so it contacts no real object store and no
+  network; asserts `Ready` on 200, `NotReady` naming the endpoint on 5xx,
+  `NotReady` when the connection is refused, the specific messages for an
+  empty endpoint and an empty bucket, and that no `Authorization` header is
+  sent at all (criteria 9, 10 as revised)
+- Manual smoke, RUN 2026-10-19: with RustFS and Kafka up, `sbt run` from
+  `pipelines/ingestion` passed the gate and completed two polls writing 579
+  and 17 bronze units, with Delta commits under
+  `s3a://lakehouse/bronze/news/_delta_log/`. This is the first test in this
+  repository to exercise the object-store path at all; `DeltaBronzeSpec`
+  writes to a local temp directory and no prior test had touched `s3a://`.
+  A read-back through `spark.read.format("delta").load(...)` was not run;
+  the Delta commit log confirms the write landed.
