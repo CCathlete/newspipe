@@ -27,7 +27,7 @@ final class AppContainer(env: EnvConfig):
   val readiness: ReadinessGate = new ReadinessGate(
     List(
       new TcpKafkaReadinessProbe(env.kafkaBootstrap, 3000),
-      new HttpObjectStoreReadinessProbe(env.s3Endpoint, env.s3Bucket, env.s3AccessKey, env.s3SecretKey, 3000)
+      new HttpObjectStoreReadinessProbe(env.s3Endpoint, env.s3Bucket, 3000)
     ),
     maxWait = 60.seconds,
     interval = 2.seconds,
