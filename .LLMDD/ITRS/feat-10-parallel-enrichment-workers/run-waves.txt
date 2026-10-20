@@ -1,0 +1,1 @@
+python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/feat-10-parallel-enrichment-workers --app newspipe --waves .LLMDD/ITRS/feat-10-parallel-enrichment-workers/waves.json

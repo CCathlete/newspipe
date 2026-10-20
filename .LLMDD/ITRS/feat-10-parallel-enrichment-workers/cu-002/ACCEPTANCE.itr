@@ -1,0 +1,40 @@
+# ACCEPTANCE: cu-002
+
+Criterion 3 -- workers overlap. With enrichment running against a backlog:
+
+  pgrep -fc "opencode run"
+
+Expected: 4 or more while a batch is in flight, sampled several times.
+
+Criterion 4 -- attempts are bounded. Point the model at one opencode does not
+serve, by putting this line in .env:
+
+  NEWSPIPE_OPENCODE_MODEL=opencode/muse-spark-1.3-contributor-free
+
+Start enrichment. Expected: each item is attempted 3 times, warned on each
+failure with "attempt N of 3", then skipped once, with one skip line naming the
+item. Restore .env afterwards.
+
+Criterion 5 -- an exhausted item does not block the queue. Same run. Expected: the
+pipeline keeps printing poll lines on successive polls, the offset advances, and
+no poll waits forever.
+
+Criterion 6 -- the poll line reports counts:
+
+  grep -E "poll merged [0-9]+ enriched units \([0-9]+ enriched, [0-9]+ failed\)"
+
+Expected: matching lines during a live run.
+
+Criterion 7 -- startup refuses a dead model. With the same bogus .env line, start
+enrichment. Expected: readiness reports not-ready naming the model, Main logs
+"startup aborted", and the process exits non-zero before any poll line. Remove the
+bogus line afterwards.
+
+Criterion 8 -- no regression:
+
+  cd pipelines/enrichment && sbt compile
+  cd pipelines/enrichment && sbt test
+
+Expected: clean compile, all tests green, including MergeBackfillSpec.
+
+The Advisor does not run sbt; these two probes are the code lead's.

@@ -1,0 +1,206 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. Replace `pipelines/enrichment/src/main/scala/newspipe/application/services/EnrichmentService.scala` in full with:
+
+```scala
+package newspipe.application.services
+
+import com.typesafe.scalalogging.LazyLogging
+import newspipe.application.ports.{BronzeMergeSink, EnrichmentPort, RawConsumer}
+import newspipe.domain.models.{BronzeUnit, Enrichment, RssItem}
+
+import java.time.Instant
+import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
+import scala.annotation.tailrec
+import scala.concurrent.duration.*
+import scala.concurrent.{Await, ExecutionContext, Future}
+
+/** What one poll produced: rows merged, items enriched, items dropped. */
+final case class PollReport(merged: Int, enriched: Int, failed: Int)
+
+final class EnrichmentService(
+    consumer: RawConsumer,
+    enrich: EnrichmentPort,
+    sink: BronzeMergeSink,
+    workers: Int,
+    maxAttempts: Int
+) extends LazyLogging:
+  private val RetryPauseMillis: Long = 2000L
+  private val pool: ExecutorService = Executors.newFixedThreadPool(math.max(1, workers))
+  private given ExecutionContext = ExecutionContext.fromExecutorService(pool)
+
+  def close(): Unit =
+    pool.shutdown()
+    pool.awaitTermination(30, TimeUnit.SECONDS)
+    ()
+
+  /** Batches the poll across at most `workers` threads. Await uses Duration.Inf
+    * because every task is bounded: maxAttempts times the per-item timeout. */
+  def runOnce(now: Instant): PollReport =
+    val items = consumer.poll()
+    val futures: List[Future[Either[Throwable, Enrichment]]] =
+      items.map(item => Future(attempt(item)))
+    val results: List[Either[Throwable, Enrichment]] =
+      Await.result(Future.sequence(futures), Duration.Inf)
+    val paired = items.zip(results)
+    val units: List[BronzeUnit] = paired.collect { case (it, Right(en)) => BronzeUnit.fromRss(it, en, now) }
+    val failed: Int = paired.count(_._2.isLeft)
+    val merged: Int = sink.merge(units)
+    consumer.commit()
+    PollReport(merged, units.size, failed)
+
+  private def attempt(item: RssItem): Either[Throwable, Enrichment] =
+    @tailrec
+    def loop(remaining: Int): Either[Throwable, Enrichment] =
+      enrich.enrich(item) match
+        case Right(en) => Right(en)
+        case Left(err) if remaining > 1 =>
+          logger.warn(s"enrichment attempt ${maxAttempts - remaining + 1} of $maxAttempts failed for ${item.link}: ${err.getMessage}")
+          Thread.sleep(RetryPauseMillis)
+          loop(remaining - 1)
+        case Left(err) => Left(err)
+    loop(math.max(1, maxAttempts))
+```
+
+PollReport is a new top-level case class in the same file and package. RetryPauseMillis is declared before the pool so initialization order is obvious. The pool is sized math.max(1, workers), so a misconfigured 0 degrades to serial instead of throwing. The tail-recursive loop sleeps before recursing, which is still tail position. Spark is never touched from a pool task: sink.merge and consumer.commit stay on the calling thread.
+
+Do NOT touch: application/ports/Ports.scala, which keeps EnrichmentPort per-item, domain/**, and pipelines/ingestion/**.
+
+Prove: `grep -c "PollReport" pipelines/enrichment/src/main/scala/newspipe/application/services/EnrichmentService.scala`
+
+Stop when the count is 4 or more and the file reads as one coherent unit.
+
+2. Create `pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeModelReadinessProbe.scala` with exactly this content:
+
+```scala
+package newspipe.infrastructure.llmdataenricher
+
+import newspipe.application.ports.{CliReadinessProbe, ProbeResult}
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
+
+/** Asks the configured model a trivial question at startup. The binary probe
+  * only proves `opencode` is on PATH; this one proves the model answers, so a
+  * model opencode no longer serves aborts the pipeline instead of silently
+  * failing on every item. */
+final class OpenCodeModelReadinessProbe(model: String, timeout: FiniteDuration) extends CliReadinessProbe:
+  def name: String = "opencode-model"
+
+  def check(): ProbeResult =
+    if model.isEmpty then ProbeResult.NotReady(name, "no model configured")
+    else
+      Try {
+        val proc = new ProcessBuilder("opencode", "run", "--format", "json", "--model", model, "reply with exactly: OK")
+        proc.redirectErrorStream(true)
+        proc.start()
+        val finished = proc.waitFor(timeout.toMillis, TimeUnit.MILLISECONDS)
+        if !finished then
+          proc.destroyForcibly()
+          ProbeResult.NotReady(name, s"model '$model' did not answer within ${timeout.toSeconds} s")
+        else
+          val text = scala.io.Source.fromInputStream(proc.getInputStream).mkString
+          if proc.exitValue() != 0 || text.contains("\\"type\\":\\"error\\"") then
+            ProbeResult.NotReady(name, s"model '$model' did not answer: ${text.take(200)}")
+          else ProbeResult.Ready
+      }.getOrElse(ProbeResult.NotReady(name, s"could not invoke opencode for model '$model'"))
+```
+
+The directory is dashed, llm-data-enricher, but the package line must be newspipe.infrastructure.llmdataenricher with no dashes -- that is what the neighbouring CliReadinessProbe.scala declares and what AppContainer imports. A dashed package name will not compile.
+
+Do NOT touch: CliReadinessProbe.scala and OpenCodeCliClient.scala. The binary probe stays exactly as it is; this one joins it.
+
+Prove: `grep -c "package newspipe.infrastructure.llmdataenricher" pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeModelReadinessProbe.scala`
+
+Stop when the count is 1.
+
+3. Change `pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` in three places and no others. First, the service line. It currently reads:
+
+```scala
+  val service = new EnrichmentService(consumer, enrich, sink)
+```
+
+and becomes:
+
+```scala
+  val service = new EnrichmentService(consumer, enrich, sink, env.opencodeWorkers, env.opencodeMaxAttempts)
+```
+
+Do NOT touch: the SparkSession builder, the s3 settings, or the probe timeouts.
+
+Prove: `grep -c "opencodeWorkers" pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala`
+
+Stop when the count is 1.
+
+4. In that same file, add the probe to the readiness list, keeping the binary probe first so a missing binary is reported as such rather than as a confusing model failure. The list currently ends:
+
+```scala
+      new OpenCodeCliReadinessProbe("opencode")
+    ),
+```
+
+and becomes:
+
+```scala
+      new OpenCodeCliReadinessProbe("opencode"),
+      new OpenCodeModelReadinessProbe(env.opencodeModel, FiniteDuration(30, TimeUnit.SECONDS))
+    ),
+```
+
+Do NOT touch: the other three probes or the maxWait and interval values.
+
+Prove: `grep -c "OpenCodeModelReadinessProbe" pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala`
+
+Stop when the count is 1.
+
+5. Still in `pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala`, close the pool first so no worker is mid-call when the consumer and Spark go away. This:
+
+```scala
+  def close(): Unit =
+    consumer.close()
+    spark.stop()
+```
+
+becomes:
+
+```scala
+  def close(): Unit =
+    service.close()
+    consumer.close()
+    spark.stop()
+```
+
+Do NOT touch: the shutdown hook in Main.scala or anything else.
+
+Prove: `grep -c "service.close()" pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala`
+
+Stop when the count is 1.
+
+6. Change `pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala`. In the while loop, this:
+
+```scala
+        val n = app.service.runOnce(Instant.now())
+        logger.info("poll merged " + n + " enriched units")
+```
+
+becomes:
+
+```scala
+        val report = app.service.runOnce(Instant.now())
+        logger.info("poll merged " + report.merged + " enriched units (" + report.enriched + " enriched, " + report.failed + " failed)")
+```
+
+Keep the "poll merged " prefix verbatim so the logging feature's own grep still holds.
+
+Do NOT touch: the shutdown hook, the readiness gate, the catch clause, or the sleep.
+
+Prove: `grep -c "report.merged\|report.enriched\|report.failed" pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala`
+
+Stop when the count is 3.
+
+7. Read `pipelines/enrichment/src/test/scala/newspipe/MergeBackfillSpec.scala`, which constructs EnrichmentService, and report whether it still compiles with the new constructor. Do not edit it -- it is outside this CU's coordinates.
+
+Prove: `grep -c "new EnrichmentService" pipelines/enrichment/src/test/scala/newspipe/MergeBackfillSpec.scala`
+
+Stop when you have reported the count and whether that spec still compiles. The Advisor does not run sbt; if MergeBackfillSpec fails on the new parameters, report the output verbatim and escalate rather than editing it.

@@ -1,0 +1,18 @@
+# COORDINATES: cu-002
+
+FILE.pipelines/enrichment/src/main/scala/newspipe/application/services/EnrichmentService.scala
+FILE.pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala
+FILE.pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala
+FILE.pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/CliReadinessProbe.scala
+
+The new probe file is a creation and has no baseline DTR key:
+
+pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeModelReadinessProbe.scala
+
+Its directory is dashed, llm-data-enricher, but the package declared inside it
+must be newspipe.infrastructure.llmdataenricher with no dashes -- that is what
+the neighbouring CliReadinessProbe.scala declares and what AppContainer imports.
+A dashed package name will not compile.
+
+MergeBackfillSpec.scala imports EnrichmentService. Read it before changing the
+constructor and report whether it still compiles; do not edit it.

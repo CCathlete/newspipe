@@ -1,0 +1,36 @@
+# REQUIREMENTS: cu-002
+
+Make one poll batch enrich items in parallel, retry a failing item a bounded
+number of times, report counts, and refuse to start on a model that does not
+answer.
+
+Four changes, and they depend on cu-001 having landed -- the service reads
+env.opencodeWorkers and env.opencodeMaxAttempts, so do not start this CU before
+cu-001 is COMPLETED.
+
+1. EnrichmentService gains a bounded worker pool and a per-item attempt loop, and
+returns a PollReport instead of an Int.
+
+2. Main logs the three counts, keeping the existing "poll merged N enriched units"
+prefix so the logging feature's own grep still holds.
+
+3. AppContainer wires the two new settings, adds the model readiness probe, and
+closes the pool.
+
+4. A new OpenCodeModelReadinessProbe asks the configured model a trivial question
+at startup.
+
+BOUND, and it matters. max.poll.records is 20 and max.poll.interval.ms is
+3600000, so a batch is at most 20 items and the consumer must not sit inside one
+poll for an hour. Worst case here is ceil(20 / workers) rounds of
+maxAttempts * timeout-seconds: at 4 workers with 3 attempts of 120 s that is 5
+rounds of 360 s, 30 minutes, comfortably inside the interval. Await therefore
+uses Duration.Inf safely -- every task underneath it is bounded.
+
+ORDERING, and it matters. Spark runs on the calling thread only. sink.merge stays
+outside the futures, exactly as written below. Do not move merge or commit into a
+pool task.
+
+RETRY is per item and stops at maxAttempts. It does not retry across polls, and it
+does not change the commit policy: an item that exhausts its attempts is dropped
+and the offset still commits.

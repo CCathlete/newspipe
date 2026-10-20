@@ -1,0 +1,11 @@
+# COORDINATES: cu-003
+
+This CU reads, and changes, no repository file. It exercises:
+
+FILE.pipelines/enrichment/src/main/scala/newspipe/application/services/EnrichmentService.scala
+FILE.pipelines/enrichment/src/main/scala/newspipe/control/entryPoint/Main.scala
+FILE.pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala
+
+and is blocked until cu-001 and cu-002 are both COMPLETED.
+
+Do NOT touch: conf/enrichment.conf, the sources under pipelines/enrichment/src/main, scripts/newspipe, .LLMDD/**, or any tracked file. Every step below reads them and writes none of them. The only file this CU may write is .env, and only temporarily, restored from a backup before it ends.

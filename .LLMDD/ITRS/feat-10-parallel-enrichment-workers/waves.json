@@ -1,0 +1,17 @@
+[
+  {
+    "wave": 1,
+    "description": "Configuration plumbing: corrected opencode model default, plus workers and max-attempts in conf/enrichment.conf and Env.scala, with the EnvPrecedenceSpec fixture updated so the new keys resolve",
+    "cus": ["cu-001"]
+  },
+  {
+    "wave": 2,
+    "description": "The service: bounded worker pool, per-item retry loop, PollReport counts in the poll line, and the startup probe that refuses a model which does not answer",
+    "cus": ["cu-002"]
+  },
+  {
+    "wave": 3,
+    "description": "Live end-to-end verification on this host, using the dead model as a controlled failure, with .env backed up and restored",
+    "cus": ["cu-003"]
+  }
+]

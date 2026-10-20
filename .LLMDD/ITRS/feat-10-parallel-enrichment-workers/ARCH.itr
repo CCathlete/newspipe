@@ -1,0 +1,38 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-20T08:33:59.380391523Z
+# DTR-COORDINATES: 
+
+Architecture rules for the newspipe enrichment pipeline.
+
+LAYER.ORDER: domain > application > infrastructure > control. Dependencies point
+inward only. The application layer may orchestrate concurrency; adapters stay
+thread-safe and stateless per call.
+
+ARCH.HEX: ports in application/ports/Ports.scala define the boundaries. The
+application layer depends on ports, never on implementations. New behaviour is a
+port or an adapter, not a call across the boundary.
+
+ARCH.DOTENV.MERGE: every runtime setting resolves in this order -- process
+environment, then a discovered .env, then conf/enrichment.conf. New settings must
+follow that same three-tier precedence. .env is the operator's local file: read
+it, never write it, never commit it.
+
+ARCH.SEVERITY: CRITICAL / MAJOR / MINOR / TRIVIAL. CRITICAL or MAJOR findings
+stop the chain.
+
+APP.LANGUAGE: Scala 3.3.4, JDK 21, sbt. The PYTHON.* rules do not apply to this
+feature and must not be introduced for it.
+
+ARCH.NO_INFRA_EDIT: ~/Repos/pipeline_infra is a separate repository and is out
+of scope. Kafka topic partitioning is out of scope for this feature -- raw_rss
+has one partition and this feature works inside that constraint.
+
+THREAD.SAFETY: OpenCodeCliClient holds only immutable constructor state and builds
+a fresh ProcessBuilder per call, so one instance may be shared across worker
+threads. Anything shared by the pool must meet the same bar.
+
+CONCURRENCY.BOUND: a poll batch is bounded by the consumer's max.poll.records
+(20) and each item is bounded by max-attempts times timeout-seconds, so a batch
+has a finite worst case. That worst case must stay below max.poll.interval.ms
+(3600000) or the consumer rebalances.

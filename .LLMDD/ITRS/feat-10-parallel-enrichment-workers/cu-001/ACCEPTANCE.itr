@@ -1,0 +1,31 @@
+# ACCEPTANCE: cu-001
+
+Criterion 1 of feat-10 -- the model named in conf is one opencode serves:
+
+  opencode run --format json --model opencode/minimax-m3.1-flash-free "reply with exactly: OK"
+
+Expected: exit 0, and no "type":"error" anywhere in stdout.
+
+Criterion 2 of feat-10 -- worker count and attempt count are config, not code:
+
+  grep -c "workers = 4" conf/enrichment.conf
+  grep -c "max-attempts = 3" conf/enrichment.conf
+
+Expected: 1 and 1.
+
+  grep -c "NEWSPIPE_OPENCODE_WORKERS" pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala
+  grep -c "NEWSPIPE_OPENCODE_MAX_ATTEMPTS" pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala
+
+Expected: 1 and 1.
+
+The precedence itself is proven by the unit test in Step 3, run by the code lead:
+
+  cd pipelines/enrichment && sbt "testOnly newspipe.EnvPrecedenceSpec"
+
+Expected: green, with the new workers/attempts case passing.
+
+Regression guard -- this CU must not break the other env-facing tests:
+
+  cd pipelines/enrichment && sbt "testOnly newspipe.ConfLoaderSpec newspipe.DotEnvSpec"
+
+Expected: green.

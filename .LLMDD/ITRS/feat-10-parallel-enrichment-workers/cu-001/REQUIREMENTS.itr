@@ -1,0 +1,26 @@
+# REQUIREMENTS: cu-001
+
+Give enrichment an external worker count and attempt count, and stop it naming a
+model opencode does not serve.
+
+Three changes, all configuration:
+
+1. conf/enrichment.conf currently names opencode/muse-spark-1.3-contributor-free,
+which opencode no longer serves. Every call returns provider.no-route at once, so
+the pipeline was failing on every item. Point it at a model that answers:
+opencode/minimax-m3.1-flash-free.
+
+2. Add opencode.workers (default 4) and opencode.max-attempts (default 3) beside
+the existing opencode keys.
+
+3. Expose both through EnvConfig under the same three-tier precedence the model
+already uses: process environment, then .env, then the conf file.
+
+Nothing about the precedence machinery changes. Env.load already resolves every
+setting with pick(); these two keys join it.
+
+CRITICAL, easy to miss: EnvPrecedenceSpec builds its own typesafe Config in the
+test and it does not contain the new keys. Env.load calls cfg.getInt on them, so
+that test will throw a ConfigException.Missing the moment the keys are read. The
+test's conf fixture must gain the two keys, and it must gain a case proving the
+.env tier overrides them, or this CU ships a red build.

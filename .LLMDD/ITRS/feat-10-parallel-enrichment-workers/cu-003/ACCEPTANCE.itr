@@ -1,0 +1,34 @@
+# ACCEPTANCE: cu-003
+
+Criterion 1 -- the conf model is one opencode serves:
+
+  grep -oE 'model = "[^"]+"' conf/enrichment.conf
+
+Expected: opencode/minimax-m3.1-flash-free, and:
+
+  opencode run --format json --model opencode/minimax-m3.1-flash-free "reply with exactly: OK" | grep -c '"type":"error"'
+
+Expected: 0.
+
+Criterion 2 -- config, not code:
+
+  grep -c "workers = 4" conf/enrichment.conf
+  grep -c "max-attempts = 3" conf/enrichment.conf
+
+Expected: 1 and 1.
+
+Criterion 3 -- overlap, from Step 3's sampling.
+
+Criterion 4 and 5 -- bounded attempts with a queue that keeps moving, from the
+live run in Step 3 and the refused start in Step 2.
+
+Criterion 6 -- the counts line, from Step 3.
+
+Criterion 7 -- refused start, from Step 2.
+
+Criterion 8 -- no regression, checked by the code lead:
+
+  cd pipelines/enrichment && sbt compile
+  cd pipelines/enrichment && sbt test
+
+The Advisor does not run sbt.

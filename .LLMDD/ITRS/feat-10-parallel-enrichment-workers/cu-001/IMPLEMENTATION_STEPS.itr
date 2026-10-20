@@ -1,0 +1,102 @@
+# IMPLEMENTATION_STEPS: cu-001
+
+1. Change the opencode block in `conf/enrichment.conf`. It currently reads:
+
+```hocon
+  opencode {
+    model = "opencode/muse-spark-1.3-contributor-free"
+    timeout-seconds = 120
+  }
+```
+
+It becomes, exactly:
+
+```hocon
+  opencode {
+    model = "opencode/minimax-m3.1-flash-free"
+    timeout-seconds = 120
+    workers = 4
+    max-attempts = 3
+  }
+```
+
+Do NOT touch: the s3, spark, kafka, bronze and poll-interval-seconds blocks.
+
+Prove: `grep -A4 'opencode {' conf/enrichment.conf`
+
+Stop when the block matches and no muse-spark string remains anywhere in conf/enrichment.conf.
+
+2. Add two fields to `pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala`, in the final case class, immediately after opencodeTimeoutSeconds. This line:
+
+```scala
+    opencodeTimeoutSeconds: Int,
+```
+
+becomes:
+
+```scala
+    opencodeTimeoutSeconds: Int,
+    opencodeWorkers: Int,
+    opencodeMaxAttempts: Int,
+```
+
+Do NOT touch: the other fields, the Either-returning load() overloads, or DotEnv.scala.
+
+Prove: `grep -c "opencodeWorkers" pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala`
+
+Stop when the count is 3 and the case class still reads as one unit.
+
+3. Add the two matching lines to `load(cfg, dot)` in the same file, immediately after the opencodeTimeoutSeconds assignment. This line:
+
+```scala
+      opencodeTimeoutSeconds = pick("NEWSPIPE_OPENCODE_TIMEOUT_SECONDS", cfg.getInt("opencode.timeout-seconds").toString).toInt,
+```
+
+is followed by exactly these two, matching the existing style -- same pick() call shape for an Int, same two-space indent, no trailing comma, no new imports:
+
+```scala
+      opencodeWorkers = pick("NEWSPIPE_OPENCODE_WORKERS", cfg.getInt("opencode.workers").toString).toInt,
+      opencodeMaxAttempts = pick("NEWSPIPE_OPENCODE_MAX_ATTEMPTS", cfg.getInt("opencode.max-attempts").toString).toInt,
+```
+
+Do NOT touch: any other pick() line.
+
+Prove: `grep -c "NEWSPIPE_OPENCODE_WORKERS\|NEWSPIPE_OPENCODE_MAX_ATTEMPTS" pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala`
+
+Stop when the count is 2.
+
+4. Change the test fixture in `pipelines/enrichment/src/test/scala/newspipe/EnvPrecedenceSpec.scala`. Its conf string contains:
+
+```scala
+        opencode { model = "opencode/test", timeout-seconds = 120 }
+```
+
+which becomes:
+
+```scala
+        opencode { model = "opencode/test", timeout-seconds = 120, workers = 4, max-attempts = 3 }
+```
+
+Without this the test throws ConfigException.Missing, because Env.load now reads the two new keys and the fixture does not define them.
+
+Do NOT touch: the assertions of the existing cases.
+
+Prove: `grep -c "max-attempts = 3" pipelines/enrichment/src/test/scala/newspipe/EnvPrecedenceSpec.scala`
+
+Stop when the count is 1.
+
+5. Add one case to the same file, inside the existing describe block, after the last it(...) in it:
+
+```scala
+    it("reads the worker and attempt tiers through the same precedence") {
+      val env = Env.load(cfg, DotEnv(Map("NEWSPIPE_OPENCODE_WORKERS" -> "8", "NEWSPIPE_OPENCODE_MAX_ATTEMPTS" -> "5"), None))
+      env.opencodeWorkers shouldBe 8
+      env.opencodeMaxAttempts shouldBe 5
+    }
+```
+
+Do NOT touch: any other test file.
+
+Prove: `grep -c "reads the worker and attempt tiers" pipelines/enrichment/src/test/scala/newspipe/EnvPrecedenceSpec.scala`
+
+Stop when the count is 1. The Advisor does not run sbt; if `sbt "testOnly newspipe.EnvPrecedenceSpec"` then fails, report the output verbatim rather than editing assertions to match.

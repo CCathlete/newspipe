@@ -1,0 +1,27 @@
+# REQUIREMENTS: cu-003
+
+Prove the feature live, on this host, with the real launcher. This CU creates,
+modifies and deletes no repository file. It runs the pipeline as an operator
+would and records what the probes print.
+
+Two parts.
+
+Part A, the controlled failure. The dead model opencode/muse-spark-1.3-contributor-free
+is a convenient way to force every enrichment to fail without waiting for a slow
+model. Put it in .env, start enrichment, and watch three things: startup refuses
+to run (criterion 7), and if it is allowed past readiness with a working model
+switched mid-flight, each item is attempted three times then dropped while the
+polls keep flowing (criteria 4 and 5).
+
+Part B, the live run. On the working model, watch the batch overlap and the
+counts line.
+
+.env is the operator's file. Back up its current contents before touching it and
+restore them byte-for-byte before this CU ends. If restoration cannot be
+confirmed, stop and escalate rather than leaving a modified .env behind.
+
+Every child this CU starts is stopped by the launcher's own down verb before the
+CU ends. Capture output under /tmp, never into the repository -- itr-buffer/ is
+not gitignored and a stray log there would pollute the worktree.
+
+Do not run terraform. Do not run sbt directly; go through the launcher.

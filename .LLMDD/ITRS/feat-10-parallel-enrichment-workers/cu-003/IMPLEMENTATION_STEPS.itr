@@ -1,0 +1,84 @@
+# IMPLEMENTATION_STEPS: cu-003
+
+Read-only here: conf/enrichment.conf, the sources under pipelines/enrichment/src/main and scripts/newspipe are read and never written.
+
+1. Back up `.env` before anything in this CU touches it, because everything downstream depends on being able to restore it. conf/enrichment.conf and every src/ file are read-only here.
+
+```sh
+cp .env /tmp/newspipe-feat10-env-backup
+cmp .env /tmp/newspipe-feat10-env-backup
+```
+
+Prove: `cmp .env /tmp/newspipe-feat10-env-backup`
+
+Stop when cmp prints nothing and exits 0. Nothing else in this CU may proceed without a restorable backup.
+Read-only here: conf/enrichment.conf, the sources under pipelines/enrichment/src/main and scripts/newspipe are read and never written.
+
+2. Prove that startup refuses a dead model. Append the broken model to `.env`, launch, and capture to /tmp:
+
+```sh
+printf 'NEWSPIPE_OPENCODE_MODEL=opencode/muse-spark-1.3-contributor-free\n' >> .env
+newspipe run enrichment > /tmp/newspipe-feat10-refuse.log 2>&1
+```
+
+Expected: a non-zero exit, "startup aborted" in the log naming the model, and no poll line at all.
+
+```sh
+grep -c "startup aborted" /tmp/newspipe-feat10-refuse.log
+grep -c "poll merged" /tmp/newspipe-feat10-refuse.log
+```
+
+Prove: `grep -c "startup aborted" /tmp/newspipe-feat10-refuse.log`
+
+Stop when the first count is 1 or more and the second is 0. Restore .env from the backup with `cp /tmp/newspipe-feat10-env-backup .env` and confirm with cmp before continuing.
+Read-only here: conf/enrichment.conf, the sources under pipelines/enrichment/src/main and scripts/newspipe are read and never written.
+
+3. Prove that workers overlap and that the queue keeps moving. Launch on the working model and sample the worker count during the first batch:
+
+```sh
+newspipe run enrichment > /tmp/newspipe-feat10-live.log 2>&1 &
+for i in 1 2 3 4 5 6; do pgrep -fc "opencode run"; sleep 3; done
+```
+
+Expected: the highest sample is 4 or more, which is criterion 3.
+
+```sh
+grep -cE "poll merged [0-9]+ enriched units \([0-9]+ enriched, [0-9]+ failed\)" /tmp/newspipe-feat10-live.log
+```
+
+Expected: 1 or more matching lines, which is criterion 6. Repeated poll lines also prove criterion 5 -- the queue keeps moving.
+
+Prove: `grep -cE "poll merged [0-9]+ enriched units \([0-9]+ enriched, [0-9]+ failed\)" /tmp/newspipe-feat10-live.log`
+
+Stop when at least one counts line exists. Leave the pipeline running for several polls before teardown.
+Read-only here: conf/enrichment.conf, the sources under pipelines/enrichment/src/main and scripts/newspipe are read and never written.
+
+4. Stop every child this CU started, then confirm nothing is left behind:
+
+```sh
+newspipe down
+newspipe status
+pgrep -fc "opencode run"
+```
+
+Prove: `newspipe status`
+
+Stop when status exits 0, reports no running pipeline, and the pgrep count is 0.
+Read-only here: conf/enrichment.conf, the sources under pipelines/enrichment/src/main and scripts/newspipe are read and never written.
+
+5. Restore `.env` byte-for-byte and confirm no repository file was touched:
+
+```sh
+cp /tmp/newspipe-feat10-env-backup .env
+cmp .env /tmp/newspipe-feat10-env-backup
+git status --porcelain pipelines/ conf/
+git status --porcelain
+```
+
+Expected: cmp prints nothing, and both git status commands print nothing. conf/enrichment.conf and the sources under pipelines/enrichment/src/main must not differ either.
+
+Prove: `cmp .env /tmp/newspipe-feat10-env-backup`
+
+Stop when the worktree is clean apart from tracked files this CU never touched. If any tracked file is modified, escalate -- this CU was not permitted to change one.
+
+Do NOT touch: conf/enrichment.conf, the sources under pipelines/enrichment/src/main, scripts/newspipe, .LLMDD/**, or any tracked file. Every step above reads them and writes none of them. The only file this CU may write is .env, and only temporarily, restored from the backup taken in step 1 before this CU ends.
