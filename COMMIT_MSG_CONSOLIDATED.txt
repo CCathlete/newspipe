@@ -1,9 +1,0 @@
-feat(enrichment): parallel enrichment workers E2E verification across 3 waves
-
-- Wave 1 (cu-001): Configuration plumbing - corrected opencode model default to opencode/minimax-m3.1-flash-free, added opencode.workers=4 and opencode.max-attempts=3 to conf/enrichment.conf, exposed both through EnvConfig via three-tier precedence (NEWSPIPE_OPENCODE_WORKERS, NEWSPIPE_OPENCODE_MAX_ATTEMPTS pick() lines in Env.load), updated EnvPrecedenceSpec fixture with new keys and precedence case proving .env tier overrides them. All 5 step Proves pass; sbt testOnly EnvPrecedenceSpec ConfLoaderSpec DotEnvSpec green with 30/30 tests.
-
-- Wave 2 (cu-002): Enrichment service - bounded worker pool, per-item retry loop, PollReport counts in poll line, and startup probe that refuses a model which does not answer. Fixed cu-002 escalation: updated MergeBackfillSpec.scala test contract to match new EnrichmentService constructor with workers/maxAttempts parameters and PollReport return type instead of Int. All 42 e2e tests pass including MergeBackfillSpec.
-
-- Wave 3 (cu-003): Live E2E verification - live verification passed with readiness refused dead model opencode/muse-spark-1.3-contributor-free; live run on minimax-m3.1-flash-free merged 3 polls (16/4, 14/6, 19/1 enriched/failed); exact sampling loop read stable 6 (= 2 coder-toolchain self-matches + 4 enrichment workers); offsets committed 262->322, lag 6328->6268; .env backed up and restored byte-for-byte; git status identical to pre-CU snapshot (no tracked file changed). All 42/42 tests passed, 0 escalations, convergence on first pass.
-
-Co-Authored-By: Code Lead Verifier
