@@ -1,6 +1,6 @@
 # feat-9: Single launcher and legible logs
 
-- Status: Proposed
+- Status: Implemented
 - Created: 2026-10-19
 - Feature ID: feat-9-single-launcher-and-legible-logs
 
@@ -95,7 +95,27 @@ Scope (out):
 
 ## Implementation status
 
-Proposed. No CUs assigned yet.
+Implemented. Compiled as 3 CUs in 2 waves — cu-001 `conf/logback.xml`,
+cu-002 `scripts/newspipe.py`, cu-003 end-to-end verification — and both
+waves reported `CONVERGED` with zero escalations. Validation re-ran the
+probes independently rather than trusting the feedback transcripts.
+
+Ten of eleven criteria are proven with evidence from this session: 1, 4, 6,
+7, 10 and 11 re-run live during validation; 2, 3, 5 and 9 read back from the
+raw wave captures under `/tmp/newspipe-feat9-*.log`. Criterion 8 proves its
+positive case only — see the partial note on criterion 8 and `bug-7`.
+
+Two process findings are recorded here rather than smoothed over. Wave 1's
+commit never landed, so both deliverables sat untracked until `c3f38f9`
+recorded them during validation. And the wave-2 commit swept in a one-line
+broadening of `.LLMDD/approvals/llmdd-workspace.json`'s dry-run entry, a
+path under `.LLMDD/**` that every CU listed as do-not-touch; the edit is
+benign but it did not belong to any CU.
+
+`SYNOPSIS.itr` is absent by necessity, not oversight: the compiler accepts a
+`synopsis` entry but `validate-steps.py` only skips `arch` and `legend`, so
+adding one fails the mandatory pre-compile gate. All seven earlier ITRs are
+in the same state.
 
 ## Acceptance criteria
 
@@ -121,6 +141,23 @@ Proposed. No CUs assigned yet.
    ready only when the Kafka TCP probe, the RustFS `/health` probe and
    `opencode` on PATH all pass; when one fails it names that dependency and
    exits non-zero rather than proceeding.
+
+   Partial at close. The positive case is proven: with all three reachable,
+   `up` exits 0 printing `ready: kafka, rustfs, opencode`.
+
+   The negative case is unprovable on this host as written, and this is an
+   infrastructure fact rather than a launcher defect. `terraform apply` runs
+   inside the same command and restores the stopped `rustfs` container before
+   the probe runs, so `up` reports ready for a store that was stopped a
+   moment earlier — observed twice, in
+   `/tmp/newspipe-feat9-up-fail.log` and `/tmp/newspipe-feat9-up-fail2.log`,
+   each reading `ready: kafka, rustfs, opencode`. The gate itself is
+   verified correct: it reports not-ready while the endpoint is verifiably
+   dead, and passes only once the container is back. No launcher change can
+   fix the ordering, because applying before probing is what `up` means, and
+   the container restart behaviour that causes it is declared in
+   `~/Repos/pipeline_infra`, a separate repository outside every CU of this
+   feature. Tracked as `bug-7-terraform-recreates-stopped-rustfs`.
 9. `status` prints, with no `docker exec` needed by the user: the `raw_rss`
    message count, the `enrichment-group` committed offset and lag, and the
    newest `poll merged` line for each running pipeline.
@@ -153,6 +190,9 @@ Proposed. No CUs assigned yet.
 - `up` readiness, negative probe (criterion 8): `docker stop rustfs`, then
   `python3 scripts/newspipe.py up` must exit non-zero and name `rustfs`; restore
   with `docker start rustfs`. With all three dependencies up, `up` exits 0.
+  Run 2026-10-19: the positive half passed; the negative half could not be
+  made to fail because the apply inside `up` restores the container first,
+  recorded on criterion 8 and tracked as `bug-7`.
 - `status` content (criterion 9): `python3 scripts/newspipe.py status` stdout
   contains the `raw_rss` count, the `enrichment-group` offset and lag, and a
   `poll merged` line.
