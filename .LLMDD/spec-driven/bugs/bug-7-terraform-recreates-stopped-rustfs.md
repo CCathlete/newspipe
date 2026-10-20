@@ -15,7 +15,7 @@ What was observed: stopping the object store and then running the launcher's
 
 ```sh
 docker stop rustfs
-python3 scripts/newspipe.py up
+python3 scripts/newspipe up
 docker start rustfs
 ```
 
@@ -35,7 +35,7 @@ default, which is why the apply restarts a container that was stopped by
 hand. `~/Repos/pipeline_infra` sets no `must_run` of its own.
 
 The launcher's ordering is unchanged and correct: `provision()` at
-`scripts/newspipe.py:434` is the only place terraform is invoked, and it is
+`scripts/newspipe:434` is the only place terraform is invoked, and it is
 reachable only from `do_up`. `status` never applies anything.
 
 ## Resolution status

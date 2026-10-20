@@ -40,7 +40,7 @@ Scope (in):
   `feeds.conf`, `ingestion.conf` and `enrichment.conf`, so logging levels
   become external user configuration consistent with the rule feat-8
   established. Neither pipeline tree gains `src/main/resources/logback.xml`.
-- A Python launcher at `scripts/newspipe.py` with four verbs:
+- A Python launcher at `scripts/newspipe` with four verbs:
   - `up` -- run `terraform apply` against the pipeline_infra repository, then
     poll the same three dependencies `ReadinessGate` checks (Kafka TCP,
     RustFS `/health`, `opencode` on PATH) and either report ready or name each
@@ -68,7 +68,7 @@ that variable reports `logback.configurationFile = <path>` in
 JAVA_TOOL_OPTIONS: ...` line on **stderr**, which does not enter the stdout
 stream the launcher parses.
 
-New paths outside the current standing approval tokens: `scripts/newspipe.py` and
+New paths outside the current standing approval tokens: `scripts/newspipe` and
 any launcher unit tests. Implementation will need an approval token naming
 them; `pipelines/**` stays untouched.
 
@@ -96,7 +96,7 @@ Scope (out):
 ## Implementation status
 
 Implemented. Compiled as 3 CUs in 2 waves — cu-001 `conf/logback.xml`,
-cu-002 `scripts/newspipe.py`, cu-003 end-to-end verification — and both
+cu-002 `scripts/newspipe`, cu-003 end-to-end verification — and both
 waves reported `CONVERGED` with zero escalations. Validation re-ran the
 probes independently rather than trusting the feedback transcripts.
 
@@ -112,6 +112,14 @@ recorded them during validation. And the wave-2 commit swept in a one-line
 broadening of `.LLMDD/approvals/llmdd-workspace.json`'s dry-run entry, a
 path under `.LLMDD/**` that every CU listed as do-not-touch; the edit is
 benign but it did not belong to any CU.
+
+After close, at the Designer's request, `scripts/newspipe.py` was renamed
+to `scripts/newspipe` and symlinked into `~/.local/bin`, so the launcher
+runs as bare `newspipe` from any directory. The script is unchanged apart
+from its name; `--help` still lists the same four verbs and `status` still
+resolves the repository correctly through the symlink. References in this
+spec and in `bug-7` follow the new name. The compiled ITR frames and the
+baseline DTR keep the old name deliberately: they record what was built.
 
 `SYNOPSIS.itr` is absent by necessity, not oversight: the compiler accepts a
 `synopsis` entry but `validate-steps.py` only skips `arch` and `legend`, so
@@ -129,7 +137,7 @@ in the same state.
 3. Started through the launcher, a completed poll cycle surfaces
    `poll merged N enriched units` on stdout, so the informative line is
    reachable without grep.
-4. `python3 scripts/newspipe.py --help` exits 0 and lists exactly `up`, `run`,
+4. `python3 scripts/newspipe --help` exits 0 and lists exactly `up`, `run`,
    `down`, `status`.
 5. `run ingestion` starts only the ingestion pipeline, `run enrichment` only
    the enrichment pipeline, and `run both` starts exactly two pipeline child
@@ -152,7 +160,7 @@ in the same state.
 9. `status` prints, with no `docker exec` needed by the user: the `raw_rss`
    message count, the `enrichment-group` committed offset and lag, and the
    newest `poll merged` line for each running pipeline.
-10. `uvx mypy --strict scripts/newspipe.py` exits 0 with zero errors.
+10. `uvx mypy --strict scripts/newspipe` exits 0 with zero errors.
 11. No file under `pipelines/**` is created, modified or deleted: after
     implementation and after a launcher run, `git status --porcelain pipelines/`
     is empty.
@@ -161,16 +169,16 @@ in the same state.
 
 - Config presence (criterion 1): `test -f conf/logback.xml` exits 0, and
   `find pipelines -name 'logback*.xml' -not -path '*/target/*'` prints nothing.
-- Verb surface (criterion 4): `python3 scripts/newspipe.py --help` exits 0 with
+- Verb surface (criterion 4): `python3 scripts/newspipe --help` exits 0 with
   `up`, `run`, `down`, `status` in its stdout; an unrecognised verb exits
   non-zero.
-- Type probe (criterion 10): `uvx mypy --strict scripts/newspipe.py` exits 0 with
+- Type probe (criterion 10): `uvx mypy --strict scripts/newspipe` exits 0 with
   zero errors.
 - Log legibility (criteria 2, 3): with Kafka and RustFS up, reset the
   enrichment group near the topic end so one cycle is short --
   `docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server
   localhost:9092 --group enrichment-group --topic raw_rss --reset-offsets
-  --shift-by -3 --execute` -- then run `python3 scripts/newspipe.py run enrichment`
+  --shift-by -3 --execute` -- then run `python3 scripts/newspipe run enrichment`
   for one cycle. Assert stdout has `grep -c HEARTBEAT` == 0 and contains a line
   matching `poll merged [0-9]+ enriched units`.
 - Verb selection (criterion 5): invoke each verb in turn and assert the
@@ -179,12 +187,12 @@ in the same state.
   children are gone, `docker ps --format '{{.Names}}'` still lists `kafka` and
   `rustfs`, no `terraform` process appeared, and the exit code is 0.
 - `up` readiness, negative probe (criterion 8): `docker stop rustfs`, then
-  `python3 scripts/newspipe.py up` must exit non-zero and name `rustfs`; restore
+  `python3 scripts/newspipe up` must exit non-zero and name `rustfs`; restore
   with `docker start rustfs`. With all three dependencies up, `up` exits 0.
   Run 2026-10-19: the healthy-stack half passed. The "store is down" half
   was dropped as an invalid test: the apply inside `up` restores the
   container before the probe runs, so it cannot fail.
-- `status` content (criterion 9): `python3 scripts/newspipe.py status` stdout
+- `status` content (criterion 9): `python3 scripts/newspipe status` stdout
   contains the `raw_rss` count, the `enrichment-group` offset and lag, and a
   `poll merged` line.
 - Source integrity (criterion 11): `git status --porcelain pipelines/` empty
