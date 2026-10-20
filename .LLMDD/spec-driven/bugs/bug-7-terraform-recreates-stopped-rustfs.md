@@ -1,79 +1,58 @@
 # bug-7: terraform apply recreates the stopped rustfs container
 
-- Status: Open
+- Status: Resolved
 - Created: 2026-10-20
-- Resolved: -
+- Resolved: 2026-10-20
 - Bug ID: bug-7-terraform-recreates-stopped-rustfs
 
 ## Bug detail
 
-Stopping the object store is supposed to prove that a readiness check
-fails closed. It does not, because the infra apply that runs first in the
-same command puts the store back.
+Closed as not-a-bug. The observed behaviour is real; calling it a defect was
+the error, and this file stays only so the finding is not silently erased.
 
-Symptom: `up` reports ready while the store is provably down.
-
-Reproduction:
+What was observed: stopping the object store and then running the launcher's
+`up` verb reports ready instead of failing.
 
 ```sh
 docker stop rustfs
 python3 scripts/newspipe.py up
-echo "exit=$?"
 docker start rustfs
 ```
 
-Expected: non-zero exit, and output naming `rustfs` as the dependency still
-missing, because `/health` cannot answer while the container is stopped.
+Actual on 2026-10-19: exit 0, `ready: kafka, rustfs, opencode`, twice
+(`/tmp/newspipe-feat9-up-fail.log`, `/tmp/newspipe-feat9-up-fail2.log`).
 
-Actual: exit 0 with `ready: kafka, rustfs, opencode`. The readiness gate is
-not what fails here — the container is running again by the time the gate
-runs, so the gate correctly sees it healthy. The probe itself behaves: with
-the endpoint verifiably dead the gate reports not-ready, and it passes only
-after the container is back.
+Why that is correct rather than broken: `up` means apply the infrastructure,
+then probe whether it is healthy. The apply restores a container that is
+declared in the infrastructure, so by probe time the store is up and the
+report of "ready" is true. The test was designed so that it could never
+fail — an apply that repairs what you stopped is doing its job, so
+"stop it, then apply" is not a way to make a readiness check fail.
 
-Evidence, two independent attempts, both capturing the same actual result:
-`/tmp/newspipe-feat9-up-fail.log` and `/tmp/newspipe-feat9-up-fail2.log`,
-each a single line reading `ready: kafka, rustfs, opencode`. The run that
-produced them also confirmed, immediately before, that `/health` answered
-200 only after the apply had already healed the container.
+Confirmed mechanism, for whoever reads this later: `terraform state show
+docker_container.rustfs` holds `must_run = true`, the docker provider's
+default, which is why the apply restarts a container that was stopped by
+hand. `~/Repos/pipeline_infra` sets no `must_run` of its own.
 
-Not re-run during validation: reproducing it needs `docker stop rustfs`
-plus `terraform apply`, an infrastructure mutation outside the Advisor's
-grant, so this report rests on the captured wave artifacts above. Their
-contents were re-read during validation, not quoted from a transcript.
-
-Environment: 2026-10-19, Linux host, `~/Repos/pipeline_infra` applied
-through the docker provider; `resource "docker_container" "rustfs"` at
-`data_platform.tf:250` declares no explicit `must_run` or restart policy.
-
-Suspected cause: the docker provider restores a container that exists in
-config but is stopped, and `terraform apply` therefore heals `rustfs`
-before the readiness probe in the same process runs. Whether that is the
-provider's `must_run` default, a recreate driven by config drift, or
-`rustfs_init` bringing it back is the first thing to confirm in
-`pipeline_infra`; the symptom alone does not distinguish them.
-
-Why a newspipe change cannot fix this: the launcher's order is fixed by
-design — apply the infrastructure, then probe readiness. Probing first
-would report not-ready for a stack that is about to come up, which is the
-opposite of what `up` is for. The fix belongs in the infrastructure
-repository, where the container's restart behaviour is declared, and that
-repository is outside every CU of the launcher work.
+The launcher's ordering is unchanged and correct: `provision()` at
+`scripts/newspipe.py:434` is the only place terraform is invoked, and it is
+reachable only from `do_up`. `status` never applies anything.
 
 ## Resolution status
 
-Open. No fix has landed in `~/Repos/pipeline_infra`. Until one does, the
-negative half of the launcher's readiness criterion cannot be proven on
-this host; the positive half is proven and is recorded separately in the
-launcher feature spec.
+Resolved — closed as not-a-bug, not as fixed. No code change in either
+repository, and none is warranted. A test that cannot fail is a bad test,
+not a product defect.
 
 ## Fix summary (Resolved only)
 
-Pending.
+No fix. Nothing changed. The report came from a test design that cannot
+produce a failure, so there was nothing for a fix to address.
 
 ## Tests proving resolution (Resolved only)
 
-Pending. The proving test is the reproduction above with the expected
-result instead of the actual one: `docker stop rustfs`, then
-`python3 scripts/newspipe.py up` must exit non-zero and name `rustfs`,
-followed by `docker start rustfs` to restore the stack.
+Not applicable — there was no defect to prove fixed. The only honest
+evidence is that the behaviour described above is expected: an apply
+restoring a stopped dependency is what `up` is for, and the readiness gate
+itself was verified separately to fail closed when the endpoint is actually
+unreachable.
