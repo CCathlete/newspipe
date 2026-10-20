@@ -4,7 +4,7 @@ import newspipe.application.services.{EnrichmentService, ReadinessGate}
 import newspipe.infrastructure.bronze.{DeltaMergeSink, HttpObjectStoreReadinessProbe}
 import newspipe.infrastructure.env.EnvConfig
 import newspipe.infrastructure.kafka.{KafkaRawConsumer, TcpKafkaReadinessProbe}
-import newspipe.infrastructure.llmdataenricher.{OpenCodeCliClient, OpenCodeCliReadinessProbe}
+import newspipe.infrastructure.llmdataenricher.{OpenCodeCliClient, OpenCodeCliReadinessProbe, OpenCodeModelReadinessProbe}
 import org.apache.spark.sql.SparkSession
 
 import java.util.concurrent.TimeUnit
@@ -24,12 +24,13 @@ final class AppContainer(env: EnvConfig):
   val consumer = new KafkaRawConsumer(env.kafkaBootstrap, env.rawTopic, env.groupId)
   val enrich = new OpenCodeCliClient(env.opencodeModel, FiniteDuration(env.opencodeTimeoutSeconds, TimeUnit.SECONDS))
   val sink = new DeltaMergeSink(spark, env.bronzePath)
-  val service = new EnrichmentService(consumer, enrich, sink)
+  val service = new EnrichmentService(consumer, enrich, sink, env.opencodeWorkers, env.opencodeMaxAttempts)
   val readiness: ReadinessGate = new ReadinessGate(
     List(
       new TcpKafkaReadinessProbe(env.kafkaBootstrap, 3000),
       new HttpObjectStoreReadinessProbe(env.s3Endpoint, env.s3Bucket, 3000),
-      new OpenCodeCliReadinessProbe("opencode")
+      new OpenCodeCliReadinessProbe("opencode"),
+      new OpenCodeModelReadinessProbe(env.opencodeModel, FiniteDuration(30, TimeUnit.SECONDS))
     ),
     maxWait = 60.seconds,
     interval = 2.seconds,
@@ -37,5 +38,6 @@ final class AppContainer(env: EnvConfig):
   )
 
   def close(): Unit =
+    service.close()
     consumer.close()
     spark.stop()

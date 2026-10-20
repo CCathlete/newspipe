@@ -23,7 +23,7 @@ object Main extends LazyLogging:
     logger.info("newspipe-enrichment polling every " + poll)
     while true do
       try
-        val n = app.service.runOnce(Instant.now())
-        logger.info("poll merged " + n + " enriched units")
+        val report = app.service.runOnce(Instant.now())
+        logger.info("poll merged " + report.merged + " enriched units (" + report.enriched + " enriched, " + report.failed + " failed)")
       catch case e: Exception => logger.error("poll iteration failed", e)
       Thread.sleep(poll.toMillis)

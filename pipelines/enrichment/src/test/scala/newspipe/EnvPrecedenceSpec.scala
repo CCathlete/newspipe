@@ -19,7 +19,7 @@ class EnvPrecedenceSpec extends AnyFunSpec with Matchers:
         kafka { bootstrap-servers = "localhost:9092", raw-topic = "raw_rss", group-id = "enrichment-group" }
         bronze { path = "s3a://lakehouse/bronze/news" }
         spark { master = "local[*]" }
-        opencode { model = "opencode/test", timeout-seconds = 120 }
+        opencode { model = "opencode/test", timeout-seconds = 120, workers = 4, max-attempts = 3 }
         s3 {
           endpoint = "http://conf:9000"
           path-style-access = true
@@ -52,5 +52,10 @@ class EnvPrecedenceSpec extends AnyFunSpec with Matchers:
     }
     it("reads the long tier through the same precedence") {
       Env.load(cfg, DotEnv(Map("NEWSPIPE_POLL_INTERVAL_SECONDS" -> "60"), None)).pollIntervalSeconds shouldBe 60L
+    }
+    it("reads the worker and attempt tiers through the same precedence") {
+      val env = Env.load(cfg, DotEnv(Map("NEWSPIPE_OPENCODE_WORKERS" -> "8", "NEWSPIPE_OPENCODE_MAX_ATTEMPTS" -> "5"), None))
+      env.opencodeWorkers shouldBe 8
+      env.opencodeMaxAttempts shouldBe 5
     }
   }

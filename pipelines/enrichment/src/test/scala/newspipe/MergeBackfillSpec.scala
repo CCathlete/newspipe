@@ -44,7 +44,7 @@ class MergeBackfillSpec extends AnyFunSpec with Matchers with BeforeAndAfterAll:
           merged = units
           units.size
       val now = Instant.parse("2026-10-10T10:00:00Z")
-      new EnrichmentService(consumer, port, sink).runOnce(now) shouldBe 1
+      new EnrichmentService(consumer, port, sink, 1, 1).runOnce(now).merged shouldBe 1
       merged.map(_.id) shouldBe List(BronzeUnit.idFor(item("g1")))
       committed shouldBe true
     }
