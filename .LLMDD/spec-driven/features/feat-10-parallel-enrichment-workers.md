@@ -1,6 +1,6 @@
 # feat-10: Parallel enrichment workers with retry
 
-- Status: Proposed
+- Status: Implemented
 - Created: 2026-10-20
 - Feature ID: feat-10-parallel-enrichment-workers
 
@@ -36,7 +36,30 @@ pipeline is usable again whether or not this feature has landed.
 
 ## Implementation status
 
-Proposed. Not yet compiled into CUs.
+Implemented. The batch compiled into cu-001..cu-003, ran as three serial
+waves, and landed as 70a9b68 (9 files). The code lead finished green:
+42/42 tests, `sbt compile` clean, `newspipe status` and `newspipe down`
+unchanged. cu-002 escalated once exactly as the frame prescribed:
+`MergeBackfillSpec` did not compile against the new constructor, the Coder
+reported it instead of editing it, and the code lead repaired the test
+contract (`new EnrichmentService(consumer, port, sink, 1, 1)` asserting
+`.merged`). All three CUs closed COMPLETED / PASSED with no open escalation.
+The runner then crashed in its own summary step (`run-waves.py:1784`,
+iterating the values of a `{path: count}` map as if they were paths), which
+is why `newspipe.convergence.json` still reads RUNNING; that is an upstream
+tool bug, not a feature defect.
+
+The Advisor re-ran every closure probe that does not need `sbt`: criteria 1,
+2, 6 and 7 green, `EnrichmentService.scala` byte-identical to its CU fence,
+`validate-steps` PASS x3. Criteria 3, 4, 5 and the test suite rest on the
+wave evidence — the Advisor does not run `sbt`.
+
+Known gap, tracked separately: bug-9 (opencode calls hang when stdin is an
+open non-TTY pipe). From an interactive terminal the pipeline works; under
+non-interactive stdin every opencode call blocks until its timeout and the
+readiness gate would refuse a healthy model. The live verification ran
+behind a temporary out-of-repo stdin shim, deleted after the run. feat-10
+does not fix bug-9.
 
 ## Acceptance criteria
 
