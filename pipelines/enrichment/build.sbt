@@ -37,6 +37,7 @@ lazy val root = (project in file("."))
       "org.typelevel" %% "cats-effect-testing-scalatest" % "1.5.0" % Test
     ),
     run / fork := true,
+    run / connectInput := false,
     Test / fork := true,
     // spark-sql stays Provided (cu-001 frame), but Provided jars sit on
     // Compile/fullClasspath, not Runtime/fullClasspath u2014 the default `sbt run`

@@ -10,13 +10,14 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
-final class OpenCodeCliClient(model: String, timeout: FiniteDuration) extends EnrichmentPort:
+final class OpenCodeCliClient(model: String, timeout: FiniteDuration, binary: String = "opencode") extends EnrichmentPort:
 
   def enrich(item: RssItem): Either[Throwable, Enrichment] =
     Try {
       val prompt = OpenCodeCliClient.promptFor(item)
-      val proc = new ProcessBuilder("opencode", "run", "--format", "json", "--model", model, prompt)
+      val proc = new ProcessBuilder(binary, "run", "--format", "json", "--model", model, prompt)
         .redirectErrorStream(false)
+        .redirectInput(ProcessBuilder.Redirect.from(new java.io.File("/dev/null")))
         .start()
       val startNanos = System.nanoTime()
       val finished = proc.waitFor(timeout.toMillis, TimeUnit.MILLISECONDS)

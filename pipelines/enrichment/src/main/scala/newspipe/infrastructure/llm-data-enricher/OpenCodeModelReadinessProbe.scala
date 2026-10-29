@@ -10,19 +10,20 @@ import scala.util.Try
   * only proves `opencode` is on PATH; this one proves the model answers, so a
   * model opencode no longer serves aborts the pipeline instead of silently
   * failing on every item. */
-final class OpenCodeModelReadinessProbe(model: String, timeout: FiniteDuration) extends CliReadinessProbe:
+final class OpenCodeModelReadinessProbe(model: String, timeout: FiniteDuration, binary: String = "opencode") extends CliReadinessProbe:
   def name: String = "opencode-model"
 
   def check(): ProbeResult =
     if model.isEmpty then ProbeResult.NotReady(name, "no model configured")
     else
       Try {
-        val proc = new ProcessBuilder("opencode", "run", "--format", "json", "--model", model, "reply with exactly: OK")
+        val proc = new ProcessBuilder(binary, "run", "--format", "json", "--model", model, "reply with exactly: OK")
           .redirectErrorStream(true)
+          .redirectInput(ProcessBuilder.Redirect.from(new java.io.File("/dev/null")))
           .start()
         val finished = proc.waitFor(timeout.toMillis, TimeUnit.MILLISECONDS)
         if !finished then
-          proc.destroyForcibly()
+          OpenCodeCliClient.killTree(proc)
           ProbeResult.NotReady(name, s"model '$model' did not answer within ${timeout.toSeconds} s")
         else
           val text = scala.io.Source.fromInputStream(proc.getInputStream).mkString

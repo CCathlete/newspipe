@@ -473,6 +473,7 @@ class SubprocessOps(OpsPort):
                     ["sbt", "run"],
                     cwd=REPO_ROOT / "pipelines" / name,
                     env=env,
+                    stdin=subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     start_new_session=True,

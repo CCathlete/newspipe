@@ -19,7 +19,7 @@ class EnvPrecedenceSpec extends AnyFunSpec with Matchers:
         kafka { bootstrap-servers = "localhost:9092", raw-topic = "raw_rss", group-id = "enrichment-group" }
         bronze { path = "s3a://lakehouse/bronze/news" }
         spark { master = "local[*]" }
-        opencode { model = "opencode/test", timeout-seconds = 120, workers = 4, max-attempts = 3 }
+        opencode { model = "opencode/test", fallback-models = ["nvidia/fallback-one"], timeout-seconds = 120, workers = 4, max-attempts = 3 }
         s3 {
           endpoint = "http://conf:9000"
           path-style-access = true
@@ -57,5 +57,14 @@ class EnvPrecedenceSpec extends AnyFunSpec with Matchers:
       val env = Env.load(cfg, DotEnv(Map("NEWSPIPE_OPENCODE_WORKERS" -> "8", "NEWSPIPE_OPENCODE_MAX_ATTEMPTS" -> "5"), None))
       env.opencodeWorkers shouldBe 8
       env.opencodeMaxAttempts shouldBe 5
+    }
+    it("reads the fallback model list from the conf file") {
+      Env.load(cfg, DotEnv(Map.empty, None)).opencodeFallbackModels shouldBe List("nvidia/fallback-one")
+    }
+    it("prefers a comma-separated .env fallback list and trims blanks") {
+      Env.load(
+        cfg,
+        DotEnv(Map("NEWSPIPE_OPENCODE_FALLBACK_MODELS" -> "nvidia/a, nvidia/b,, "), None)
+      ).opencodeFallbackModels shouldBe List("nvidia/a", "nvidia/b")
     }
   }

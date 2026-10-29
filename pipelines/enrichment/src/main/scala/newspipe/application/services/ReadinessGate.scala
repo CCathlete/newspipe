@@ -14,11 +14,11 @@ final class ReadinessGate(
     probes: List[DependencyProbe],
     maxWait: FiniteDuration,
     interval: FiniteDuration,
-    sleep: FiniteDuration => Unit
+    sleep: FiniteDuration => Unit,
+    clock: () => Instant = () => Instant.now()
 ):
   def await(start: Instant): ReadinessReport =
     val deadline: Instant = start.plusMillis(maxWait.toMillis)
-    var now: Instant = start
     var last: List[String] = Nil
     var continue: Boolean = true
     while continue do
@@ -27,8 +27,6 @@ final class ReadinessGate(
           case ProbeResult.Ready => Nil
           case ProbeResult.NotReady(dep, detail) => List(s"$dep: $detail")
       if last.isEmpty then continue = false
-      else if !now.isBefore(deadline) then continue = false
-      else
-        sleep(interval)
-        now = now.plusMillis(interval.toMillis)
+      else if !clock().isBefore(deadline) then continue = false
+      else sleep(interval)
     ReadinessReport(last.isEmpty, last)

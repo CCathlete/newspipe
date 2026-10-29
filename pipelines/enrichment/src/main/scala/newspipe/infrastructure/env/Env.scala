@@ -9,6 +9,7 @@ import scala.jdk.CollectionConverters.*
 final case class EnvConfig(
     groupId: String,
     opencodeModel: String,
+    opencodeFallbackModels: List[String],
     opencodeTimeoutSeconds: Int,
     opencodeWorkers: Int,
     opencodeMaxAttempts: Int,
@@ -43,10 +44,18 @@ object Env:
       sys.env.get(key).map(_.toLong).orElse(dot.get(key).map(_.toLong)).getOrElse(fallback)
     def pickBool(key: String, fallback: => Boolean): Boolean =
       sys.env.get(key).map(_.toBoolean).orElse(dot.get(key).map(_.toBoolean)).getOrElse(fallback)
+    def pickList(key: String, fallback: => List[String]): List[String] =
+      sys.env.get(key).orElse(dot.get(key))
+        .map(raw => raw.split(",").toList.map(_.trim).filter(_.nonEmpty))
+        .getOrElse(fallback)
 
     EnvConfig(
       groupId = pick("NEWSPIPE_KAFKA_GROUP_ID", cfg.getString("kafka.group-id")),
       opencodeModel = pick("NEWSPIPE_OPENCODE_MODEL", cfg.getString("opencode.model")),
+      opencodeFallbackModels = pickList(
+        "NEWSPIPE_OPENCODE_FALLBACK_MODELS",
+        cfg.getStringList("opencode.fallback-models").asScala.toList
+      ),
       opencodeTimeoutSeconds = pick("NEWSPIPE_OPENCODE_TIMEOUT_SECONDS", cfg.getInt("opencode.timeout-seconds").toString).toInt,
       opencodeWorkers = pick("NEWSPIPE_OPENCODE_WORKERS", cfg.getInt("opencode.workers").toString).toInt,
       opencodeMaxAttempts = pick("NEWSPIPE_OPENCODE_MAX_ATTEMPTS", cfg.getInt("opencode.max-attempts").toString).toInt,
