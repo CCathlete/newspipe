@@ -73,12 +73,14 @@ class ReadinessGateSpec extends AnyFunSpec with Matchers:
     }
 
     it("names every failing dependency") {
+      var slept: Int = 0
+      val clock: () => Instant = () => instant.plusSeconds(slept.toLong)
       val gate = new ReadinessGate(
         List(
           FixedProbe("kafka", ProbeResult.NotReady("kafka", "cannot reach localhost:9092")),
           FixedProbe("object-store", ProbeResult.NotReady("object-store", "bucket missing"))
         ),
-        5.seconds, 1.second, _ => (), () => instant)
+        5.seconds, 1.second, _ => slept += 1, clock)
       val report = gate.await(instant)
       report.ready shouldBe false
       report.failures.size shouldBe 2

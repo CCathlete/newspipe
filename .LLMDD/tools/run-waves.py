@@ -211,18 +211,23 @@ def _write_file_text(path: Path, text: str) -> Ok[None] | Err[Exception]:
 
 # ── Future-safe Monadic Wrapper ───────────────────────────────────
 
-async def future_result(awaitable: typing.Awaitable[T]) -> Ok[T] | Err[Exception]:
-    """Await an awaitable and wrap its result in Ok/Err.
+async def future_result(awaitable: typing.Awaitable[Ok[T] | Err[Exception]]) -> Ok[T] | Err[Exception]:
+    """Await an awaitable that already yields a Result and pass it through.
 
     This is the BRIDGE between asyncio Futures (which raise exceptions
     on await when the wrapped callable fails) and the Result monad.
     It contains the ONE try/except in the async orchestration layer.
     Every caller uses match/case on the returned Ok|Err.
+
+    The wrapped callable already returns Ok|Err (run_coder,
+    _run_coder_correction), so the awaited value is returned unchanged;
+    wrapping it again would produce Ok(Ok(...)) and break every success
+    pattern. A raised exception still becomes Err.
     """
     # MONADIC-BOUNDARY: asyncio Future await raises by design; the raise becomes Err here and never leaks past this bridge.
     caught: Exception
     try:
-        return Ok(await awaitable)
+        return await awaitable
     except Exception as caught:
         return Err(caught)
 
@@ -1723,19 +1728,54 @@ def report_breaches(breaches: Sequence[BoundaryBreach], feedback_dir: Path) -> N
             _warn(f"Cannot write boundary report: {e}")
 
 
+def _runner_relative_roots(project_dir: Path, dirs: Sequence[Path]) -> tuple[str, ...]:
+    """Repo-relative roots of runner bookkeeping directories."""
+    root: Path = project_dir.resolve()
+    found: list[str] = []
+    directory: Path
+    for directory in dirs:
+        try:
+            found.append(directory.resolve().relative_to(root).as_posix())
+        except (OSError, ValueError):
+            continue
+    return tuple(found)
+
+
+def _without_runner_paths(per_cu: Sequence[CoderWrites],
+                          roots: Sequence[str]) -> tuple[CoderWrites, ...]:
+    """Drop runner bookkeeping paths from per-CU write attribution.
+
+    Coders mkdir the feedback directory and write their feedback file into
+    it. Those are protocol artifacts, not CU write targets, so they must
+    not trip the shared-write rule when several CUs report in one wave.
+    """
+    kept: list[CoderWrites] = []
+    writes: CoderWrites
+    path: str
+    for writes in per_cu:
+        paths: tuple[str, ...] = tuple(
+            path for path in writes.paths
+            if not any(path == root or path.startswith(root + "/") for root in roots))
+        kept.append(CoderWrites(cu_id=writes.cu_id, paths=paths))
+    return tuple(kept)
+
+
 def enforce_boundary(per_cu: Sequence[CoderWrites], project_dir: Path,
                      base_ref: str, baseline_dirty: frozenset[str],
                      guards: dict[str, NoTouch],
-                     feedback_dir: Path) -> tuple[Sequence[BoundaryBreach], Sequence[str]]:
+                     feedback_dir: Path,
+                     log_dir: Path) -> tuple[Sequence[BoundaryBreach], Sequence[str]]:
     """Measure the wave, attribute it to CUs, and apply every rule."""
+    scoped: tuple[CoderWrites, ...] = _without_runner_paths(
+        per_cu, _runner_relative_roots(project_dir, (feedback_dir, log_dir)))
     wave_paths: Sequence[str] = wave_writes(project_dir, base_ref, baseline_dirty)
-    attributed: WaveWrites = attribute_writes(wave_paths, per_cu)
+    attributed: WaveWrites = attribute_writes(wave_paths, scoped)
     breaches: Sequence[BoundaryBreach] = boundary_breaches(attributed, guards)
     if breaches:
         report_breaches(breaches, feedback_dir)
     claimed: set[str] = set()
     writes: CoderWrites
-    for writes in per_cu:
+    for writes in scoped:
         claimed.update(writes.paths)
     return breaches, tuple(sorted(claimed | set(wave_paths)))
 
@@ -1985,7 +2025,7 @@ async def run_wave_parallel(
     breaches: Sequence[BoundaryBreach]
     written: Sequence[str]
     breaches, written = enforce_boundary(
-        per_cu_writes, project_dir, stash_ref, baseline_dirty, guards, feedback_dir)
+        per_cu_writes, project_dir, stash_ref, baseline_dirty, guards, feedback_dir, log_dir)
 
     breached_cus: set[str] = set()
     b: BoundaryBreach
@@ -2041,7 +2081,7 @@ async def run_wave_parallel(
                 breaches_c: Sequence[BoundaryBreach]
                 written_c: Sequence[str]
                 breaches_c, written_c = enforce_boundary(
-                    per_cu_writes_c, project_dir, stash_ref, baseline_dirty, guards, feedback_dir)
+                    per_cu_writes_c, project_dir, stash_ref, baseline_dirty, guards, feedback_dir, log_dir)
                 if not breaches_c:
                     break
                 still: bool = False
@@ -2073,7 +2113,7 @@ async def run_wave_parallel(
                 breaches_c2: Sequence[BoundaryBreach]
                 written_c2: Sequence[str]
                 breaches_c2, written_c2 = enforce_boundary(
-                    per_cu_writes_c2, project_dir, stash_ref, baseline_dirty, guards, feedback_dir)
+                    per_cu_writes_c2, project_dir, stash_ref, baseline_dirty, guards, feedback_dir, log_dir)
                 still2: bool = False
                 bb2: BoundaryBreach
                 for bb2 in breaches_c2:
@@ -2088,7 +2128,7 @@ async def run_wave_parallel(
     for wc_id, wc_file in cu_files:
         per_cu_writes.append(coder_writes(wc_id, log_dir, project_dir))
     breaches, written = enforce_boundary(
-        per_cu_writes, project_dir, stash_ref, baseline_dirty, guards, feedback_dir)
+        per_cu_writes, project_dir, stash_ref, baseline_dirty, guards, feedback_dir, log_dir)
 
     if breaches:
         all_passed = False
