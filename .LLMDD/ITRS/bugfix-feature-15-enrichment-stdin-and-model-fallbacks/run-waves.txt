@@ -1,1 +1,1 @@
-python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/bugfix-feature-15-enrichment-stdin-and-model-fallbacks --app newspipe --waves .LLMDD/ITRS/bugfix-feature-15-enrichment-stdin-and-model-fallbacks/waves.json --coder-model nvidia/nvidia/nemotron-3.5-lightning-30b-a3b --coder-fallbacks nvidia/openai/gpt-oss-20b nvidia/poolside/laguna-xs-2.1
+python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/bugfix-feature-15-enrichment-stdin-and-model-fallbacks --app newspipe --waves .LLMDD/ITRS/bugfix-feature-15-enrichment-stdin-and-model-fallbacks/waves.json

@@ -26,24 +26,29 @@ from cu_scope import (NoTouch, has_enforceable_patterns, is_touched,
 
 # ── Defaults ───────────────────────────────────────────────────────
 
-DEFAULT_CODER_MODEL: str = "nvidia/z-ai/glm-5.3-flash"
+DEFAULT_CODER_MODEL: str = "nvidia/nvidia/nemotron-3.5-lightning-30b-a3b"
 DEFAULT_LEAD_MODEL: str = "nvidia/nvidia/nemotron-3.5-lightning-30b-a3b"
 DEFAULT_CU_TIMEOUT: int = 300
 DEFAULT_LEAD_TIMEOUT: int = 300
 DEFAULT_MAX_FIX_ITERATIONS: int = 3
 
 # ── Fallback defaults ───────────────────────────────────────────────
-# Coder fallbacks: small, fast Nvidia models tried in order when the
-# primary coder fails (refusal, error, or activity timeout). Ordered by
-# observed latency (diffgemma ~2s, gpt-oss ~3s, laguna ~60s,
-# deepseek ~260s). Nvidia-only by policy: no cross-provider entries.
-# Dead models removed after live probes: kimi-k3 (EOL 2026-10-15),
-# magistral-small-2506 (HTTP 404), mistral-7b-instruct-v0.3 (not found).
+# Coder fallbacks: Nvidia models tried in order when the primary coder
+# fails (refusal, error, or activity timeout). The first two are measured
+# on this host with stdin isolated (gpt-oss ~5s, laguna ~18s) and are the
+# frequent fallbacks. The rest are ordered by known latency, slowest last:
+# diffusiongemma (unverified solo, ~2s by reputation), deepseek ~260s,
+# then glm-5.3-flash as the last resort -- on 2026-10-29 it hung past 90s
+# even solo with stdin isolated. Nvidia-only by policy: no cross-provider
+# entries. Dead models removed after live probes: kimi-k3 (EOL
+# 2026-10-15), magistral-small-2506 (HTTP 404), mistral-7b-instruct-v0.3
+# (not found).
 DEFAULT_CODER_FALLBACKS: list[str] = [
-    "nvidia/google/diffusiongemma-26b-a4b-it",
     "nvidia/openai/gpt-oss-20b",
     "nvidia/poolside/laguna-xs-2.1",
+    "nvidia/google/diffusiongemma-26b-a4b-it",
     "nvidia/deepseek-ai/deepseek-v4.1-flash",
+    "nvidia/z-ai/glm-5.3-flash",
 ]
 # Lead fallbacks: larger Nvidia models tried in order when the primary
 # lead fails (activity timeout or non-zero exit). Ordered by observed
