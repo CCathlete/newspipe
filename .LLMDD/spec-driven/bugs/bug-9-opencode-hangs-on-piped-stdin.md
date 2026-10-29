@@ -88,10 +88,39 @@ Natural mitigations, any one sufficient: `connectInput := false` in
 launcher Popen call, or redirecting stdin inside the `ProcessBuilder`
 construction.
 
+## Correction 2026-10-29 — a TTY does not save the sbt launch path
+
+The original report said the identical code works from an interactive
+terminal and that only non-TTY stdin fails. That is true for a **direct**
+`opencode run` invocation, but it is false for the way the pipelines are
+launched. Through `sbt run`, the forked JVM's stdin is a pipe regardless of
+the parent's stdin shape, and `opencode` inherits that pipe.
+
+Verified on this repository on 2026-10-29:
+
+1. `script -qec 'bash -c "cd pipelines/enrichment && sbt run"' /dev/null`
+   launches the pipeline under a pty. Inspecting the live probe child anyway
+   gives `/proc/<opencode>/fd/0 -> pipe:[100865]`, not `/dev/pts/N`.
+2. With stdin from `/dev/null` (`sbt run </dev/null`), the child still gets an
+   open pipe, and the readiness gate remains parked in
+   `OpenCodeModelReadinessProbe.check` at `Process.waitFor`.
+3. `jstack` on the forked JVM shows the main thread under
+   `ReadinessGate.await` -> `OpenCodeModelReadinessProbe.check`.
+
+So the user-visible failure is not limited to agents, CI or cron: an
+interactive `newspipe run both` hangs the same way. The original reproduction
+A (`sleep 20 | opencode run ...`) remains valid evidence of the mechanism;
+the TTY asymmetry in reproduction C only applies before sbt forks the JVM.
+
+Consequence for any fix: validating it from an interactive terminal is not
+sufficient. The regression test must attach the child's stdin to an open,
+never-closing pipe and assert the call returns.
+
 ## Resolution status
 
-Not resolved. Open: no merged fix, no proving tests. The reproduction above
-is verified, so the cause is confirmed rather than suspected.
+Not resolved. Open: no merged fix, no proving tests. The original
+reproduction and the 2026-10-29 pty correction above are both verified, so the
+cause is confirmed rather than suspected.
 
 ## Fix summary (Resolved only)
 
