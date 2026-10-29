@@ -1,0 +1,12 @@
+[
+  {
+    "wave": 1,
+    "description": "Chain integration (cu-004): model-per-call EnrichmentPort, list-based readiness probe, model rotation inside maxAttempts, AppContainer wiring, and the affected specs",
+    "cus": ["cu-004"]
+  },
+  {
+    "wave": 2,
+    "description": "Live end-to-end verification (cu-005): one enrichment poll with the nvidia chain, a committed non-zero offset, no timeout, and a restored .env",
+    "cus": ["cu-005"]
+  }
+]

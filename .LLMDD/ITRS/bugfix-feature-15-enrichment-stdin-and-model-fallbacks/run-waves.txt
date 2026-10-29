@@ -1,1 +1,1 @@
-python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/bugfix-feature-15-enrichment-stdin-and-model-fallbacks --app newspipe --waves .LLMDD/ITRS/bugfix-feature-15-enrichment-stdin-and-model-fallbacks/waves.json
+python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/bugfix-feature-15-enrichment-stdin-and-model-fallbacks --app newspipe --waves .LLMDD/ITRS/bugfix-feature-15-enrichment-stdin-and-model-fallbacks/waves-resume.json
