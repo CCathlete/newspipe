@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+Deliver the configuration tier for the enrichment model chain. The tracked default must name the proven nvidia primary and one proven nvidia fallback, and EnvConfig must expose the fallback list through the same environment > .env > conf precedence the other opencode keys use.

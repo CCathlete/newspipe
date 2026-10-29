@@ -1,0 +1,5 @@
+# COORDINATES: cu-001
+
+FILE.conf/enrichment.conf
+FILE.pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala
+FILE.pipelines/enrichment/src/test/scala/newspipe/EnvPrecedenceSpec.scala

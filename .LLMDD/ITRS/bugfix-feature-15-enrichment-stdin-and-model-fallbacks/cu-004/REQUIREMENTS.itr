@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-004
+
+Integrate the model chain end to end. The EnrichmentPort takes the model per call, the client takes only timeout and binary, the readiness probe checks a list, the service rotates models within maxAttempts, and AppContainer wires the configured chain. Update every affected test so the suite compiles and stays green.

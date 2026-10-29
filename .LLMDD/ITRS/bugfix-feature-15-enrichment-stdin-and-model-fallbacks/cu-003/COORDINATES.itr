@@ -1,0 +1,4 @@
+# COORDINATES: cu-003
+
+FILE.pipelines/enrichment/src/main/scala/newspipe/application/services/ReadinessGate.scala
+FILE.pipelines/enrichment/src/test/scala/newspipe/ReadinessGateSpec.scala

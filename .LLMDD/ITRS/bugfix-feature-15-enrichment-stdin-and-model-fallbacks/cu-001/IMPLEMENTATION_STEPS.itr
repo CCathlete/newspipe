@@ -1,0 +1,130 @@
+# IMPLEMENTATION_STEPS: cu-001
+
+1. Replace only the opencode block in conf/enrichment.conf. It currently reads:
+
+```hocon
+  opencode {
+    model = "opencode/minimax-m3.1-flash-free"
+    timeout-seconds = 120
+    workers = 4
+    max-attempts = 3
+  }
+```
+
+Replace it with exactly:
+
+```hocon
+  opencode {
+    model = "nvidia/nvidia/nemotron-3.5-lightning-30b-a3b"
+    fallback-models = ["nvidia/poolside/laguna-xs-2.1"]
+    timeout-seconds = 120
+    workers = 4
+    max-attempts = 3
+  }
+```
+
+Do NOT touch: pipelines/ingestion/**, conf/ingestion.conf, conf/feeds.conf, conf/logback.xml
+
+Prove: `grep -c 'opencode/' conf/enrichment.conf`
+
+Stop when the proof prints 0 and `sed -n '/opencode {/,/^  }/p' conf/enrichment.conf` shows the five lines above.
+
+2. Add the fallback list field to EnvConfig in pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala. This line:
+
+```scala
+    opencodeModel: String,
+```
+
+becomes:
+
+```scala
+    opencodeModel: String,
+    opencodeFallbackModels: List[String],
+```
+
+Do NOT touch: the other case-class fields, pipelines/ingestion/**, conf/enrichment.conf, conf/feeds.conf
+
+Prove: `grep -c 'opencodeFallbackModels: List\[String\]' pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala`
+
+Stop when the proof prints 1.
+
+3. Add the pickList helper to the load(cfg, dot) method in pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala, directly after the closing line of pickBool:
+
+```scala
+    def pickBool(key: String, fallback: => Boolean): Boolean =
+      sys.env.get(key).map(_.toBoolean).orElse(dot.get(key).map(_.toBoolean)).getOrElse(fallback)
+```
+
+Insert exactly this block after it:
+
+```scala
+    def pickList(key: String, fallback: => List[String]): List[String] =
+      sys.env.get(key).orElse(dot.get(key))
+        .map(raw => raw.split(",").toList.map(_.trim).filter(_.nonEmpty))
+        .getOrElse(fallback)
+```
+
+Do NOT touch: the existing pick, pickLong and pickBool bodies, pipelines/ingestion/**, conf/enrichment.conf
+
+Prove: `grep -c 'def pickList' pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala`
+
+Stop when the proof prints 1.
+
+4. Add the fallback list assignment in Env.load(cfg, dot) in pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala immediately after this existing line:
+
+```scala
+      opencodeModel = pick("NEWSPIPE_OPENCODE_MODEL", cfg.getString("opencode.model")),
+```
+
+Insert exactly:
+
+```scala
+      opencodeFallbackModels = pickList(
+        "NEWSPIPE_OPENCODE_FALLBACK_MODELS",
+        cfg.getStringList("opencode.fallback-models").asScala.toList
+      ),
+```
+
+Do NOT touch: the other assignments, the scala.jdk.CollectionConverters import, pipelines/ingestion/**, conf/enrichment.conf
+
+Prove: `grep -c 'NEWSPIPE_OPENCODE_FALLBACK_MODELS' pipelines/enrichment/src/main/scala/newspipe/infrastructure/env/Env.scala`
+
+Stop when the proof prints 1.
+
+5. Add the fallback default to the fixture in pipelines/enrichment/src/test/scala/newspipe/EnvPrecedenceSpec.scala. Replace this line:
+
+```scala
+        opencode { model = "opencode/test", timeout-seconds = 120, workers = 4, max-attempts = 3 }
+```
+
+with:
+
+```scala
+        opencode { model = "opencode/test", fallback-models = ["nvidia/fallback-one"], timeout-seconds = 120, workers = 4, max-attempts = 3 }
+```
+
+Do NOT touch: the s3, spark, kafka, bronze and poll-interval-seconds lines in the fixture, pipelines/ingestion/**, conf/enrichment.conf
+
+Prove: `grep -c 'nvidia/fallback-one' pipelines/enrichment/src/test/scala/newspipe/EnvPrecedenceSpec.scala`
+
+Stop when the proof prints 1.
+
+6. Add two tests inside describe("ARCH.DOTENV.MERGE") in pipelines/enrichment/src/test/scala/newspipe/EnvPrecedenceSpec.scala, immediately before the closing brace of that describe block:
+
+```scala
+    it("reads the fallback model list from the conf file") {
+      Env.load(cfg, DotEnv(Map.empty, None)).opencodeFallbackModels shouldBe List("nvidia/fallback-one")
+    }
+    it("prefers a comma-separated .env fallback list and trims blanks") {
+      Env.load(
+        cfg,
+        DotEnv(Map("NEWSPIPE_OPENCODE_FALLBACK_MODELS" -> "nvidia/a, nvidia/b,, "), None)
+      ).opencodeFallbackModels shouldBe List("nvidia/a", "nvidia/b")
+    }
+```
+
+Do NOT touch: the existing test bodies, pipelines/ingestion/**, conf/enrichment.conf
+
+Prove: `cd pipelines/enrichment && sbt "testOnly newspipe.EnvPrecedenceSpec"`
+
+Stop when sbt exits 0 and reports EnvPrecedenceSpec green.

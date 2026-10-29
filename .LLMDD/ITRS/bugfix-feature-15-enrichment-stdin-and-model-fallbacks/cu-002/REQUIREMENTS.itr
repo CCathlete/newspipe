@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+Stop every enrichment child from inheriting an open stdin pipe, and provide the regression test that proves it. This CU keeps the existing single-model constructor shapes so the tree still compiles; cu-004 changes the shapes to a chain.

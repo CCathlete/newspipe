@@ -1,0 +1,4 @@
+# ACCEPTANCE: cu-001
+
+- Criterion 4: `grep -c 'opencode/' conf/enrichment.conf` prints 0; `grep -c 'nvidia/nvidia/nemotron-3.5-lightning-30b-a3b' conf/enrichment.conf` prints 1; `grep -c 'nvidia/poolside/laguna-xs-2.1' conf/enrichment.conf` prints 1.
+- Criterion 5: `cd pipelines/enrichment && sbt "testOnly newspipe.EnvPrecedenceSpec"` exits 0, including the conf default and comma-separated override cases.

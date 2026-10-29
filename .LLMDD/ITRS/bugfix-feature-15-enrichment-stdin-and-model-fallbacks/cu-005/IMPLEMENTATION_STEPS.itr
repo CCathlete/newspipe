@@ -1,0 +1,80 @@
+# IMPLEMENTATION_STEPS: cu-005
+
+1. Verify the infrastructure without provisioning it. Run:
+
+```sh
+./scripts/newspipe status
+```
+
+Do NOT touch: pipelines/**, conf/ingestion.conf, conf/feeds.conf
+
+Prove: `./scripts/newspipe status | head -1`
+
+Stop when the first line reads `infra present: kafka, rustfs, opencode`. If it does not, report BLOCKED and do not run `./scripts/newspipe up`.
+
+2. Back up the operator file and set the E2E overrides. The tracked default stays in conf/enrichment.conf; this step changes only the ignored .env:
+
+```sh
+cp .env /tmp/newspipe.env.bak
+python3 - <<'PY'
+from pathlib import Path
+p = Path(".env")
+lines = [l for l in p.read_text().splitlines()
+         if not l.startswith("NEWSPIPE_OPENCODE_MODEL=")
+         and not l.startswith("NEWSPIPE_OPENCODE_FALLBACK_MODELS=")
+         and not l.startswith("NEWSPIPE_POLL_INTERVAL_SECONDS=")]
+lines += [
+    "NEWSPIPE_OPENCODE_MODEL=nvidia/nvidia/nemotron-3.5-lightning-30b-a3b",
+    "NEWSPIPE_OPENCODE_FALLBACK_MODELS=nvidia/poolside/laguna-xs-2.1",
+    "NEWSPIPE_POLL_INTERVAL_SECONDS=60",
+]
+p.write_text("\n".join(lines) + "\n")
+PY
+```
+
+Do NOT touch: conf/enrichment.conf, pipelines/ingestion/**, conf/feeds.conf
+
+Prove: `grep -E 'NEWSPIPE_OPENCODE_(MODEL|FALLBACK_MODELS)' .env`
+
+Stop when the proof prints the nvidia primary and the nvidia fallback.
+
+3. Start the enrichment pipeline through scripts/newspipe and wait for one poll line with a non-zero enriched count and zero failures:
+
+```sh
+timeout 300 ./scripts/newspipe run enrichment > /tmp/enrich-e2e.log 2>&1 &
+for i in $(seq 1 120); do grep -q 'poll merged' /tmp/enrich-e2e.log && break; sleep 2; done
+grep -E 'poll merged [0-9]+ enriched units \([1-9][0-9]* enriched, 0 failed\)' /tmp/enrich-e2e.log
+```
+
+Do NOT touch: pipelines/ingestion/**, conf/enrichment.conf, conf/feeds.conf
+
+Prove: `grep -E 'poll merged [0-9]+ enriched units \([1-9][0-9]* enriched, 0 failed\)' /tmp/enrich-e2e.log`
+
+Stop when the proof prints exactly one or more matching lines and no `startup aborted` line exists.
+
+4. Stop the pipeline and confirm the consumer group committed a non-zero offset:
+
+```sh
+./scripts/newspipe down
+docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group enrichment-group | awk '$1 == "enrichment-group" && $2 == "raw_rss" { if ($4 > 0) found = 1 } END { exit !found }'
+```
+
+Do NOT touch: pipelines/ingestion/**, conf/enrichment.conf, conf/feeds.conf
+
+Prove: `./scripts/newspipe status | grep 'enrichment-group'`
+
+Stop when the docker awk command exits 0 and the status line shows a committed offset above zero.
+
+5. Restore the operator .env and confirm no timeout was logged:
+
+```sh
+cp /tmp/newspipe.env.bak .env
+rm /tmp/newspipe.env.bak
+grep -c 'opencode run timed out' /tmp/enrich-e2e.log
+```
+
+Do NOT touch: conf/enrichment.conf, pipelines/ingestion/**, conf/feeds.conf
+
+Prove: `grep -c 'opencode run timed out' /tmp/enrich-e2e.log`
+
+Stop when the proof prints 0, the .env file is restored, and `git status --short pipelines conf` is empty.

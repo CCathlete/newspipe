@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-002
+
+- Criterion 1: `cd pipelines/enrichment && sbt "testOnly newspipe.StdinIsolationSpec"` exits 0. Failing-before evidence: delete the two redirectInput lines, rerun, and both examples fail by timeout instead of returning.
+- Criterion 2: `grep -c 'connectInput' pipelines/enrichment/build.sbt` prints 1; `grep -c 'stdin=subprocess.DEVNULL' scripts/newspipe` prints 1; `uvx mypy --strict scripts/newspipe` exits 0 with zero errors.
+- Criterion 9: `cd pipelines/enrichment && sbt compile` exits 0 with no errors.

@@ -1,0 +1,17 @@
+[
+  {
+    "wave": 1,
+    "description": "Three disjoint foundations: the nvidia model chain plus Env fallback list (cu-001), stdin isolation in both child-process adapters plus the launcher and the StdinIsolationSpec (cu-002), and a ReadinessGate that honours maxWait against the wall clock (cu-003)",
+    "cus": ["cu-001", "cu-002", "cu-003"]
+  },
+  {
+    "wave": 2,
+    "description": "Chain integration: model-per-call EnrichmentPort, list-based readiness probe, model rotation inside maxAttempts, AppContainer wiring, and the affected specs (cu-004)",
+    "cus": ["cu-004"]
+  },
+  {
+    "wave": 3,
+    "description": "Live end-to-end verification on this host: one enrichment poll with the nvidia chain, a committed non-zero offset, no timeout, and a restored .env (cu-005)",
+    "cus": ["cu-005"]
+  }
+]

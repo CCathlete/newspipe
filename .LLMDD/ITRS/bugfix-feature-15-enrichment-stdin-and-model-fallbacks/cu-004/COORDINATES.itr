@@ -1,0 +1,10 @@
+# COORDINATES: cu-004
+
+FILE.pipelines/enrichment/src/main/scala/newspipe/application/ports/Ports.scala
+FILE.pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeCliClient.scala
+FILE.pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeModelReadinessProbe.scala
+FILE.pipelines/enrichment/src/main/scala/newspipe/application/services/EnrichmentService.scala
+FILE.pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala
+FILE.pipelines/enrichment/src/test/scala/newspipe/MergeBackfillSpec.scala
+FILE.pipelines/enrichment/src/test/scala/newspipe/StdinIsolationSpec.scala
+FILE.pipelines/enrichment/src/test/scala/newspipe/ModelFallbackSpec.scala

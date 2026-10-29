@@ -1,0 +1,4 @@
+# ACCEPTANCE: cu-005
+
+- Criterion 8: the captured log contains `poll merged N enriched units (N enriched, 0 failed)` with N greater than zero; enrichment-group reports a committed offset greater than zero; zero `opencode run timed out` lines; .env restored.
+- Criterion 9: `git status --short pipelines conf` is empty after the run.

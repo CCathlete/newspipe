@@ -1,0 +1,29 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-29T08:02:25.986199046Z
+# DTR-COORDINATES: 
+
+Architecture rules for bugfix-feature-15-enrichment-stdin-and-model-fallbacks.
+
+LAYER.ORDER: domain > application > infrastructure > control. Dependencies point inward only. The application layer decides retry and model rotation; adapters execute one bounded child process per call.
+
+ARCH.HEX: ports live in pipelines/enrichment/src/main/scala/newspipe/application/ports/Ports.scala. The application layer depends on EnrichmentPort, never on OpenCodeCliClient. Model names are configuration passed through the port, not an infrastructure type.
+
+ARCH.STDIN: no child process may inherit an open stdin pipe. Every ProcessBuilder in the enrichment pipeline redirects stdin from /dev/null, and the launcher starts sbt with stdin=subprocess.DEVNULL. This rule is absolute: it does not depend on whether the parent stdin is a TTY, a pipe, or a file.
+
+ARCH.MODEL: the enrichment model chain uses the same free, non-opencode provider family as the wave runner: nvidia/* only. The primary is nvidia/nvidia/nemotron-3.5-lightning-30b-a3b and the fallback is nvidia/poolside/laguna-xs-2.1. No opencode/* model may be reintroduced into conf/enrichment.conf.
+
+ARCH.CLOCK: readiness bounds are wall-clock bounds. A gate that counts loop iterations instead of reading a clock violates maxWait and must not ship.
+
+ARCH.DOTENV.MERGE: every runtime setting resolves in this order -- process environment, then a discovered .env, then conf/enrichment.conf. New settings follow the same three-tier precedence. .env is the operator's local file: the E2E check backs it up and restores it.
+
+ARCH.SEVERITY: CRITICAL / MAJOR / MINOR / TRIVIAL. CRITICAL or MAJOR findings stop the chain.
+
+APP.LANGUAGE: Scala 3.3.4, JDK 21, sbt for pipelines; Python 3 for scripts/newspipe. The PYTHON.* rules apply to scripts/newspipe only.
+
+ARCH.NO_INFRA_EDIT: ~/Repos/pipeline_infra is a separate repository and is out of scope. Kafka partitioning is out of scope; raw_rss has one partition.
+
+THREAD.SAFETY: OpenCodeCliClient holds only immutable constructor state and builds a fresh ProcessBuilder per call, so one instance may be shared across worker threads.
+
+CONCURRENCY.BOUND: a poll batch is bounded by max.poll.records (20) and each item is bounded by max-attempts times timeout-seconds. The fallback chain does not add attempts; it selects the model for each existing attempt.
+

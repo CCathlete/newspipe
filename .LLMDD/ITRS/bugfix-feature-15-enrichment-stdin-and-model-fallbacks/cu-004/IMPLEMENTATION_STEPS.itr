@@ -1,0 +1,441 @@
+# IMPLEMENTATION_STEPS: cu-004
+
+1. Replace the EnrichmentPort trait in pipelines/enrichment/src/main/scala/newspipe/application/ports/Ports.scala. This block:
+
+```scala
+trait EnrichmentPort:
+  def enrich(item: RssItem): Either[Throwable, Enrichment]
+```
+
+becomes:
+
+```scala
+trait EnrichmentPort:
+  def enrich(item: RssItem, model: String): Either[Throwable, Enrichment]
+```
+
+Do NOT touch: RssSource, BronzeSink, RawPublisher, RawConsumer, BronzeMergeSink, ProbeResult, DependencyProbe, pipelines/ingestion/**
+
+Prove: `grep -c 'def enrich(item: RssItem, model: String)' pipelines/enrichment/src/main/scala/newspipe/application/ports/Ports.scala`
+
+Stop when the proof prints 1.
+
+2. Replace the entire contents of pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeCliClient.scala with exactly:
+
+```scala
+package newspipe.infrastructure.llmdataenricher
+
+import io.circe.parser.*
+import newspipe.application.ports.EnrichmentPort
+import newspipe.domain.models.{Enrichment, RssItem}
+import newspipe.domain.valueObjects.{GeoArea, Urgency}
+
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
+
+final class OpenCodeCliClient(timeout: FiniteDuration, binary: String = "opencode") extends EnrichmentPort:
+
+  def enrich(item: RssItem, model: String): Either[Throwable, Enrichment] =
+    Try {
+      val prompt = OpenCodeCliClient.promptFor(item)
+      val proc = OpenCodeCliClient.processBuilder(binary, model, prompt).start()
+      val startNanos = System.nanoTime()
+      val finished = proc.waitFor(timeout.toMillis, TimeUnit.MILLISECONDS)
+      val elapsedSecs = (System.nanoTime() - startNanos) / 1000000000L
+      if !finished then
+        OpenCodeCliClient.killTree(proc)
+        throw new RuntimeException(s"opencode run timed out after $elapsedSecs s; skipped item '${item.link}'")
+      val stdout = new String(proc.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+      if proc.exitValue() != 0 then
+        throw new RuntimeException(s"opencode run exited ${proc.exitValue()}")
+      OpenCodeCliClient.parseEvents(stdout)
+    }.toEither
+
+object OpenCodeCliClient:
+  def processBuilder(binary: String, model: String, prompt: String): ProcessBuilder =
+    new ProcessBuilder(binary, "run", "--format", "json", "--model", model, prompt)
+      .redirectErrorStream(false)
+      .redirectInput(ProcessBuilder.Redirect.from(new java.io.File("/dev/null")))
+
+  def killTree(proc: Process): Unit =
+    proc.descendants().forEach(_.destroyForcibly())
+    proc.destroyForcibly()
+    try proc.getInputStream.close() catch case _: Exception => ()
+    try proc.getErrorStream.close() catch case _: Exception => ()
+    try proc.getOutputStream.close() catch case _: Exception => ()
+    val _ = proc.waitFor(5, TimeUnit.SECONDS)
+
+  def promptFor(item: RssItem): String =
+    val stream = getClass.getClassLoader.getResourceAsStream("prompts/enrich.txt")
+    require(stream != null, "prompts/enrich.txt missing from classpath")
+    val template =
+      try scala.io.Source.fromInputStream(stream, "UTF-8").mkString
+      finally stream.close()
+    template
+      .replace("{{TITLE}}", item.title)
+      .replace("{{LINK}}", item.link)
+      .replace("{{DESCRIPTION}}", item.description)
+
+  def parseEvents(ndjson: String): Enrichment =
+    val text = ndjson.linesIterator.flatMap { line =>
+      parse(line).toOption.flatMap(_.hcursor.downField("part").downField("text").as[String].toOption)
+    }.mkString
+    val start = text.indexOf('{')
+    val end = text.lastIndexOf('}')
+    if start < 0 || end <= start then
+      throw new RuntimeException(s"no JSON object in opencode output: ${text.take(200)}")
+    parseEnrichment(text.substring(start, end + 1))
+
+  def parseEnrichment(json: String): Enrichment =
+    val doc = parse(json).getOrElse(throw new RuntimeException(s"invalid enrichment JSON: ${json.take(200)}"))
+    val c = doc.hcursor
+    Enrichment(
+      summary = c.downField("summary").as[String].getOrElse(""),
+      countries = c.downField("countries").as[List[String]].getOrElse(Nil),
+      geoArea = GeoArea(c.downField("geoArea").as[String].getOrElse("unknown")),
+      topics = c.downField("topics").as[List[String]].getOrElse(Nil),
+      actors = c.downField("actors").as[List[String]].getOrElse(Nil),
+      urgency = Urgency(c.downField("urgency").as[String].getOrElse("low")),
+      language = c.downField("language").as[String].getOrElse("en")
+    )
+```
+
+Do NOT touch: prompts/enrich.txt, pipelines/ingestion/**, conf/enrichment.conf
+
+Prove: `grep -c 'def enrich(item: RssItem, model: String)' pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeCliClient.scala`
+
+Stop when the proof prints 1.
+
+3. Replace the entire contents of pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeModelReadinessProbe.scala with exactly:
+
+```scala
+package newspipe.infrastructure.llmdataenricher
+
+import newspipe.application.ports.{CliReadinessProbe, ProbeResult}
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
+
+final class OpenCodeModelReadinessProbe(
+    models: List[String],
+    timeout: FiniteDuration,
+    binary: String = "opencode"
+) extends CliReadinessProbe:
+  def name: String = "opencode-model"
+
+  def check(): ProbeResult =
+    val configured: List[String] = models.map(_.trim).filter(_.nonEmpty).distinct
+    if configured.isEmpty then ProbeResult.NotReady(name, "no model configured")
+    else
+      val failures: List[String] = configured.flatMap(model => checkOne(model))
+      if failures.size < configured.size then ProbeResult.Ready
+      else ProbeResult.NotReady(name, failures.mkString("; "))
+
+  private def checkOne(model: String): Option[String] =
+    Try {
+      val proc = new ProcessBuilder(binary, "run", "--format", "json", "--model", model, "reply with exactly: OK")
+        .redirectErrorStream(true)
+        .redirectInput(ProcessBuilder.Redirect.from(new java.io.File("/dev/null")))
+        .start()
+      val finished = proc.waitFor(timeout.toMillis, TimeUnit.MILLISECONDS)
+      if !finished then
+        OpenCodeCliClient.killTree(proc)
+        Some(s"model '$model' did not answer within ${timeout.toSeconds} s")
+      else
+        val source = scala.io.Source.fromInputStream(proc.getInputStream)
+        val text = try source.mkString finally source.close()
+        if proc.exitValue() != 0 || text.contains("\"type\":\"error\"") then
+          Some(s"model '$model' did not answer: ${text.take(200)}")
+        else None
+    }.getOrElse(Some(s"could not invoke $binary for model '$model'"))
+```
+
+Do NOT touch: CliReadinessProbe, OpenCodeCliReadinessProbe, pipelines/ingestion/**, conf/enrichment.conf
+
+Prove: `grep -c 'models: List\[String\]' pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeModelReadinessProbe.scala`
+
+Stop when the proof prints 1.
+
+4. Replace the entire contents of pipelines/enrichment/src/main/scala/newspipe/application/services/EnrichmentService.scala with exactly:
+
+```scala
+package newspipe.application.services
+
+import com.typesafe.scalalogging.LazyLogging
+import newspipe.application.ports.{BronzeMergeSink, EnrichmentPort, RawConsumer}
+import newspipe.domain.models.{BronzeUnit, Enrichment, RssItem}
+
+import java.time.Instant
+import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
+import scala.annotation.tailrec
+import scala.concurrent.duration.*
+import scala.concurrent.{Await, ExecutionContext, Future}
+
+/** What one poll produced: rows merged, items enriched, items dropped. */
+final case class PollReport(merged: Int, enriched: Int, failed: Int)
+
+final class EnrichmentService(
+    consumer: RawConsumer,
+    enrich: EnrichmentPort,
+    sink: BronzeMergeSink,
+    models: List[String],
+    workers: Int,
+    maxAttempts: Int
+) extends LazyLogging:
+  private val RetryPauseMillis: Long = 2000L
+  private val chain: List[String] =
+    val configured: List[String] = models.map(_.trim).filter(_.nonEmpty).distinct
+    if configured.isEmpty then throw new IllegalArgumentException("no enrichment model configured")
+    else configured
+  private val pool: ExecutorService = Executors.newFixedThreadPool(math.max(1, workers))
+  private given ExecutionContext = ExecutionContext.fromExecutorService(pool)
+
+  def close(): Unit =
+    pool.shutdown()
+    pool.awaitTermination(30, TimeUnit.SECONDS)
+    ()
+
+  /** Batches the poll across at most `workers` threads. Await uses Duration.Inf
+    * because every task is bounded: maxAttempts times the per-item timeout. */
+  def runOnce(now: Instant): PollReport =
+    val items = consumer.poll()
+    val futures: List[Future[Either[Throwable, Enrichment]]] =
+      items.map(item => Future(attempt(item)))
+    val results: List[Either[Throwable, Enrichment]] =
+      Await.result(Future.sequence(futures), Duration.Inf)
+    val paired = items.zip(results)
+    val units: List[BronzeUnit] = paired.collect { case (it, Right(en)) => BronzeUnit.fromRss(it, en, now) }
+    val failed: Int = paired.count(_._2.isLeft)
+    val merged: Int = sink.merge(units)
+    consumer.commit()
+    PollReport(merged, units.size, failed)
+
+  private def attempt(item: RssItem): Either[Throwable, Enrichment] =
+    val total: Int = math.max(1, maxAttempts)
+    @tailrec
+    def loop(remaining: Int): Either[Throwable, Enrichment] =
+      val used: Int = total - remaining
+      val attemptNo: Int = used + 1
+      val model: String = chain(used % chain.size)
+      enrich.enrich(item, model) match
+        case Right(en) => Right(en)
+        case Left(err) if remaining > 1 =>
+          logger.warn(s"enrichment attempt $attemptNo of $total failed for ${item.link} with $model: ${err.getMessage}")
+          Thread.sleep(RetryPauseMillis)
+          loop(remaining - 1)
+        case Left(err) => Left(err)
+    loop(total)
+```
+
+Do NOT touch: BronzeUnit, Enrichment, KafkaRawConsumer, DeltaMergeSink, pipelines/ingestion/**, conf/enrichment.conf
+
+Prove: `grep -c 'chain(used % chain.size)' pipelines/enrichment/src/main/scala/newspipe/application/services/EnrichmentService.scala`
+
+Stop when the proof prints 1.
+
+5. Replace the entire contents of pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala with exactly:
+
+```scala
+package newspipe.control.dependencyInjection
+
+import newspipe.application.services.{EnrichmentService, ReadinessGate}
+import newspipe.infrastructure.bronze.{DeltaMergeSink, HttpObjectStoreReadinessProbe}
+import newspipe.infrastructure.env.EnvConfig
+import newspipe.infrastructure.kafka.{KafkaRawConsumer, TcpKafkaReadinessProbe}
+import newspipe.infrastructure.llmdataenricher.{OpenCodeCliClient, OpenCodeCliReadinessProbe, OpenCodeModelReadinessProbe}
+import org.apache.spark.sql.SparkSession
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.*
+
+final class AppContainer(env: EnvConfig):
+  private val models: List[String] = env.opencodeModel :: env.opencodeFallbackModels
+  val spark: SparkSession = SparkSession.builder()
+    .appName("newspipe-enrichment")
+    .master(env.sparkMaster)
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+    .config("spark.hadoop.fs.s3a.endpoint", env.s3Endpoint)
+    .config("spark.hadoop.fs.s3a.path.style.access", env.s3PathStyle.toString)
+    .config("spark.hadoop.fs.s3a.access.key", env.s3AccessKey)
+    .config("spark.hadoop.fs.s3a.secret.key", env.s3SecretKey)
+    .getOrCreate()
+  val consumer = new KafkaRawConsumer(env.kafkaBootstrap, env.rawTopic, env.groupId)
+  val enrich = new OpenCodeCliClient(FiniteDuration(env.opencodeTimeoutSeconds, TimeUnit.SECONDS))
+  val sink = new DeltaMergeSink(spark, env.bronzePath)
+  val service = new EnrichmentService(consumer, enrich, sink, models, env.opencodeWorkers, env.opencodeMaxAttempts)
+  val readiness: ReadinessGate = new ReadinessGate(
+    List(
+      new TcpKafkaReadinessProbe(env.kafkaBootstrap, 3000),
+      new HttpObjectStoreReadinessProbe(env.s3Endpoint, env.s3Bucket, 3000),
+      new OpenCodeCliReadinessProbe("opencode"),
+      new OpenCodeModelReadinessProbe(models, FiniteDuration(30, TimeUnit.SECONDS))
+    ),
+    maxWait = 60.seconds,
+    interval = 2.seconds,
+    sleep = d => Thread.sleep(d.toMillis)
+  )
+
+  def close(): Unit =
+    service.close()
+    consumer.close()
+    spark.stop()
+```
+
+Do NOT touch: Spark config keys, Main.scala, Env.scala, pipelines/ingestion/**
+
+Prove: `grep -c 'env.opencodeModel :: env.opencodeFallbackModels' pipelines/enrichment/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala`
+
+Stop when the proof prints 1.
+
+6. Update pipelines/enrichment/src/test/scala/newspipe/MergeBackfillSpec.scala for the new port and constructor. Replace:
+
+```scala
+      val port = new EnrichmentPort:
+        def enrich(i: RssItem): Either[Throwable, Enrichment] =
+          if i.guid == "g2" then Left(new RuntimeException("boom"))
+          else Right(Enrichment("S", Nil, GeoArea("Global"), Nil, Nil, Urgency("low"), "en"))
+```
+
+with:
+
+```scala
+      val port = new EnrichmentPort:
+        def enrich(i: RssItem, model: String): Either[Throwable, Enrichment] =
+          if i.guid == "g2" then Left(new RuntimeException("boom"))
+          else Right(Enrichment("S", Nil, GeoArea("Global"), Nil, Nil, Urgency("low"), "en"))
+```
+
+Then replace:
+
+```scala
+      new EnrichmentService(consumer, port, sink, 1, 1).runOnce(now).merged shouldBe 1
+```
+
+with:
+
+```scala
+      new EnrichmentService(consumer, port, sink, List("test/model"), 1, 1).runOnce(now).merged shouldBe 1
+```
+
+Do NOT touch: the Delta merge examples, the Spark setup, pipelines/ingestion/**
+
+Prove: `grep -c 'List("test/model")' pipelines/enrichment/src/test/scala/newspipe/MergeBackfillSpec.scala`
+
+Stop when the proof prints 1.
+
+7. Replace the entire contents of pipelines/enrichment/src/test/scala/newspipe/StdinIsolationSpec.scala with exactly:
+
+```scala
+package newspipe
+
+import newspipe.application.ports.ProbeResult
+import newspipe.domain.models.RssItem
+import newspipe.infrastructure.llmdataenricher.{OpenCodeCliClient, OpenCodeModelReadinessProbe}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+import java.nio.file.{Files, Path}
+import scala.concurrent.duration.*
+
+class StdinIsolationSpec extends AnyFunSpec with Matchers:
+  private val item: RssItem = RssItem("g1", "https://feed/x", "T", "https://a/g1", None, "Body")
+
+  private def fakeOpenCode(answer: String, failOn: String): Path =
+    val script: Path = Files.createTempFile("fake-opencode", ".sh")
+    Files.writeString(
+      script,
+      s"""#!/bin/sh
+         |cat >/dev/null
+         |case "$$*" in
+         |  *"$failOn"*) printf '%s\\n' '{"type":"error"}'; exit 1 ;;
+         |  *) printf '%s\\n' '$answer'; exit 0 ;;
+         |esac
+         |""".stripMargin
+    )
+    script.toFile.setExecutable(true)
+    script
+
+  private val enrichmentAnswer: String =
+    "{\"type\":\"text\",\"part\":{\"text\":\"{\\\"summary\\\":\\\"S\\\",\\\"countries\\\":[],\\\"geoArea\\\":\\\"Global\\\",\\\"topics\\\":[],\\\"actors\\\":[],\\\"urgency\\\":\\\"low\\\",\\\"language\\\":\\\"en\\\"}\"}}"
+
+  describe("stdin isolation") {
+    it("enriches when the child would otherwise block on the inherited pipe") {
+      val binary: Path = fakeOpenCode(enrichmentAnswer, "never")
+      val result = new OpenCodeCliClient(5.seconds, binary.toString).enrich(item, "fake/model")
+      result.isRight shouldBe true
+      result.toOption.map(_.summary) shouldBe Some("S")
+    }
+
+    it("reports ready when the child would otherwise block on the inherited pipe") {
+      val binary: Path = fakeOpenCode("{\"type\":\"text\",\"part\":{\"text\":\"OK\"}}", "never")
+      new OpenCodeModelReadinessProbe(List("fake/model"), 5.seconds, binary.toString).check() shouldBe ProbeResult.Ready
+    }
+
+    it("reports ready when one model in the chain answers and another does not") {
+      val binary: Path = fakeOpenCode("{\"type\":\"text\",\"part\":{\"text\":\"OK\"}}", "bad/model")
+      new OpenCodeModelReadinessProbe(List("bad/model", "good/model"), 5.seconds, binary.toString).check() shouldBe ProbeResult.Ready
+    }
+
+    it("names every configured model when none answers") {
+      val binary: Path = fakeOpenCode("{\"type\":\"text\",\"part\":{\"text\":\"OK\"}}", "bad/model")
+      val result = new OpenCodeModelReadinessProbe(List("bad/model"), 5.seconds, binary.toString).check()
+      result shouldBe a[ProbeResult.NotReady]
+      result.asInstanceOf[ProbeResult.NotReady].detail should include("bad/model")
+    }
+  }
+```
+
+Do NOT touch: existing test files other than this one and MergeBackfillSpec, pipelines/ingestion/**, conf/enrichment.conf
+
+Prove: `grep -c 'names every configured model' pipelines/enrichment/src/test/scala/newspipe/StdinIsolationSpec.scala`
+
+Stop when the proof prints 1.
+
+8. Create pipelines/enrichment/src/test/scala/newspipe/ModelFallbackSpec.scala with exactly:
+
+```scala
+package newspipe
+
+import newspipe.application.ports.*
+import newspipe.application.services.EnrichmentService
+import newspipe.domain.models.*
+import newspipe.domain.valueObjects.{GeoArea, Urgency}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+import java.time.Instant
+
+class ModelFallbackSpec extends AnyFunSpec with Matchers:
+  private def item(g: String): RssItem = RssItem(g, "https://feed/x", s"T$g", s"https://a/$g", None, "Body")
+
+  describe("EnrichmentService model fallback") {
+    it("rotates from the primary to the fallback within maxAttempts") {
+      var calls: List[String] = Nil
+      val consumer = new RawConsumer:
+        def poll(): List[RssItem] = List(item("g1"))
+        def commit(): Unit = ()
+      val port = new EnrichmentPort:
+        def enrich(i: RssItem, model: String): Either[Throwable, Enrichment] =
+          calls = calls :+ model
+          if model == "primary" then Left(new RuntimeException("primary down"))
+          else Right(Enrichment("S", Nil, GeoArea("Global"), Nil, Nil, Urgency("low"), "en"))
+      val sink = new BronzeMergeSink:
+        def merge(units: List[BronzeUnit]): Int = units.size
+      val report = new EnrichmentService(consumer, port, sink, List("primary", "fallback"), 1, 2)
+        .runOnce(Instant.parse("2026-10-29T00:00:00Z"))
+      report.enriched shouldBe 1
+      report.failed shouldBe 0
+      calls shouldBe List("primary", "fallback")
+    }
+  }
+```
+
+Do NOT touch: existing test files other than this one, MergeBackfillSpec and StdinIsolationSpec, pipelines/ingestion/**, conf/enrichment.conf
+
+Prove: `cd pipelines/enrichment && sbt "testOnly newspipe.ModelFallbackSpec"`
+
+Stop when sbt exits 0 and the fallback example passes.

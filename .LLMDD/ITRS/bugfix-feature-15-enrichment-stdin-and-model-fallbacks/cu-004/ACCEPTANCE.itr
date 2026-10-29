@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-004
+
+- Criterion 6: `cd pipelines/enrichment && sbt "testOnly newspipe.ModelFallbackSpec"` exits 0; calls are List("primary", "fallback") and report.enriched is 1.
+- Criterion 7: `cd pipelines/enrichment && sbt "testOnly newspipe.StdinIsolationSpec"` exits 0, including the one-answers and none-answers examples.
+- Criterion 9: `cd pipelines/enrichment && sbt test` exits 0 with every suite green.

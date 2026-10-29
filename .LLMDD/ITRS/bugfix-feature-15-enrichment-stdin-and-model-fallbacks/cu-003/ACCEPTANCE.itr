@@ -1,0 +1,4 @@
+# ACCEPTANCE: cu-003
+
+- Criterion 3: `cd pipelines/enrichment && sbt "testOnly newspipe.ReadinessGateSpec"` exits 0. Failing-before evidence: with the old loop body, the wall-clock example observes 30 checks instead of 2.
+- Criterion 9: `cd pipelines/enrichment && sbt compile` exits 0 with no errors.

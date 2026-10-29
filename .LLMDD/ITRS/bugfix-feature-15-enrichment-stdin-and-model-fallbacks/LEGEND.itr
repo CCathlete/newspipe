@@ -1,0 +1,21 @@
+# CU-ID: legend
+# CU-TYPE: LegendCU
+# TIMESTAMP: 2026-10-29T08:02:25.988549175Z
+# DTR-COORDINATES: 
+
+Legend.
+
+CU IDs: cu-001, cu-002, ... executed in wave order.
+
+STATUS values a Coder reports: COMPLETED, BLOCKED, ESCALATED.
+
+SEVERITY: CRITICAL, MAJOR, MINOR, TRIVIAL. CRITICAL or MAJOR must not be shipped.
+
+Prove: a line under each implementation step is the command that demonstrates the step landed. Run it. A step without a passing Prove is not done.
+
+Do NOT touch: an explicit list. Violating it is a CRITICAL finding.
+
+Stop when: the stopping condition for a step. Do not proceed past it.
+
+COORDINATES: DTR keys for the files a CU reads or changes. A key absent from the baseline DTR means the file is created by this CU.
+

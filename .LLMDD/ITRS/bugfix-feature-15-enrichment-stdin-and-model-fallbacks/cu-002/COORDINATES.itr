@@ -1,0 +1,7 @@
+# COORDINATES: cu-002
+
+FILE.pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeCliClient.scala
+FILE.pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeModelReadinessProbe.scala
+FILE.pipelines/enrichment/build.sbt
+FILE.scripts/newspipe
+FILE.pipelines/enrichment/src/test/scala/newspipe/StdinIsolationSpec.scala

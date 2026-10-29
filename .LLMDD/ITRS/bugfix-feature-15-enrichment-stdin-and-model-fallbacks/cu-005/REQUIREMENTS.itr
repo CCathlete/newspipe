@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-005
+
+Prove the fix on the live stack: enrichment starts, consumes from raw_rss, enriches at least one item with the nvidia chain, commits a non-zero offset, and produces no opencode timeout. Do not provision infrastructure.

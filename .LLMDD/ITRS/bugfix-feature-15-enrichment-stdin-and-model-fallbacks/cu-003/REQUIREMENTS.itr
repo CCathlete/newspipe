@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-003
+
+Make ReadinessGate honour maxWait as a wall-clock bound. The gate must read a clock instead of assuming every probe consumed exactly interval. The default clock is Instant.now; tests inject a fake clock.

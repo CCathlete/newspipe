@@ -1,0 +1,192 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. Add the binary parameter and stdin redirect in pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeCliClient.scala. Replace this line:
+
+```scala
+final class OpenCodeCliClient(model: String, timeout: FiniteDuration) extends EnrichmentPort:
+```
+
+with:
+
+```scala
+final class OpenCodeCliClient(model: String, timeout: FiniteDuration, binary: String = "opencode") extends EnrichmentPort:
+```
+
+Then replace this process construction:
+
+```scala
+      val proc = new ProcessBuilder("opencode", "run", "--format", "json", "--model", model, prompt)
+        .redirectErrorStream(false)
+        .start()
+```
+
+with:
+
+```scala
+      val proc = new ProcessBuilder(binary, "run", "--format", "json", "--model", model, prompt)
+        .redirectErrorStream(false)
+        .redirectInput(ProcessBuilder.Redirect.from(new java.io.File("/dev/null")))
+        .start()
+```
+
+Do NOT touch: prompts/enrich.txt, pipelines/ingestion/**, conf/enrichment.conf
+
+Prove: `grep -c 'redirectInput' pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeCliClient.scala`
+
+Stop when the proof prints 1.
+
+2. Add the binary parameter, the stdin redirect and tree cleanup in pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeModelReadinessProbe.scala. Replace this line:
+
+```scala
+final class OpenCodeModelReadinessProbe(model: String, timeout: FiniteDuration) extends CliReadinessProbe:
+```
+
+with:
+
+```scala
+final class OpenCodeModelReadinessProbe(model: String, timeout: FiniteDuration, binary: String = "opencode") extends CliReadinessProbe:
+```
+
+Then replace this process construction:
+
+```scala
+        val proc = new ProcessBuilder("opencode", "run", "--format", "json", "--model", model, "reply with exactly: OK")
+          .redirectErrorStream(true)
+          .start()
+```
+
+with:
+
+```scala
+        val proc = new ProcessBuilder(binary, "run", "--format", "json", "--model", model, "reply with exactly: OK")
+          .redirectErrorStream(true)
+          .redirectInput(ProcessBuilder.Redirect.from(new java.io.File("/dev/null")))
+          .start()
+```
+
+Then replace this timeout branch:
+
+```scala
+        if !finished then
+          proc.destroyForcibly()
+          ProbeResult.NotReady(name, s"model '$model' did not answer within ${timeout.toSeconds} s")
+```
+
+with:
+
+```scala
+        if !finished then
+          OpenCodeCliClient.killTree(proc)
+          ProbeResult.NotReady(name, s"model '$model' did not answer within ${timeout.toSeconds} s")
+```
+
+Do NOT touch: pipelines/ingestion/**, conf/enrichment.conf
+
+Prove: `grep -c 'redirectInput' pipelines/enrichment/src/main/scala/newspipe/infrastructure/llm-data-enricher/OpenCodeModelReadinessProbe.scala`
+
+Stop when the proof prints 1 and the file still compiles.
+
+3. Add connectInput := false in pipelines/enrichment/build.sbt. This line:
+
+```scala
+    run / fork := true,
+```
+
+becomes:
+
+```scala
+    run / fork := true,
+    run / connectInput := false,
+```
+
+Do NOT touch: Test / fork, the Compile / run override, libraryDependencies, pipelines/ingestion/**
+
+Prove: `grep -c 'connectInput' pipelines/enrichment/build.sbt`
+
+Stop when the proof prints 1.
+
+4. Add stdin isolation to the launcher Popen call in scripts/newspipe. Replace this exact block:
+
+```python
+                proc = subprocess.Popen(
+                    ["sbt", "run"],
+                    cwd=REPO_ROOT / "pipelines" / name,
+                    env=env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+```
+
+with:
+
+```python
+                proc = subprocess.Popen(
+                    ["sbt", "run"],
+                    cwd=REPO_ROOT / "pipelines" / name,
+                    env=env,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+```
+
+Do NOT touch: the relay, wait, stop and status methods, pipelines/ingestion/**
+
+Prove: `grep -c 'stdin=subprocess.DEVNULL' scripts/newspipe`
+
+Stop when the proof prints 1.
+
+5. Create pipelines/enrichment/src/test/scala/newspipe/StdinIsolationSpec.scala with exactly:
+
+```scala
+package newspipe
+
+import newspipe.application.ports.ProbeResult
+import newspipe.domain.models.RssItem
+import newspipe.infrastructure.llmdataenricher.{OpenCodeCliClient, OpenCodeModelReadinessProbe}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+
+import java.nio.file.{Files, Path}
+import scala.concurrent.duration.*
+
+class StdinIsolationSpec extends AnyFunSpec with Matchers:
+  private val item: RssItem = RssItem("g1", "https://feed/x", "T", "https://a/g1", None, "Body")
+
+  private def fakeOpenCode(answer: String): Path =
+    val script: Path = Files.createTempFile("fake-opencode", ".sh")
+    Files.writeString(
+      script,
+      s"""#!/bin/sh
+         |cat >/dev/null
+         |printf '%s\\n' '$answer'
+         |""".stripMargin
+    )
+    script.toFile.setExecutable(true)
+    script
+
+  private val enrichmentAnswer: String =
+    "{\"type\":\"text\",\"part\":{\"text\":\"{\\\"summary\\\":\\\"S\\\",\\\"countries\\\":[],\\\"geoArea\\\":\\\"Global\\\",\\\"topics\\\":[],\\\"actors\\\":[],\\\"urgency\\\":\\\"low\\\",\\\"language\\\":\\\"en\\\"}\"}}"
+
+  describe("stdin isolation") {
+    it("enriches when the child would otherwise block on the inherited pipe") {
+      val binary: Path = fakeOpenCode(enrichmentAnswer)
+      val result = new OpenCodeCliClient("fake/model", 5.seconds, binary.toString).enrich(item)
+      result.isRight shouldBe true
+      result.toOption.map(_.summary) shouldBe Some("S")
+    }
+
+    it("reports ready when the child would otherwise block on the inherited pipe") {
+      val binary: Path = fakeOpenCode("{\"type\":\"text\",\"part\":{\"text\":\"OK\"}}")
+      new OpenCodeModelReadinessProbe("fake/model", 5.seconds, binary.toString).check() shouldBe ProbeResult.Ready
+    }
+  }
+```
+
+Do NOT touch: existing test files, pipelines/ingestion/**, conf/enrichment.conf
+
+Prove: `cd pipelines/enrichment && sbt "testOnly newspipe.StdinIsolationSpec"`
+
+Stop when sbt exits 0 and both examples pass.
