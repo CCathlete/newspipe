@@ -1,0 +1,5 @@
+FEATURES_IMPLEMENTED=feat-4-refactor-python-into-discipline
+MAX_ATTEMPTS=3
+CUS=arch,legend,cu-001,cu-002,cu-003,cu-004
+ENFORCED_BY=itr-compiler
+SUMMARY=Refactor run-waves.py and test_synopsis_budget.py into full ARCH.PYTHON compliance (explicit annotations, no Any, slotted dataclasses, monadic errors) with zero behavior change; fixture util.py excluded.

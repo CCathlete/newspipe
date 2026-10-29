@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+Harden the same-model correction pass and wire breach context into leads. Fix _breach_detail_for_cu to return only breaches where b.scope == cu_id, or shared-write breaches where cu_id appears in the shared-write pair as recorded by the breach set; remove dead branches. Route unattributed breaches to the wave lead only and never to a coder. In run_wave_parallel, remove all try/except; use match/case on Ok/Err. Re-measure only the corrected CU per attempt, track colour by cu_id mapping (not dict key order), and after exhausting 3 attempts mark the CU for escalation with breach detail passed into run_per_cu_lead. Inject boundary breach detail into run_per_cu_lead and run_code_lead prompts. Keep the same model, no fallbacks for corrections.

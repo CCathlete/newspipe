@@ -1,0 +1,6 @@
+# REQUIREMENTS: cu-004
+# TIMESTAMP: 2026-10-09
+
+Batch files (JSON/YAML) can carry the four per-CU components plus synopsis
+data through to the models, so the writer and validator (cu-002, cu-003)
+receive everything they enforce.

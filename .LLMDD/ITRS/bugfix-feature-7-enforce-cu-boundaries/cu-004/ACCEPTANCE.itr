@@ -1,0 +1,8 @@
+# ACCEPTANCE: cu-004
+
+T004.1 No-touch lists accept commas and semicolons and wrapped continuation lines.
+T004.2 Directory entries expand to dir/** and a leading ./ is normalised.
+T004.3 Star matching is segment-aware and resolve_patterns follows symlinks.
+T004.4 Unknown clauses land in unparsed and empty or prose-only lists are unenforceable.
+T004.5 write_paths is step-scoped, excludes Prove and guard/stop lines, and ignores fenced paths.
+T004.6 Every shipped bugfix-feature-5 frame parses with nothing unparsed.

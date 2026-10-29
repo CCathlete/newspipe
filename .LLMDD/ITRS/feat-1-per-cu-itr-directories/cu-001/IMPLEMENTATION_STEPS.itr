@@ -1,0 +1,52 @@
+# IMPLEMENTATION_STEPS: cu-001 (domain models)
+# TIMESTAMP: 2026-10-09
+# WORKDIR: itr-compiler/  (all sbt commands run here)
+
+PREREQUISITE: Scala 2.13.15 via sbt. Verify with `sbt -v compile` before
+changing anything; it must be green on the untouched tree.
+
+STEP 1 — Add the required-components set and component payload to the CU model.
+File: src/main/scala/itrcompiler/domain/models/CU.scala
+- Add field `components: Map[String, String] = Map.empty` to the `CU` case
+  class. Keys are exactly: coordinates, requirements, implementation-steps,
+  acceptance. Default empty = backward compatible with old batches.
+- Add to `object CU`:
+  `val requiredComponents: Set[String] = Set("coordinates", "requirements", "implementation-steps", "acceptance")`
+  `val componentFileNames: Map[String, String] = Map("coordinates" -> "COORDINATES.itr", "requirements" -> "REQUIREMENTS.itr", "implementation-steps" -> "IMPLEMENTATION_STEPS.itr", "acceptance" -> "ACCEPTANCE.itr")`
+- Add method to `CU`:
+  `def missingComponents: Set[String] = CU.requiredComponents -- components.keySet`
+- Do NOT touch `fileName`, `isRequiredPart`, `CUType`, or `requiredParts`.
+  ARCH/LEGEND file names stay exactly as they are.
+
+STEP 2 — Add the batch synopsis model.
+New file: src/main/scala/itrcompiler/domain/models/CUSynopsis.scala
+```scala
+package itrcompiler.domain.models
+
+final case class CUSynopsis(
+  features: Seq[String] = Seq.empty,
+  maxAttempts: Int = 3,
+  summary: String = ""
+) extends Model {
+  def isComplete: Boolean = features.nonEmpty && summary.trim.nonEmpty
+}
+```
+Default maxAttempts=3 matches SYNOPSIS.itr of feat-1. `isComplete` is false
+when the summary is missing or blank — the validator (cu-002) relies on it.
+
+STEP 3 — Attach synopsis to the batch.
+File: src/main/scala/itrcompiler/domain/models/CUBatch.scala
+- Change to `final case class CUBatch(cus: Seq[CU], synopsis: Option[CUSynopsis] = None)`.
+- Grep for every `CUBatch(` call site (main + test) and confirm each still
+  compiles — the default keeps all existing call sites source-compatible.
+
+STEP 4 — Verify.
+- `sbt compile` must be green.
+- `sbt "testOnly itrcompiler.domain.models.*"` must be green (existing
+  CUTest, CUBatchTest, CompileCommandTest untouched and passing).
+- Write one new unit test file
+  src/test/scala/itrcompiler/domain/models/CUSynopsisTest.scala asserting:
+  default maxAttempts is 3; `isComplete` false on empty summary; CU with all
+  four component keys has empty `missingComponents`.
+- Do NOT implement validation errors, writing, or parsing here — those are
+  cu-002, cu-003, cu-004. Stop when models compile and the new test passes.

@@ -1,0 +1,266 @@
+# IMPLEMENTATION_STEPS: cu-004
+
+1. Replace .LLMDD/tools/cu_scope.py with the hardened implementation below using only standard library imports, explicit annotations, no typing.Any, and the NoTouch shape entries patterns unparsed:
+
+```python
+"""Shared CU scope vocabulary: parse a Do NOT touch list into matchable patterns."""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from fnmatch import fnmatch
+from pathlib import Path
+from typing import Final, Sequence, TypeAlias
+
+Pattern: TypeAlias = str
+
+NO_TOUCH_LABEL: Final[str] = "Do NOT touch:"
+
+PROSE_TO_GLOB: Final[dict[str, str]] = {
+    "any scala source": "**/*.scala",
+    "any python tool": ".LLMDD/tools/*.py",
+    "any itr frame or feedback file": ".LLMDD/ITRS/**",
+    "any itr frame file": ".LLMDD/ITRS/**",
+    "any dtr file": ".LLMDD/DTRS/**",
+    "any dtr or itr artifact": ".LLMDD/ITRS/**",
+}
+
+GLOB_CHARS: Final[str] = "*?["
+
+_ENTRY_SEPARATORS: Final[re.Pattern[str]] = re.compile(r"[;,]")
+_PATHISH: Final[re.Pattern[str]] = re.compile(r"^[\w./*-]+$")
+_FENCE: Final[re.Pattern[str]] = re.compile(r"```.*?```", re.S)
+_STEP: Final[re.Pattern[str]] = re.compile(r"(?m)^(\d+)\.\s")
+_EXT: Final[re.Pattern[str]] = re.compile(
+    r"[\w./-]+\.(?:py|scala|md|json|itr|txt|sbt|yaml|yml)")
+
+
+@dataclass(frozen=True, slots=True)
+class NoTouch:
+    entries: Sequence[str]
+    patterns: Sequence[Pattern]
+    unparsed: Sequence[str]
+
+
+EMPTY: Final[NoTouch] = NoTouch(entries=(), patterns=(), unparsed=())
+
+
+def prose_only(body: str) -> str:
+    return _FENCE.sub("", body)
+
+
+def _strip_dot_slash(value: str) -> str:
+    stripped: str = value
+    while stripped.startswith("./"):
+        stripped = stripped[2:]
+    return stripped
+
+
+def _collect_label_lines(prose: str) -> Sequence[str]:
+    """Return the label line plus every continuation line under it."""
+    collected: list[str] = []
+    inside: bool = False
+    line: str
+    for line in prose.splitlines():
+        stripped: str = line.strip()
+        if not inside:
+            if stripped.startswith(NO_TOUCH_LABEL):
+                inside = True
+                collected.append(stripped[len(NO_TOUCH_LABEL):])
+            continue
+        if not stripped:
+            break
+        if stripped.startswith((NO_TOUCH_LABEL, "Stop when", "Prove:",
+                                "Acceptance", "```")):
+            break
+        collected.append(stripped)
+    return collected
+
+
+def _split_entries(body: str) -> Sequence[str]:
+    joined: str = " ".join(_collect_label_lines(prose_only(body)))
+    return [part.strip() for part in _ENTRY_SEPARATORS.split(joined) if part.strip()]
+
+
+def _trim(entry: str) -> str:
+    return entry.rstrip(".;:")
+
+
+def _looks_like_dir(clean: str) -> bool:
+    if any(ch in clean for ch in GLOB_CHARS):
+        return False
+    bare: str = clean.rstrip("/")
+    tail: str = bare.rsplit("/", 1)[-1]
+    return "/" in bare and "." not in tail
+
+
+def _to_pattern(entry: str) -> Pattern | None:
+    clean: str = _strip_dot_slash(_trim(entry))
+    mapped: str | None = PROSE_TO_GLOB.get(clean.lower())
+    if mapped is not None:
+        return mapped
+    if not _PATHISH.match(clean):
+        return None
+    if _looks_like_dir(clean):
+        return clean.rstrip("/") + "/**"
+    return clean
+
+
+def parse_no_touch(body: str) -> NoTouch:
+    entries: Sequence[str] = _split_entries(body)
+    patterns: list[Pattern] = []
+    unparsed: list[str] = []
+    entry: str
+    for entry in entries:
+        pattern: Pattern | None = _to_pattern(entry)
+        if pattern is None:
+            unparsed.append(entry)
+        else:
+            patterns.append(pattern)
+    return NoTouch(entries=entries, patterns=tuple(patterns), unparsed=tuple(unparsed))
+
+
+def has_enforceable_patterns(declared: NoTouch) -> bool:
+    """A no-touch list that yields no pattern enforces nothing."""
+    return len(declared.patterns) > 0
+
+
+def resolve_patterns(patterns: Sequence[Pattern], root: Path) -> Sequence[Pattern]:
+    """Resolve each non-glob prefix through the filesystem.
+
+    A declared path that traverses a symlink also matches the real tracked
+    path git reports, and the real path also matches a declared symlink."""
+    resolved_root: Path = root.resolve()
+    out: list[Pattern] = []
+    pattern: Pattern
+    for pattern in patterns:
+        out.append(_resolve_pattern(pattern, resolved_root))
+    return tuple(dict.fromkeys(out))
+
+
+def _resolve_pattern(pattern: Pattern, resolved_root: Path) -> Pattern:
+    parts: Sequence[str] = pattern.split("/")
+    head: list[str] = []
+    tail: list[str] = []
+    part: str
+    for part in parts:
+        if any(ch in part for ch in GLOB_CHARS):
+            break
+        head.append(part)
+    if not head:
+        return pattern
+    tail = list(parts[len(head):])
+    try:
+        resolved: Path = resolved_root.joinpath(*head).resolve()
+        relative: Path = resolved.relative_to(resolved_root)
+    except (OSError, ValueError):
+        return pattern
+    prefix: str = relative.as_posix()
+    if prefix == ".":
+        return "/".join(tail) if tail else pattern
+    return "/".join([prefix] + tail)
+
+
+def _match_parts(pattern: Sequence[str], path: Sequence[str]) -> bool:
+    if not pattern:
+        return not path
+    head: str = pattern[0]
+    if head == "**":
+        if _match_parts(pattern[1:], path):
+            return True
+        return bool(path) and _match_parts(pattern, path[1:])
+    if not path:
+        return False
+    return fnmatch(path[0], head) and _match_parts(pattern[1:], path[1:])
+
+
+def _matches(pattern: Pattern, path: str) -> bool:
+    """Segment-aware glob: a single star never crosses a path separator."""
+    return _match_parts(tuple(pattern.split("/")), tuple(path.split("/")))
+
+
+def is_touched(patterns: Sequence[Pattern], path: str) -> bool:
+    normalised: str = _strip_dot_slash(path)
+    pattern: Pattern
+    for pattern in patterns:
+        if _matches(pattern, normalised):
+            return True
+    return False
+
+
+def _step_bodies(prose: str) -> Sequence[str]:
+    return _STEP.split(prose)[2::2]
+
+
+def _step_declaration(step: str) -> str:
+    cut: str = step.split(NO_TOUCH_LABEL, 1)[0]
+    cut = cut.split("Prove:", 1)[0]
+    cut = cut.split("Stop when", 1)[0]
+    return cut
+
+
+def _repo_rooted(candidate: str) -> str | None:
+    cleaned: str = _strip_dot_slash(candidate)
+    prefix: str
+    for prefix in ("src", "conf", "project", "docs", "scripts", "itr-buffer",
+                   "dtr-builder", "itr-compiler", "commit-tool", ".LLMDD"):
+        marker: str = prefix + "/"
+        start: int = 0
+        while True:
+            idx: int = cleaned.find(marker, start)
+            if idx == -1:
+                break
+            if idx == 0 or cleaned[idx - 1] == "/":
+                return cleaned[idx:]
+            start = idx + 1
+    return None
+
+
+def write_paths(body: str) -> Sequence[str]:
+    """Return repo-rooted paths the CU declares it changes.
+
+    Only numbered steps count, only prose outside a fence is read, and the
+    Prove and no-touch lines are cut away: a path named in a proof or a
+    guard is read, not written."""
+    prose: str = prose_only(body)
+    found: list[str] = []
+    step: str
+    for step in _step_bodies(prose):
+        candidate: str
+        for candidate in _EXT.findall(_step_declaration(step)):
+            rooted: str | None = _repo_rooted(candidate)
+            if rooted is not None:
+                found.append(rooted)
+    return tuple(dict.fromkeys(found))
+
+```
+
+Prove: `python3 -c "import ast; ast.parse(open('.LLMDD/tools/cu_scope.py').read()); print('ok')"`
+
+2. Probe the hardened vocabulary:
+
+```sh
+cd /home/kcat/Repos/llm-driven-design
+PYTHONPATH=.LLMDD/tools python3 - <<'PY'
+from cu_scope import has_enforceable_patterns, is_touched, parse_no_touch, resolve_patterns, write_paths
+base = '.LLMDD/ITRS/bugfix-feature-5-enforce-advisor-read-only-approval'
+for cu in ('cu-001','cu-002','cu-003','cu-004'):
+    p = parse_no_touch(open(base+'/'+cu+'/IMPLEMENTATION_STEPS.itr').read())
+    assert not p.unparsed and has_enforceable_patterns(p)
+sm=parse_no_touch('Do NOT touch: .LLMDD/tools/a.py; .LLMDD/tools/b.py\nStop when green.\n')
+assert len(sm.patterns)==2
+wr=parse_no_touch('Do NOT touch: .opencode/agents/v.md,\n        any Python tool.\nStop when green.\n')
+assert '.LLMDD/tools/*.py' in wr.patterns
+assert is_touched(wr.patterns, '.LLMDD/tools/x.py') and not is_touched(wr.patterns, '.LLMDD/tools/sub/x.py')
+assert parse_no_touch('Do NOT touch: .LLMDD/agents\nStop when green.\n').patterns==('.LLMDD/agents/**',)
+assert parse_no_touch('Do NOT touch: the sys-prompt tensor, any Scala source\nStop when green.\n').unparsed==('the sys-prompt tensor',)
+r=resolve_patterns(parse_no_touch('Do NOT touch: .opencode/agents/llmdd/coder.md\nStop when green.\n').patterns, __import__('pathlib').Path('.'))
+assert '.LLMDD/agents/coder.md' in r
+print('ok')
+PY
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && PYTHONPATH=.LLMDD/tools python3 -c "from cu_scope import parse_no_touch,has_enforceable_patterns; print('ok')"`
+
+Do NOT touch: any DTR file, any ITR frame file, any ITR frame or feedback file, any Scala source
+Stop when the probes in step 2 print ok and all shipped bugfix-feature-5 frames parse cleanly.

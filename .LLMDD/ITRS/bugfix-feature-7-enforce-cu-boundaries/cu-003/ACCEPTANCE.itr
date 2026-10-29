@@ -1,0 +1,6 @@
+# ACCEPTANCE: cu-003
+
+T4 criterion 5. A CU starting with a sibling CU declared path already dirty fails before implementation begins, naming both the path and the owning CU.
+Prove: the step 4 probe prints PROBE_DETECTS_DIRTY, the step 6 evaluator prints CLASH_DETECTED, and the refusal block aborts execution with a descriptive failure message.
+T5 ownership index reads write targets from implementation steps, and wave planning is unaffected by the new pre-flight.
+Prove: the step 5 command prints INDEX_NON_EMPTY, and the step 7 dry run exits 0 listing all three CUs.

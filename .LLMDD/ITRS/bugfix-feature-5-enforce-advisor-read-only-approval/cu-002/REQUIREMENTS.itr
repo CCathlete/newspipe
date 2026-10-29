@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+Add a machine-checkable approval-grant rule to the system tensor plus an Approval gate section to the Advisor body so any Advisor write requires an explicit, specific Designer approval grant naming files plus commands plus reason, and prompt text never counts as approval. This delivers feature criteria 2 and 3 for the wording half and criterion 4 is kept by leaving all read paths unchanged. Depends on: cu-001 (frontmatter posture set first, wording second; both edit the Advisor file so ordering avoids a same-file clash).

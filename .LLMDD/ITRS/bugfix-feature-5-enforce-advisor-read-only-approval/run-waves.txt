@@ -1,0 +1,1 @@
+python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/bugfix-feature-5-enforce-advisor-read-only-approval --app repo --waves .LLMDD/ITRS/bugfix-feature-5-enforce-advisor-read-only-approval/waves.json

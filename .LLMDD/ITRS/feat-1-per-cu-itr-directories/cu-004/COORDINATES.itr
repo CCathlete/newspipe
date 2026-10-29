@@ -1,0 +1,7 @@
+# COORDINATES: cu-004
+# TIMESTAMP: 2026-10-09
+
+TYPE.scala.itrcompiler.control.cli.CliParser.scala.CliParser
+TYPE.scala.itrcompiler.application.services.ContentDeserialize.scala.ContentDeserialize
+TYPE.scala.itrcompiler.infrastructure.parsers.JSONFormat.scala.JSONFormat
+TYPE.scala.itrcompiler.infrastructure.parsers.YAMLFormat.scala.YAMLFormat

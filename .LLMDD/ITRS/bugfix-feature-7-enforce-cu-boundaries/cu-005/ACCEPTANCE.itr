@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-005
+
+T005.1 coder_writes reads all attempt logs for a prefix and extracts paths from write, edit, patch and shell redirections.
+T005.2 wave_writes unions git diff and untracked files and subtracts baseline_dirty.
+T005.3 attribute_writes returns per-CU sets and an unattributed residual.

@@ -1,0 +1,52 @@
+# IMPLEMENTATION_STEPS: cu-004 (batch schema: components + synopsis)
+# TIMESTAMP: 2026-10-09
+# WORKDIR: itr-compiler/
+# DEPENDS_ON: cu-001 merged (uses CU.components, CUSynopsis, CUBatch.synopsis)
+
+DESIGN DECISION (fixed, do not redesign): the top-level batch shapes stay
+exactly as today — JSON is an array of CU objects, YAML is a mapping of id
+to fields. New data travels in OPTIONAL keys only, so every old batch file
+compiles byte-identical to today.
+
+STEP 1 — JSON.
+File: src/main/scala/itrcompiler/infrastructure/parsers/JSONFormat.scala
+- In `parse`, after extracting `content`, optionally extract a
+  `"components"` object: keys coordinates/requirements/implementation-steps/
+  acceptance, string values (reuse `parseJsonString` for each value; unknown
+  keys ignored). Absent object -> `Map.empty` (old batches unaffected).
+- Top-level stays an array, so batch synopsis travels INSIDE an optional
+  object entry: `{"cu-id":"synopsis","cu-type":"synopsis",...}` is FORBIDDEN
+  (pollutes the CU namespace). Instead: the parser also accepts a top-level
+  object `{"synopsis": {"features": [...], "maxAttempts": N, "summary": "..."},
+  "cus": [...]}`. If input starts with `[`, parse as today with synopsis=None.
+- Construct `CU(..., components = comps)` and
+  `CUBatch(cus, synopsis = parsedSynopsis)`.
+- Extend `serialize` to round-trip both: emit `components` only when
+  non-empty, and the object form only when synopsis is defined; otherwise
+  emit exactly the legacy shape.
+
+STEP 2 — YAML.
+File: src/main/scala/itrcompiler/infrastructure/parsers/YAMLFormat.scala
+- Per-CU: optional indented `components:` mapping with the four keys (reuse
+  the existing per-property regex style, e.g.
+  `"""coordinates:\s*"(...)"` under a components block). Absent -> empty map.
+- Batch-level: optional top-level `synopsis:` mapping (sibling of the CU
+  entries, NOT nested under a CU id) with `features: [...]`,
+  `maxAttempts: <int>` (default 3 when absent), `summary: "..."`.
+  CAREFUL: the parser splits entries on lines starting at column 0 — a
+  top-level `synopsis:` block parses as one block; skip it in the CU loop
+  (match `id == "synopsis"`) and parse it separately.
+- Extend `serialize` symmetrically (omit absent parts).
+
+STEP 3 — CLI: no new flags.
+File: src/main/scala/itrcompiler/control/cli/CliParser.scala — UNCHANGED.
+Reuse `--json-content` / `--yaml-content` / `--force`. If you think you need
+a flag, stop and escalate: the schema-level design above must suffice.
+
+STEP 4 — Verify.
+- `sbt "testOnly itrcompiler.infrastructure.parsers.*"` green (JSONFormatTest,
+  YAMLFormatTest unmodified and passing = backward compatibility proven).
+- New tests in the same package: old-schema samples parse to empty
+  components + None synopsis; new-schema samples round-trip
+  (parse(serialize(batch)) == batch) for components, features, maxAttempts,
+  summary. This is the regression half of cu-004's ACCEPTANCE.

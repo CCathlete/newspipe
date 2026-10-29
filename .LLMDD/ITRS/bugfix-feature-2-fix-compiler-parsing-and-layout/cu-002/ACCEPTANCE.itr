@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-002
+
+Feature test T2 (criterion 3): compiling the bug-2 /tmp/batch_inline.json yields <out>/cu-001/{COORDINATES,REQUIREMENTS,IMPLEMENTATION_STEPS,ACCEPTANCE}.itr and no <out>/cu-001/cu-001.itr nor <out>/cu-001.itr. Feature test T3 (criterion 4): recompiling .LLMDD/ITRS/feat-1-per-cu-itr-directories/batch.json into an empty folder reproduces the checked-in layout (four component files per cu-001..cu-005, root ARCH.itr/LEGEND.itr, zero cu-*.itr blobs: find <out> -name "cu-*.itr" | wc -l equals 0).

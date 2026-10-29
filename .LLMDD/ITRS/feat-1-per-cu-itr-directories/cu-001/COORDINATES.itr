@@ -1,0 +1,9 @@
+# COORDINATES: cu-001
+# TIMESTAMP: 2026-10-09
+
+TYPE.scala.itrcompiler.domain.models.CU.scala.CU
+FILE.scala/itrcompiler/domain/models/CUBatch.scala
+FILE.scala/itrcompiler/domain/models/CompileCommand.scala
+
+NOTE: a coordinates value may name a DTR area that does not exist yet,
+meaning the CU creates it.

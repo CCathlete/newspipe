@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-001
+
+Feature test T1 (criteria 1-2): the two minimal bug-1 batches compile via .LLMDD/tools/itr-compiler --compile --json-content <batch> --out-folder <tmp>/ with exit 0 and Compiled 3 CU(s) for both; new unit test sbt "testOnly *JSONFormat* -- -z key-order" asserting equal CUBatch results across key orders is green. Command: sbt "testOnly *JSONFormat*" from itr-compiler/, expected all JSONFormat suites green.

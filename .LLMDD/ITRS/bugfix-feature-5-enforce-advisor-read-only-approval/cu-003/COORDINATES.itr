@@ -1,0 +1,3 @@
+# COORDINATES: cu-003
+
+FILE..LLMDD/tools/validate-steps.py, FILE..LLMDD/tools/run-waves.py. The first key is the Python-discipline plus dummy-proof reference shape for the new tool; the second key is the runner that invokes the gate during verification. The script path plus the approvals directory are creations absent from the baseline.

@@ -1,0 +1,9 @@
+# ACCEPTANCE: cu-006
+
+T006.1 A CU whose attributed set hits its own no-touch list fails with rule no-touch and the path is printed and written to boundary-breaches.txt.
+T006.2 Two CUs that write the same path in one wave both fail with rule shared-write.
+T006.3 An unattributed change that hits any no-touch list in the wave fails the wave with rule unattributed and names the guarded CUs.
+T006.4 A CU whose no-touch list yields no enforceable pattern fails with rule unenforceable.
+T006.5 A flat frame file is gated exactly like a per-CU folder.
+T006.6 A sibling CU's write never appears in another CU's files_changed.
+T006.7 The runner exits 1 when the final status is not CONVERGED.

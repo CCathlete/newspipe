@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+Add regression tests for the hardened correction pass and lead wiring. Cover scope-correct breach detail, correction logs included in attribution, and basic sanity for lead prompt wiring. Tests must run offline with no opencode process.

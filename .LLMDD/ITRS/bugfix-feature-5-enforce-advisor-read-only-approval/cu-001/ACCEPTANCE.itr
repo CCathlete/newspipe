@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-001
+
+T1 — `grep -c "bash: allow" .opencode/agents/llmdd/advisor.md` prints 0; frontmatter holds `edit: deny`, six read-only bash rules (ls, cat, rg, git status, git diff, git log), and a trailing ask wildcard.

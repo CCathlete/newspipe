@@ -1,0 +1,106 @@
+# IMPLEMENTATION_STEPS: cu-001
+
+1. In .LLMDD/tools/test_synopsis_budget.py overwrite the whole file with the exact content below (shebang, docstring, and every literal preserved; only types, structure, and error flow change): ```python
+#!/usr/bin/env python3
+"""Feat-1 T6b: pin the runner retry-budget contract.
+
+Parses MAX_ATTEMPTS=<int> out of a SYNOPSIS.itr path given as argv[1],
+asserts it equals the retry cap the runner would use, prints BUDGET_OK <n>.
+
+Usage:
+    python3 .LLMDD/tools/test_synopsis_budget.py <path-to-SYNOPSIS.itr>
+
+Full runner enforcement of the budget is out of scope for feat-1; this test
+pins the contract (budget comes from SYNOPSIS.itr).
+"""
+import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Generic, Optional, TypeVar
+
+T: TypeVar = TypeVar("T")
+E: TypeVar = TypeVar("E", bound=Exception)
+
+
+@dataclass(slots=True, frozen=True)
+class Ok(Generic[T]):
+    """Success monad u2014 contains a value."""
+    value: T
+
+
+@dataclass(slots=True, frozen=True)
+class Err(Generic[E]):
+    """Failure monad u2014 contains an exception."""
+    error: E
+
+
+RETRY_CAP: int = 3
+BUDGET_RE: re.Pattern[str] = re.compile(r"^MAX_ATTEMPTS=(\d+)\s*$", re.MULTILINE)
+
+
+def _read_text(path: Path) -> Ok[str] | Err[OSError]:
+    """Read a file as text. Boundary translator: OSError becomes Err."""
+    # MONADIC-BOUNDARY: foreign filesystem read; OS failure becomes Err.
+    caught: OSError
+    try:
+        return Ok(path.read_text(encoding="utf-8"))
+    except OSError as caught:
+        return Err(caught)
+
+
+def _parse_budget(text: str) -> Ok[int] | Err[ValueError]:
+    """Parse MAX_ATTEMPTS out of SYNOPSIS text. A missing value becomes Err."""
+    found: Optional[re.Match[str]] = BUDGET_RE.search(text)
+    if found is None:
+        return Err(ValueError("no MAX_ATTEMPTS=<int>"))
+    return Ok(int(found.group(1)))
+
+
+def main() -> int:
+    argv: list[str] = sys.argv
+    if len(argv) != 2:
+        prog: str = argv[0] if argv else "test_synopsis_budget.py"
+        print(f"usage: {prog} <path-to-SYNOPSIS.itr>", file=sys.stderr)
+        return 2
+    path: Path = Path(argv[1])
+    text: str
+    read_failure: OSError
+    match _read_text(path):
+        case Ok(value=text):
+            pass
+        case Err(error=read_failure):
+            print(f"BUDGET_FAIL cannot read {path}: {read_failure}", file=sys.stderr)
+            return 1
+    budget: int
+    match _parse_budget(text):
+        case Ok(value=budget):
+            pass
+        case Err():
+            print(f"BUDGET_FAIL no MAX_ATTEMPTS=<int> in {path}", file=sys.stderr)
+            return 1
+    if budget != RETRY_CAP:
+        print(
+            f"BUDGET_FAIL budget {budget} != runner retry cap {RETRY_CAP}",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"BUDGET_OK {budget}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+``` Prove: `python3 -m py_compile .LLMDD/tools/test_synopsis_budget.py` prints nothing and exits 0.
+2. In .LLMDD/tools/test_synopsis_budget.py confirm the static discipline with the exact probes below: ```text
+grep -n "TypeVar\|^import\|^from\|monad" .LLMDD/tools/test_synopsis_budget.py
+grep -n "Any" .LLMDD/tools/test_synopsis_budget.py
+grep -n "try:" .LLMDD/tools/test_synopsis_budget.py
+``` Prove: `grep -n "Any" .LLMDD/tools/test_synopsis_budget.py` prints only the docstring-adjacent prose line count of zero code hits: no typing.Any import and no Any annotation; `grep -n "try:"` prints exactly one hit (the MONADIC-BOUNDARY reader).
+3. In .LLMDD/tools/test_synopsis_budget.py confirm behavior is preserved with the exact runs below: ```text
+python3 .LLMDD/tools/test_synopsis_budget.py .LLMDD/ITRS/feat-1-per-cu-itr-directories/SYNOPSIS.itr
+python3 .LLMDD/tools/test_synopsis_budget.py; echo usage_exit=$?
+python3 .LLMDD/tools/test_synopsis_budget.py /nonexistent-xyz.itr; echo missing_exit=$?
+``` Prove: `python3 .LLMDD/tools/test_synopsis_budget.py .LLMDD/ITRS/feat-1-per-cu-itr-directories/SYNOPSIS.itr` prints `BUDGET_OK 3` and exits 0; no-arg exits 2 with the usage line; missing-file exits 1 with the BUDGET_FAIL line.
+Do NOT touch: .LLMDD/tools/run-waves.py, .LLMDD/tools/validate-steps.py, dtr-builder/src/test/resources/fixtures/src/util.py, any Scala source, any ITR frame or feedback file.
+Stop when T1, T2, T4, T5 are green for this file; nothing beyond test_synopsis_budget.py is in scope.

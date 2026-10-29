@@ -21,7 +21,7 @@
     "git show *",
     "git ls-files *"
   ],
-  "reason": "Designer: git add and git commit are global. This token authorises RECORDING only, never CHANGING. Editing a tracked file still requires a token that names it, checked separately before the edit; recording a file the Designer or a Coder produced requires no second grant. The two are deliberately separate because the previous version of this token carried an empty files list, which made it unusable: check-advisor-approval.py validates files AND commands against a SINGLE token, so an empty list meant git add of any path was denied even when the command itself was in scope. The files list below covers every tracked path so recording is genuinely global, which is what granted_by always said. git push remains deliberately absent: the pre-push hook blocks agents.",
-  "granted_by": "Designer, in-session (2026-10-17): \"git add and git commit are absolutely global\"; reaffirmed 2026-10-19 after the empty files list was found to deny staging any path outside another token",
+  "reason": "Designer: git add and git commit are global. This token authorises RECORDING only, never CHANGING -- its files list is empty, so it can never widen what an agent may edit. Every file committed must already be in scope of whichever token authorised editing it (verified separately against that token). Splitting the two keeps the file allowlist meaningful while removing the need for a per-file git grant. git push remains deliberately absent: the pre-push hook blocks agents.",
+  "granted_by": "Designer, in-session: \"git add and git commit are absolutely global\"",
   "expires": "2099-12-31"
 }

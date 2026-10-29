@@ -1,0 +1,297 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. In .LLMDD/tools/run-waves.py replace the import block (old lines 8-21, from `import argparse` through `from typing import Generic, TypeVar, Any`) with the exact block below, then replace the defaults block (old lines 26-35, from `DEFAULT_CODER_MODEL` through the closing `]` of DEFAULT_CODER_FALLBACKS) with the exact constants below: ```python
+import argparse
+import asyncio
+import concurrent.futures
+import json
+import os
+import re
+import subprocess
+import sys
+import threading
+import typing
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Generic, Iterator, Optional, Sequence, TypeAlias, TypedDict, TypeVar
+``` ```python
+DEFAULT_CODER_MODEL: str = "nvidia/z-ai/glm-5.3-flash"
+DEFAULT_LEAD_MODEL: str = "nvidia/nvidia/nemotron-3.5-lightning-30b-a3b"
+DEFAULT_CU_TIMEOUT: int = 300
+DEFAULT_LEAD_TIMEOUT: int = 600
+DEFAULT_MAX_FIX_ITERATIONS: int = 3
+DEFAULT_CODER_FALLBACKS: list[str] = [
+    "opencode/big-pickle",
+]
+``` Also update the module docstring line `Requires: Python 3.8+` to `Requires: Python 3.10+` (match/case and X | Y unions need 3.10; the code already uses both). Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+2. In .LLMDD/tools/run-waves.py annotate the two TypeVars and add slots=True to the three monad dataclasses. Exact replacements: `T = TypeVar("T")` becomes `T: TypeVar = TypeVar("T")`; `E_co = TypeVar("E_co", bound=Exception, covariant=True)` becomes `E_co: TypeVar = TypeVar("E_co", bound=Exception, covariant=True)` (TypeVars are the genericity mechanism, not value types; no Any is involved). Each of the three `@dataclass(frozen=True)` lines above `class Ok`, `class Err`, `class CoderOutput` becomes `@dataclass(slots=True, frozen=True)`. ```python
+T: TypeVar = TypeVar("T")
+E_co: TypeVar = TypeVar("E_co", bound=Exception, covariant=True)
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+3. In .LLMDD/tools/run-waves.py replace the future_result signature and mark the bridge. Old signature: `async def future_result(awaitable: typing.Awaitable) -> Ok | Err:` becomes the exact function below: ```python
+async def future_result(awaitable: typing.Awaitable[T]) -> Ok[T] | Err[Exception]:
+    """Await an awaitable and wrap its result in Ok/Err.
+
+    This is the BRIDGE between asyncio Futures (which raise exceptions
+    on await when the wrapped callable fails) and the Result monad.
+    It contains the ONE try/except in the async orchestration layer.
+    Every caller uses match/case on the returned Ok|Err.
+    """
+    # MONADIC-BOUNDARY: asyncio Future await raises by design; the raise becomes Err here and never leaks past this bridge.
+    caught: Exception
+    try:
+        return Ok(await awaitable)
+    except Exception as caught:
+        return Err(caught)
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+4. In .LLMDD/tools/run-waves.py replace the bodies of _popen, _open_file, and _git_run with the exact bodies below (same calls, same operands; only annotations, result names, and markers added): ```python
+def _popen(cmd: list[str], cwd: Path) -> Ok[subprocess.Popen] | Err[Exception]:
+    """Spawn subprocess. Returns Ok(proc) or Err(FileNotFoundError|OSError)."""
+    # MONADIC-BOUNDARY: foreign process spawn; OS failure becomes Err.
+    caught: Exception
+    try:
+        return Ok(subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd
+        ))
+    except (FileNotFoundError, OSError) as caught:
+        return Err(caught)
+
+
+def _open_file(path: Path, mode: str = "r") -> Ok[typing.TextIO] | Err[Exception]:
+    """Open a file. Returns Ok(fh) or Err(OSError|IOError)."""
+    # MONADIC-BOUNDARY: foreign filesystem open; OS failure becomes Err.
+    caught: Exception
+    try:
+        return Ok(open(path, mode))
+    except (OSError, IOError) as caught:
+        return Err(caught)
+
+
+def _git_run(*args: str, cwd: Path) -> Ok[str] | Err[Exception]:
+    """Run a git command. Returns Ok(stdout) or Err."""
+    # MONADIC-BOUNDARY: foreign git process; spawn and timeout failure becomes Err.
+    completed: subprocess.CompletedProcess[str]
+    caught: Exception
+    try:
+        completed = subprocess.run(
+            ["git", *args], capture_output=True, text=True, cwd=cwd, timeout=30
+        )
+        return Ok(completed.stdout.strip())
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as caught:
+        return Err(caught)
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+5. In .LLMDD/tools/run-waves.py replace the bodies of _read_file_text and _write_file_text with the exact bodies below: ```python
+def _read_file_text(path: Path) -> Ok[str] | Err[Exception]:
+    """Read file as text. Returns Ok(text) or Err."""
+    # MONADIC-BOUNDARY: foreign filesystem read; OS failure becomes Err.
+    caught: Exception
+    try:
+        return Ok(path.read_text(errors="replace"))
+    except (OSError, IOError) as caught:
+        return Err(caught)
+
+
+def _write_file_text(path: Path, text: str) -> Ok[None] | Err[Exception]:
+    """Write text to file. Returns Ok(None) or Err."""
+    # MONADIC-BOUNDARY: foreign filesystem write; OS failure becomes Err.
+    caught: Exception
+    try:
+        path.write_text(text)
+        return Ok(None)
+    except (OSError, IOError) as caught:
+        return Err(caught)
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+6. In .LLMDD/tools/run-waves.py replace the whole ModelFallbackChain class (old lines 203-218) with the exact frozen slotted dataclass below (same iteration, len, and repr behavior; chain is now a tuple): ```python
+@dataclass(slots=True, frozen=True)
+class ModelFallbackChain:
+    """Manages fallback order for model attempts."""
+    primary_model: str
+    fallback_models: Sequence[str] = ()
+    chain: Sequence[str] = ()
+
+    def __post_init__(self) -> None:
+        merged: list[str] = [self.primary_model, *self.fallback_models]
+        object.__setattr__(self, "chain", tuple(merged))
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.chain)
+
+    def __len__(self) -> int:
+        return len(self.chain)
+
+    def __repr__(self) -> str:
+        return " u2192 ".join(self.chain)
+``` Callers keep passing a list (parse_args yields a list); convert at the single construction site inside run_wave_parallel (cu-003 converts that call to `ModelFallbackChain(coder_model, tuple(coder_fallbacks))`). Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+7. In .LLMDD/tools/run-waves.py insert the exact custom-types section below between the CoderOutput block and the `# u2500u2500 I/O Boundary` comment (these names are the interface cu-003 builds on; no call site changes in this CU): ```python
+# u2500u2500 JSON Custom Types (no Any, no bare generics) u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+
+TokenCache = TypedDict("TokenCache", {"read": int, "write": int}, total=False)
+StepTokens = TypedDict(
+    "StepTokens",
+    {"input": int, "output": int, "reasoning": int, "cache": TokenCache, "total": int},
+    total=False,
+)
+EventResult: TypeAlias = str | dict[str, str | int | float | bool | list[str]]
+EventModel: TypeAlias = str | dict[str, str]
+EventPart = TypedDict(
+    "EventPart",
+    {"text": str, "tool": str, "toolName": str, "result": EventResult,
+     "tokens": StepTokens, "cost": float, "reason": str,
+     "action": str, "resource": str, "model": EventModel, "id": str},
+    total=False,
+)
+JsonEvent = TypedDict(
+    "JsonEvent",
+    {"type": str, "part": EventPart, "tokens": StepTokens,
+     "cost": float, "reason": str, "sessionID": str, "model": EventModel},
+    total=False,
+)
+TokenReport = TypedDict(
+    "TokenReport",
+    {"input": int, "output": int, "reasoning": int,
+     "cache_read": int, "cache_write": int, "total": int, "cost": float,
+     "session_id": str, "model": str},
+)
+WaveDef = TypedDict("WaveDef", {"wave": int, "cus": list[str], "description": str}, total=False)
+WaveRecord = TypedDict(
+    "WaveRecord",
+    {"wave": int, "cus": list[str], "escalations": int,
+     "coder_status": int, "lead_status": int,
+     "files_changed": dict[str, list[str]], "credits": dict[str, TokenReport]},
+)
+ConvergenceData = TypedDict(
+    "ConvergenceData", {"waves": list[WaveRecord], "status": str}
+)
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+8. In .LLMDD/tools/run-waves.py replace the whole TokenUsage class (old lines 259-296, `__slots__` plus `__init__` included) with the exact slotted dataclass below (same fields, same defaults, same methods; only add_from_step_finish, is_empty, and dict gain annotations, and dict returns TokenReport): ```python
+@dataclass(slots=True)
+# MAJOR-latitude justification: TokenUsage is a mutable accumulator updated
+# at dozens of call sites; frozen would force a full rewrite for zero behavior gain. Slotted plus annotated fields satisfies the preferred shape.
+class TokenUsage:
+    """Accumulated token and cost data from opencode step_finish events."""
+    input: int = 0
+    output: int = 0
+    reasoning: int = 0
+    cache_read: int = 0
+    cache_write: int = 0
+    total: int = 0
+    cost: float = 0.0
+    session_id: str = ""
+    model: str = ""
+
+    def add_from_step_finish(self, ev: JsonEvent) -> None:
+        tok: StepTokens
+        cost: float
+        _reason: str
+        tok, cost, _reason = _extract_step_tokens(ev)
+        tok_input: int = tok.get("input", 0)
+        tok_output: int = tok.get("output", 0)
+        tok_reasoning: int = tok.get("reasoning", 0)
+        cache: TokenCache = tok.get("cache", {})
+        cache_read: int = cache.get("read", 0)
+        cache_write: int = cache.get("write", 0)
+        tok_total: int = tok.get("total", 0)
+        self.input += tok_input
+        self.output += tok_output
+        self.reasoning += tok_reasoning
+        self.cache_read += cache_read
+        self.cache_write += cache_write
+        self.total += tok_total
+        self.cost += cost
+
+    def is_empty(self) -> bool:
+        return self.total == 0 and self.cost == 0.0
+
+    def dict(self) -> TokenReport:
+        return {
+            "input": self.input, "output": self.output,
+            "reasoning": self.reasoning,
+            "cache_read": self.cache_read, "cache_write": self.cache_write,
+            "total": self.total, "cost": self.cost,
+            "session_id": self.session_id, "model": self.model,
+        }
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+9. In .LLMDD/tools/run-waves.py replace WaveCredits and CreditTracker with the exact slotted dataclasses below (same construction call shapes; annotate every first binding inside wave_totals, start_wave, accumulate): ```python
+@dataclass(slots=True)
+# MAJOR-latitude justification: same accumulator rationale as TokenUsage.
+class WaveCredits:
+    wave_num: int
+    coders: dict[str, TokenUsage] = field(default_factory=dict)
+
+    def wave_totals(self) -> TokenUsage:
+        totals: TokenUsage = TokenUsage()
+        u: TokenUsage
+        for u in self.coders.values():
+            totals.input += u.input
+            totals.output += u.output
+            totals.reasoning += u.reasoning
+            totals.cache_read += u.cache_read
+            totals.cache_write += u.cache_write
+            totals.total += u.total
+            totals.cost += u.cost
+        return totals
+
+
+@dataclass(slots=True)
+# MAJOR-latitude justification: same accumulator rationale as TokenUsage.
+class CreditTracker:
+    waves: list[WaveCredits] = field(default_factory=list)
+    _accumulated: TokenUsage = field(default_factory=TokenUsage)
+
+    def start_wave(self, wave_num: int) -> WaveCredits:
+        wc: WaveCredits = WaveCredits(wave_num)
+        self.waves.append(wc)
+        return wc
+
+    def accumulate(self, usage: TokenUsage) -> None:
+        self._accumulated.input += usage.input
+        self._accumulated.output += usage.output
+        self._accumulated.reasoning += usage.reasoning
+        self._accumulated.cache_read += usage.cache_read
+        self._accumulated.cache_write += usage.cache_write
+        self._accumulated.total += usage.total
+        self._accumulated.cost += usage.cost
+
+    @property
+    def accumulated(self) -> TokenUsage:
+        return self._accumulated
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+10. In .LLMDD/tools/run-waves.py annotate every colour constant in class C (`RESET: str = ...` through `BG_BLUE: str = ...`, same literals, same order), annotate disable as `def disable(cls) -> None:` with a pre-declared `attr: str` before its for loop, and record the justification comment above the class (`# MAJOR-latitude justification: C is a dynamic namespace reset in place by C.disable via setattr; a frozen dataclass cannot support that; annotated plain class retained.`). In the same step annotate `_CUID_RE: re.Pattern[str]`, `_COMPONENT_FILES: Sequence[str]`, `CODER_COLOURS: list[tuple[str, str]]`, `_REFUSAL_PATTERNS: list[str]`, `_ERROR_PATTERNS: list[str]` (same literals), and give _no_colour_support the signature `def _no_colour_support() -> bool:`. ```python
+def _no_colour_support() -> bool:
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+11. In .LLMDD/tools/run-waves.py replace _extract_step_tokens plus two new narrowing helpers above it with the exact block below (same fallback chain part-then-event; isinstance narrowing instead of blind .get chains): ```python
+def _as_part(raw: object) -> EventPart:
+    """Narrow foreign JSON into an EventPart; non-dicts become empty."""
+    if isinstance(raw, dict):
+        narrowed: EventPart = raw
+        return narrowed
+    return {}
+
+
+def _as_tokens(raw: object) -> StepTokens:
+    """Narrow foreign JSON into StepTokens; non-dicts become empty."""
+    if isinstance(raw, dict):
+        narrowed: StepTokens = raw
+        return narrowed
+    return {}
+
+
+def _extract_step_tokens(ev: JsonEvent) -> tuple[StepTokens, float, str]:
+    """Extract (tokens_dict, cost, reason) from a step_finish event."""
+    part: EventPart = _as_part(ev.get("part", {}))
+    tok: StepTokens = _as_tokens(part.get("tokens", ev.get("tokens", {})))
+    cost_raw: object = part.get("cost", ev.get("cost", 0))
+    cost: float = float(cost_raw) if isinstance(cost_raw, (int, float)) else 0.0
+    reason_raw: object = part.get("reason", ev.get("reason", ""))
+    reason: str = reason_raw if isinstance(reason_raw, str) else ""
+    return tok, cost, reason
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+12. In .LLMDD/tools/run-waves.py run the static discipline probes below over lines 1-394 and confirm each expectation: ```text
+python3 -m py_compile .LLMDD/tools/run-waves.py
+grep -n "Any" .LLMDD/tools/run-waves.py
+grep -n "slots=True" .LLMDD/tools/run-waves.py
+grep -n "MONADIC-BOUNDARY" .LLMDD/tools/run-waves.py
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` exits 0; `grep -n "Any"` prints no import and no annotation (prose mentions only); `grep -n "slots=True"` shows Ok, Err, CoderOutput, ModelFallbackChain, TokenUsage, WaveCredits, CreditTracker; every try in the region carries a MONADIC-BOUNDARY marker.
+Do NOT touch: any line from `# u2500u2500 Formatting helpers` (line 397) to end of file (belongs to cu-003); .LLMDD/tools/test_synopsis_budget.py; .LLMDD/tools/validate-steps.py; dtr-builder/src/test/resources/fixtures/src/util.py; any Scala source; any ITR frame or feedback file.
+Stop when py_compile plus the region probes are green; call sites below line 397 are cu-003 scope.

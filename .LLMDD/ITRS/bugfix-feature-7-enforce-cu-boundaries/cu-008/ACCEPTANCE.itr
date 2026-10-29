@@ -1,0 +1,9 @@
+# ACCEPTANCE: cu-008
+
+T008.1 Parser cases cover semicolons, wrapped lines, directory expansion, a leading ./, unparsed clauses, and fail-closed lists.
+T008.2 Matching is segment-aware and resolve_patterns follows a symlink to the tracked path.
+T008.3 write_paths is step-scoped and ignores Prove and no-touch lines.
+T008.4 coder_writes reads every attempt and extracts write, edit and shell redirection paths.
+T008.5 wave_writes includes untracked files and subtracts the supplied baseline.
+T008.6 Each of the three enforcement rules and the unenforceable case is asserted.
+T008.7 python3 -m unittest discover -s .LLMDD/tests exits 0.

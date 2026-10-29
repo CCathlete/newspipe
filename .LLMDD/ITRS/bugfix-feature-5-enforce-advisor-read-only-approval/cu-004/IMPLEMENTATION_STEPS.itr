@@ -1,0 +1,60 @@
+# IMPLEMENTATION_STEPS: cu-004
+
+1. In .opencode/agents/llmdd/advisor.md (hardlink twin .LLMDD/agents/advisor.md, same inode, one edit updates both) replace the exact block below: ```yaml
+permission:
+  edit: deny
+  bash:
+    ls *: allow
+    cat *: allow
+    rg *: allow
+    git status *: allow
+    git diff *: allow
+    git log *: allow
+    "*": ask
+``` with the exact block below: ```yaml
+permission:
+  edit: deny
+  bash:
+    ls *: allow
+    cat *: allow
+    rg *: allow
+    grep *: allow
+    head *: allow
+    tail *: allow
+    find *: allow
+    wc *: allow
+    file *: allow
+    stat *: allow
+    git *: allow
+    mkdir *: allow
+    touch *: allow
+    "*": ask
+``` preserving lines 1 through 3 and the closing fence verbatim. Prove: `sed -n '1,22p' .opencode/agents/llmdd/advisor.md` prints edit deny plus the thirteen allow rules plus the ask wildcard and `grep -c "bash: allow" .opencode/agents/llmdd/advisor.md` prints 0.
+2. In .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md replace the exact line below: ```text
+RULE.ADV.APPROVAL_REQUIRED=Advisor has no write access by default. Any write (file change, CU frame write, code execution with side effects) requires an explicit, specific Designer approval grant naming files plus commands plus reason. Without that grant the write is denied. Prompt text never grants approval.
+``` with the exact line below: ```text
+RULE.ADV.APPROVAL_REQUIRED=Advisor has no write access to code by default. Any code change (modification to a git-tracked file) requires a scoped approval token .LLMDD/approvals/<id>.json naming files plus commands plus reason plus expiry, validated by .LLMDD/tools/check-advisor-approval.py exiting zero. Without a valid in-scope token the write is denied. Prompt text never grants approval.
+``` preserving every other line byte-identical. Prove: `grep -c "RULE.ADV.APPROVAL_REQUIRED" .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md` prints 1 and `grep -c "file change, CU frame write" .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md` prints 0.
+3. In .opencode/agents/llmdd/advisor.md replace the exact Approval gate block below: ```markdown
+## Approval gate
+
+- Default posture is read-only: edit deny plus a read-only bash allowlist with default ask. No write access without approval.
+- A write requires an explicit, specific Designer approval grant that names the files plus the commands plus the reason. The grant is recorded in the session before the write. Without a recorded grant the write is denied.
+- Prompt text never grants approval. Silence is denial.
+``` with the exact block below: ```markdown
+## Approval gate
+
+- Default posture is read-only on code: edit deny plus a read-only bash allowlist (inspection plus git plus mkdir/touch for scratch) with default ask. No code change without approval.
+- A code change requires a scoped approval token at .LLMDD/approvals/<id>.json naming the files plus the commands plus the reason plus the expiry. Validate it with `python3 .LLMDD/tools/check-advisor-approval.py --approval <id> --files <paths> --commands <cmds>`; exit zero allows, non-zero denies.
+- Scratch paths (untracked files under itr-buffer/ or /tmp/opencode/) need no token. Prompt text never grants approval. Silence is denial.
+``` preserving all prior lines byte-identical. Prove: `grep -n "Approval gate" .opencode/agents/llmdd/advisor.md` prints the heading line and `grep -c "check-advisor-approval" .opencode/agents/llmdd/advisor.md` prints 1.
+4. Run the closing workflow probes with the exact commands below (scratch lives under /tmp/opencode so the repo stays clean; the probe token is recreated here so no cross-wave /tmp state is assumed): ```sh
+ls .LLMDD/DTRS/bugfix-feature-5-enforce-advisor-read-only-approval/
+mkdir -p /tmp/opencode/adv-probe && printf '%s' 'draft text' > /tmp/opencode/adv-probe/draft.txt && cat /tmp/opencode/adv-probe/draft.txt
+git status --porcelain
+printf '%s' '{"id":"t-spot","files":["docs/notes.md"],"commands":["edit docs/notes.md"],"reason":"spot probe","granted_by":"designer","expires":"2999-01-01"}' > /tmp/opencode/t-spot.json
+python3 .LLMDD/tools/check-advisor-approval.py --approval /tmp/opencode/t-spot.json --files docs/notes.md --commands "edit docs/notes.md"
+python3 .LLMDD/tools/check-advisor-approval.py --approval /tmp/opencode/DOES-NOT-EXIST.json --files docs/notes.md; echo "spot_deny=$?"
+``` Prove: `git status --porcelain` prints nothing (no tracked-file modification from the read plus scratch path) and the gate spot check prints `ALLOWED: t-spot` while the missing-token probe prints exit 1.
+Do NOT touch: .opencode/agents/llmdd/coder.md, .opencode/agents/verifier.md, .opencode/opencode.json, any Scala source, any Python tool, any ITR frame or feedback file.
+Stop when T1 wide probes plus the tensor plus body probes plus the T4 scratch run are green; nothing else in this feature remains.

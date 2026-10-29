@@ -1,0 +1,5 @@
+FEATURES_IMPLEMENTED=bugfix-feature-2-fix-compiler-parsing-and-layout
+MAX_ATTEMPTS=3
+CUS=arch,legend,cu-001,cu-002,cu-003,cu-004
+ENFORCED_BY=itr-compiler
+SUMMARY=Fix itr-compiler batch parsing and CU layout: key-order-independent JSON/YAML parsing (bug-1), inline-section to components splitting so Advisor batches compile to four-file CU folders (bug-2), and a hard enforcement failure naming the CU and missing sections instead of emitting flat blobs.

@@ -1,0 +1,244 @@
+# IMPLEMENTATION_STEPS: cu-001
+
+1. Replace _breach_detail_for_cu in .LLMDD/tools/run-waves.py with a scope-correct implementation:
+
+```python
+def _breach_detail_for_cu(breaches: Sequence[BoundaryBreach], cu_id: str) -> str:
+    lines: list[str] = []
+    b: BoundaryBreach
+    for b in breaches:
+        if b.scope == cu_id and b.rule in ("no-touch", "shared-write"):
+            lines.append(f"SCOPE={b.scope} RULE={b.rule} PATH={b.path}")
+            continue
+        if b.rule == "shared-write" and b.scope == cu_id:
+            lines.append(f"SCOPE={b.scope} RULE={b.rule} PATH={b.path}")
+    return "\n".join(lines)
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+2. Update run_per_cu_lead signature and prompt in .LLMDD/tools/run-waves.py to accept breach_context:
+
+```python
+def run_per_cu_lead(cu_id: str, cu_file: Path, model: str, max_iterations: int,
+                     feedback_dir: Path, log_dir: Path, timeout: int,
+                     project_dir: Path,
+                     fallback_models: Sequence[str] = (),
+                     breach_context: str = "") -> Ok[tuple[int, TokenUsage]] | Err[Exception]:
+    colour: str = C.BR_MAG
+    prefix: str = f"[LEAD-{cu_id}]"
+    usage: TokenUsage = TokenUsage()
+
+    if breach_context:
+        bc: str = (
+            f"\nBOUNDARY VIOLATIONS (why escalated):\n"
+            f"{breach_context}\n\n"
+        )
+    else:
+        bc = ""
+
+    prompt: str = (
+        f"You are the code lead. CU {cu_id} was escalated by the coder.\n\n"
+        f"1. {_cu_read_instructions(cu_file)}\n"
+        f"2. Read the escalation feedback at {feedback_dir / f'{cu_id}.feedback.txt'}\n"
+        f"{bc}"
+        f"3. Implement the CU yourself (the coder failed). Stay inside the CU scope.\n"
+        f"4. Write updated feedback to {feedback_dir / f'{cu_id}.feedback.txt'}\n"
+        f"5. Do NOT commit \u2014 the final wave lead will commit\n\n"
+        f"Max fix iterations: {max_iterations}"
+    )
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+3. Update run_code_lead signature and prompt in .LLMDD/tools/run-waves.py to accept unattributed_context:
+
+```python
+def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
+                  feedback_dir: Path, log_dir: Path, timeout: int,
+                  project_dir: Path, wave_cus: list[str],
+                  fallback_models: Sequence[str] = (),
+                  unattributed_context: str = "") -> tuple[int, TokenUsage]:
+    colour: str = C.BR_MAG
+    prefix: str = "[LEAD]"
+    usage: TokenUsage = TokenUsage()
+
+    is_final: bool = (wave == num_waves)
+
+    if is_final:
+        commit_instruction: str = (
+            f"\n8. Read COMMIT_MESSAGE fields from all feedback files across all waves\n"
+            f"9. Consolidate into a single commit message\n"
+            f"10. Stage all changes and commit with the consolidated message\n"
+        )
+    else:
+        commit_instruction = (
+            f"\n8. Prepare a COMMIT_MESSAGE for this wave in {feedback_dir}/wave-{wave}-commit.txt\n"
+            f"9. Do NOT commit \u2014 the final wave lead will commit\n"
+        )
+
+    if unattributed_context:
+        u: str = (
+            f"\nUNATTRIBUTED CHANGES (no owning CU):\n"
+            f"{unattributed_context}\n\n"
+            f"These changes were made by no CU in this wave. Routes to the wave lead per Rule 3.\n\n"
+        )
+    else:
+        u = ""
+
+    prompt: str = (
+        f"You are the code lead for wave {wave}.\n\n"
+        f"1. Read feedback files for this wave\u2019s CUs: {', '.join(wave_cus)}\n"
+        f"2. For any CU with STATUS=ESCALATION: read the CU frame file and implement it yourself\n"
+        f"3. Write a feedback file for each escalated CU you implement\n"
+        f"4. {u}"
+        f"5. Run verification tests for all implemented CUs\n"
+        f"6. Fix any test failures\n"
+        f"7. Write verification report to {feedback_dir}/wave-{wave}-verification.txt\n"
+        f"{commit_instruction}\n"
+        f"Max fix iterations: {max_iterations}"
+    )
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+4. Replace the correction pass block in run_wave_parallel with a monadic version (no try/except), that re-measures only the corrected CU, uses a cu->colour map, exhausts 3 attempts, marks exhausted CUs for escalation with breach detail, and passes unattributed context outside.
+
+```python
+    breached_cus: set[str] = set()
+    b: BoundaryBreach
+    for b in breaches:
+        if b.scope != "wave" and b.rule in ("no-touch", "shared-write"):
+            breached_cus.add(b.scope)
+    model_by_cu: dict[str, str] = {}
+    for cu_id_c, cu_file_c2, fut_c in coder_futures:
+        res_m: Ok[CoderOutput] | Err[Exception] = await future_result(fut_c)
+        match res_m:
+            case Ok(co):
+                if co.model_used:
+                    model_by_cu[cu_id_c] = co.model_used
+            case Err(_):
+                pass
+    colour_by_cu: dict[str, str] = {}
+    cidx: int
+    for cidx, (cu_id_c2, _cu_file_c2) in enumerate(cu_files):
+        cc, _cp = CODER_COLOURS[cidx % len(CODER_COLOURS)]
+        colour_by_cu[cu_id_c2] = cc
+    correction_failed: set[str] = set()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as cpool:
+        cu_corr: str
+        for cu_corr in sorted(breached_cus):
+            if cu_corr not in model_by_cu or not model_by_cu[cu_corr]:
+                continue
+            cu_file_c3: Path | None = None
+            for cid3, cfile3, _f3 in cu_files:
+                if cid3 == cu_corr:
+                    cu_file_c3 = cfile3
+                    break
+            if cu_file_c3 is None:
+                continue
+            attempts_made: int = 0
+            for attempt_c in range(3):
+                attempts_made = attempt_c + 1
+                per_cu_writes_c: list[CoderWrites] = []
+                wc_id_c: str
+                wc_file_c: Path
+                for wc_id_c, wc_file_c in cu_files:
+                    per_cu_writes_c.append(coder_writes(wc_id_c, log_dir, project_dir))
+                breaches_c: Sequence[BoundaryBreach]
+                written_c: Sequence[str]
+                breaches_c, written_c = enforce_boundary(
+                    per_cu_writes_c, project_dir, stash_ref, baseline_dirty, guards, feedback_dir)
+                if not breaches_c:
+                    break
+                still: bool = False
+                bb: BoundaryBreach
+                for bb in breaches_c:
+                    if bb.scope == cu_corr and bb.rule in ("no-touch", "shared-write"):
+                        still = True
+                        break
+                if not still:
+                    break
+                fut_cc = loop.run_in_executor(
+                    cpool, _run_coder_correction, cu_file_c3, cu_corr,
+                    model_by_cu[cu_corr], breaches_c, feedback_dir, log_dir,
+                    1800, project_dir, colour_by_cu.get(cu_corr, C.BR_CYN), f"[{cu_corr}]")
+                res_cc: Ok[CoderOutput] | Err[Exception] = await future_result(fut_cc)
+                match res_cc:
+                    case Ok(_):
+                        pass
+                    case Err(e_c):
+                        _fail(f"Correction failed for {cu_corr}: {e_c}")
+                        break
+            if attempts_made >= 3:
+                per_cu_writes_c2: list[CoderWrites] = []
+                for wc_id_c2, wc_file_c2 in cu_files:
+                    per_cu_writes_c2.append(coder_writes(wc_id_c2, log_dir, project_dir))
+                breaches_c2, written_c2 = enforce_boundary(
+                    per_cu_writes_c2, project_dir, stash_ref, baseline_dirty, guards, feedback_dir)
+                still2: bool = False
+                for bb2 in breaches_c2:
+                    if bb2.scope == cu_corr and bb2.rule in ("no-touch", "shared-write"):
+                        still2 = True
+                        break
+                if still2:
+                    correction_failed.add(cu_corr)
+    per_cu_writes = []
+    for wc_id, wc_file in cu_files:
+        per_cu_writes.append(coder_writes(wc_id, log_dir, project_dir))
+    breaches, written = enforce_boundary(
+        per_cu_writes, project_dir, stash_ref, baseline_dirty, guards, feedback_dir)
+
+    if breaches:
+        all_passed = False
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+5. In run_wave_parallel, build breach contexts and pass to leads; add correction_failed to escalated_cus:
+
+```python
+    escalated_cus: list[str] = []
+    _leftover: asyncio.Future[Ok[CoderOutput] | Err[Exception]]
+    text: str
+    lead_rc: int
+    lead_usage: TokenUsage
+    breach_detail_by_cu: dict[str, str] = {}
+    for cu_id in sorted(set([b.scope for b in breaches if b.scope not in ("wave",)])):
+        breach_detail_by_cu[cu_id] = _breach_detail_for_cu(breaches, cu_id)
+    for cf in sorted(correction_failed):
+        if cf not in breach_detail_by_cu:
+            breach_detail_by_cu[cf] = _breach_detail_for_cu(breaches, cf)
+    for cu_id, cu_file, _leftover in coder_futures:
+        if no_per_cu_lead:
+            continue
+        is_esc: bool = False
+        match _read_file_text(feedback_dir / f"{cu_id}.feedback.txt"):
+            case Ok(text) if "STATUS=ESCALATION" in text:
+                is_esc = True
+            case _:
+                pass
+        if not is_esc and cu_id in correction_failed:
+            is_esc = True
+        if is_esc:
+            if cu_id not in escalated_cus:
+                escalated_cus.append(cu_id)
+            _warn(f"Escalation detected: {cu_id}")
+            match run_per_cu_lead(
+                cu_id, cu_file, lead_model, max_fix_iterations,
+                feedback_dir, log_dir, lead_timeout, project_dir,
+                lead_fallbacks,
+                breach_context=breach_detail_by_cu.get(cu_id, ""),
+            ):
+                case Ok((lead_rc, lead_usage)):
+                    tracker.accumulate(lead_usage)
+                    wc.coders[f"{cu_id}-lead"] = lead_usage
+                case Err(e):
+                    _fail(f"Lead failed on {cu_id}: {e}")
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+Do NOT touch: .LLMDD/tests/test_cu_boundary.py, .LLMDD/spec-driven/*, .LLMDD/ITRS/*
+
+Stop when: run-waves.py compiles with python3 -c ast.parse and all existing tests pass.

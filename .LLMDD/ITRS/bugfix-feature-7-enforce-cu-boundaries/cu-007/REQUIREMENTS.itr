@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-007
+
+Hold the code leads to the same boundary and measure dirt per wave. Add two helpers: one that checks a path list against a set of CU guards, and one that reads the escalated CU ids from the feedback folder. After the per-CU lead loop, check each lead's own writes against the CU that lead repaired and fail the wave on a hit. Recompute the dirty baseline at the start of every wave, subtract the paths this run already wrote, and count untracked files. After the wave lead runs, check its writes against the guards of the CUs it was not asked to repair.

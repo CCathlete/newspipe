@@ -1,0 +1,1 @@
+python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/bugfix-feature-7-enforce-cu-boundaries --app repo --waves .LLMDD/ITRS/bugfix-feature-7-enforce-cu-boundaries/waves.json

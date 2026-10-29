@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+Bring .LLMDD/tools/test_synopsis_budget.py into full ARCH.PYTHON compliance with zero behavior change: every first binding annotated, no Any, a local slotted frozen Ok/Err Result pair translating the OSError file read at the boundary plus match/case instead of try/except in main. Exit codes and every stdout/stderr literal stay byte-identical. This resolves feature criteria 1, 2, 4, 5 for this file and proves the pattern cu-002 and cu-003 repeat at scale. Depends on: nothing.

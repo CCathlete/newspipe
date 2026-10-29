@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-001
+
+T1 u2014 `python3 -m compileall -q .LLMDD/tools/test_synopsis_budget.py` exits 0. T2 u2014 no typing.Any import and no Any annotation in the file. T4 u2014 exactly one try site (the marked boundary reader). T5 u2014 the SYNOPSIS.itr run prints BUDGET_OK 3 with exit 0, no-arg exits 2, missing-file exits 1.

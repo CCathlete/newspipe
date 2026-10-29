@@ -1,0 +1,6 @@
+# CU-ID: legend
+# CU-TYPE: LegendCU
+# TIMESTAMP: 2026-10-20T05:30:29.794087843Z
+# DTR-COORDINATES: 
+
+CU means Computational Unit. A CU content block carries REQUIREMENTS, COORDINATES, IMPLEMENTATION_STEPS and ACCEPTANCE. Each numbered step names an exact file path, carries a fenced code block when it changes a file, and ends with a Prove line naming the exact command. Do NOT touch lists what this CU must not modify. Stop when is the exit condition.

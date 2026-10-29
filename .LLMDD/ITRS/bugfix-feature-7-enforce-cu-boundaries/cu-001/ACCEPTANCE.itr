@@ -1,0 +1,8 @@
+# ACCEPTANCE: cu-001
+
+T1 parser unit checks. Every one of the four shipped bugfix-feature-5 frames parses with an empty unparsed tuple, the clause any Scala source resolves to a glob matching a representative scala path, and fenced declarations are ignored so fixtures cannot contradict their frame.
+Prove: the step 2 command prints ALL_FRAMES_PARSE.
+T2 criterion 3, the self-contradictory fixture from bug-10 must now fail.
+Prove: `python3 .LLMDD/tools/validate-steps.py /tmp/opencode/batch.json` exits 1 and prints F7 naming .LLMDD/tools/x.py.
+T5 no format change introduced; every shipped frame still validates, and this feature's own three frames validate.
+Prove: the step 5 loop prints REGRESSIONS=0 and the step 6 loop prints FEATURE7_FAILURES=0.

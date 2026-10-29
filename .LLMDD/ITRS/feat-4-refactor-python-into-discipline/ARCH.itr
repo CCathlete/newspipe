@@ -1,0 +1,6 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-11T18:04:58.346305728Z
+# DTR-COORDINATES: 
+
+ARCH rules for feat-4 (Python discipline refactor). Hexagonal layers are untouched: this feature changes no layer placement and adds no dependencies. Binding constraints for every CU in this batch: ARCH.PYTHON.EXPLICIT_DECLARATION (every first binding annotated, CRITICAL), ARCH.PYTHON.NO_ANY (no typing.Any, no bare generics, CRITICAL), ARCH.PYTHON.SLOTTED_FROZEN_DATACLASS (slotted dataclasses, frozen for value holders, MAJOR), ARCH.PYTHON.MONADIC_ERROR (monadic Ok/Err plus match/case over try/except, MAJOR). Refactor only: no behavior change, no new features, no logic edits.

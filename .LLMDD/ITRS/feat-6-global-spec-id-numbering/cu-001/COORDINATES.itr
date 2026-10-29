@@ -1,0 +1,3 @@
+# COORDINATES: cu-001
+
+FILE..LLMDD/tools/validate-steps.py, FILE..LLMDD/tools/check-advisor-approval.py. Both are the sibling typed Python tools under .LLMDD and are the reference shape for explicit annotation at first binding, no typing.Any, slotted frozen dataclasses, and exit-code discipline. .LLMDD/tools/next-spec-id.py and .LLMDD/tools/test_next_spec_id.py are creations absent from the baseline.

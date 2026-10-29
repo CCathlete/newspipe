@@ -1,0 +1,21 @@
+# IMPLEMENTATION_STEPS: cu-004
+
+1. In .LLMDD/tools prove compilation and the Any ban with the exact probes below: ```text
+python3 -m compileall -q .LLMDD/tools/run-waves.py .LLMDD/tools/test_synopsis_budget.py
+grep -rn "typing.Any\|[^a-zA-Z_]Any[^a-zA-Z_]" .LLMDD/tools/run-waves.py .LLMDD/tools/test_synopsis_budget.py
+grep -nE ":\s*(dict|list|tuple|set)(\s|=|,|\)|$)" .LLMDD/tools/run-waves.py .LLMDD/tools/test_synopsis_budget.py
+``` Prove: `python3 -m compileall -q .LLMDD/tools/run-waves.py .LLMDD/tools/test_synopsis_budget.py` exits 0; both grep probes print nothing.
+2. In .LLMDD/tools prove dataclass and boundary shape with the exact probes below: ```text
+grep -n "slots=True" .LLMDD/tools/run-waves.py .LLMDD/tools/test_synopsis_budget.py
+grep -n "frozen=True" .LLMDD/tools/run-waves.py .LLMDD/tools/test_synopsis_budget.py
+grep -n "try:" .LLMDD/tools/run-waves.py .LLMDD/tools/test_synopsis_budget.py
+grep -n "MONADIC-BOUNDARY" .LLMDD/tools/run-waves.py .LLMDD/tools/test_synopsis_budget.py
+``` Prove: `grep -n "slots=True"` shows all nine dataclass sites across both files; `grep -n "try:"` lists exactly the allowlisted boundary sites and each carries a MONADIC-BOUNDARY marker.
+3. In .LLMDD/tools prove behavior preservation with the exact runs below: ```text
+python3 .LLMDD/tools/test_synopsis_budget.py .LLMDD/ITRS/feat-1-per-cu-itr-directories/SYNOPSIS.itr
+python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/feat-1-per-cu-itr-directories --app feat-1 --dry-run
+python3 .LLMDD/tools/validate-steps.py .LLMDD/ITRS/feat-1-per-cu-itr-directories/
+git diff --stat
+``` Prove: `python3 .LLMDD/tools/test_synopsis_budget.py .LLMDD/ITRS/feat-1-per-cu-itr-directories/SYNOPSIS.itr` prints `BUDGET_OK 3` with exit 0; the dry run exits 0 with the same plan shape as before the refactor; the validator output is byte-identical to the pre-refactor run; `git diff --stat` shows only .LLMDD/tools/run-waves.py and .LLMDD/tools/test_synopsis_budget.py.
+Do NOT touch: any source file; dtr-builder/src/test/resources/fixtures/src/util.py; any Scala source; any ITR frame or feedback file.
+Stop when T1-T7 evidence is recorded and only the two in-scope files differ.

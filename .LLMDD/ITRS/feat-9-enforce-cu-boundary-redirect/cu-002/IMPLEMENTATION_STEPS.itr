@@ -1,0 +1,35 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. Append tests to .LLMDD/tests/test_cu_boundary.py:
+
+```python
+class TestCorrectionPass(unittest.TestCase):
+    def test_breach_detail_is_scope_correct(self) -> None:
+        breaches = (
+            RUNNER.BoundaryBreach(scope="cu-001", path="src/other.py", rule="shared-write"),
+            RUNNER.BoundaryBreach(scope="cu-002", path="src/shared.py", rule="shared-write"),
+            RUNNER.BoundaryBreach(scope="cu-002", path=".LLMDD/agents/coder.md", rule="no-touch"),
+        )
+        detail1 = RUNNER._breach_detail_for_cu(breaches, "cu-001")
+        self.assertIn("src/other.py", detail1)
+        self.assertNotIn(".LLMDD/agents/coder.md", detail1)
+        detail2 = RUNNER._breach_detail_for_cu(breaches, "cu-002")
+        self.assertIn(".LLMDD/agents/coder.md", detail2)
+
+    def test_correction_logs_are_attributed(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root: Path = Path(raw)
+            log_dir: Path = root / "logs"
+            log_dir.mkdir()
+            (log_dir / "cu-001.attempt-0.log").write_text(_event("write", {"path": str(root / "src" / "a.py")}) + "\n")
+            (log_dir / "cu-001.correction-0.log").write_text(_event("edit", {"path": str(root / "src" / "b.py")}) + "\n")
+            writes = RUNNER.coder_writes("cu-001", log_dir, root)
+            self.assertIn("src/a.py", writes.paths)
+            self.assertIn("src/b.py", writes.paths)
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -m unittest .LLMDD.tests.test_cu_boundary.TestCorrectionPass -v`
+
+Do NOT touch: .LLMDD/tools/run-waves.py, .LLMDD/spec-driven/*, .LLMDD/ITRS/*
+
+Stop when: all tests pass.

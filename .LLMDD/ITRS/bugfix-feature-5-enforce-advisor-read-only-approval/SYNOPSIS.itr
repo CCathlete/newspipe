@@ -1,0 +1,5 @@
+FEATURES_IMPLEMENTED=bugfix-feature-5-enforce-advisor-read-only-approval
+MAX_ATTEMPTS=3
+CUS=arch,legend,cu-001,cu-002
+ENFORCED_BY=itr-compiler
+SUMMARY=Deterministic Advisor read-only enforcement: read-only bash allowlist plus machine-checkable Designer approval grant (bug-5).

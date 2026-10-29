@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-004
+
+Harden the shared CU scope vocabulary so the boundary can be measured and enforced soundly. Parse no-touch lists split on commas and semicolons, collect indented continuation lines, expand directory entries to dir/**, normalise a leading ./, resolve declared paths through symlinks to the tracked path, split stars by path separator, and strip fenced blocks before the label is found. A list that yields zero enforceable patterns must be flagged unenforceable and unknown clauses surfaced in NoTouch.unparsed. The step-scoped write index must count only paths from numbered steps, cut away Prove and no-touch/stop lines, and resolve repo-rooted candidates from absolute and relative forms.

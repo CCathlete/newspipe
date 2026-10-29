@@ -1,0 +1,5 @@
+[
+  {"wave": 1, "description": "Independent foundations, full parallel (2 coders): budget-test compliance (cu-001, own file) + run-waves type layer (cu-002, shared types)", "cus": ["cu-001", "cu-002"]},
+  {"wave": 2, "description": "run-waves remainder on cu-002 shared types (same-file serial after cu-002)", "cus": ["cu-003"]},
+  {"wave": 3, "description": "End-to-end proof T1-T7 plus diff-scope assertion over the finished refactor", "cus": ["cu-004"]}
+]

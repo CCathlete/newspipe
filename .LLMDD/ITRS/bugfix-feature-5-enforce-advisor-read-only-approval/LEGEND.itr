@@ -1,0 +1,6 @@
+# CU-ID: legend
+# CU-TYPE: LegendCU
+# TIMESTAMP: 2026-10-16T08:57:16.230745061Z
+# DTR-COORDINATES: 
+
+LEGEND for bugfix-feature-5. CU = Computational Unit. CU folder = per-CU subdirectory named after the CU id. COORDINATES.itr = DTR area affected by the CU. REQUIREMENTS.itr = what part of the feature the CU adds. IMPLEMENTATION_STEPS.itr = stepwise instructions for the Coder. ACCEPTANCE.itr = per-CU acceptance criteria plus tests. Approval grant = an explicit, specific Designer sign-off recorded in the session that names the files plus the commands plus the reason for a write. Default deny = without a recorded grant the harness refuses the write. Hardlink twin = .LLMDD/agents/advisor.md and .opencode/agents/llmdd/advisor.md share one inode, so a single edit updates both paths.

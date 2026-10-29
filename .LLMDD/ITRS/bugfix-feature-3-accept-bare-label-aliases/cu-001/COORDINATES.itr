@@ -1,0 +1,3 @@
+# COORDINATES: cu-001
+
+TYPE.scala.itrcompiler.infrastructure.parsers.JSONFormat.scala.JSONFormat + FILE.scala/itrcompiler/infrastructure/parsers/JSONFormat.scala + TYPE.scala.itrcompiler.domain.models.CU.scala.CU + FILE.scala/itrcompiler/domain/models/CU.scala; a coordinates value may name a DTR area that does not exist yet, meaning the CU creates it.

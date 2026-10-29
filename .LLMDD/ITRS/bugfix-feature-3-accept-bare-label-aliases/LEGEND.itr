@@ -1,0 +1,6 @@
+# CU-ID: legend
+# CU-TYPE: LegendCU
+# TIMESTAMP: 2026-10-10T11:42:08.416310964Z
+# DTR-COORDINATES: 
+
+LEGEND for bugfix-feature-3. CU = Computational Unit. CU folder = per-CU subdirectory named after the CU id (e.g. cu-001/). COORDINATES.itr = DTR area affected/created by the CU. REQUIREMENTS.itr = what part of the feature the CU adds. IMPLEMENTATION_STEPS.itr = stepwise code instructions for the Coder (gitignored). ACCEPTANCE.itr = per-CU acceptance criteria + acceptance/regression tests. SYNOPSIS.itr = ITR-root file naming implemented features and defining MAX_ATTEMPTS. MAX_ATTEMPTS = max Coder retry count per CU before escalation to code lead (3 for this ITR). Colon label = section header with trailing colon (REQUIREMENTS:), the canonical form. Bare label = section header without colon (REQUIREMENTS), accepted as an alias per Designer decision. Legacy batch = no synopsis, every regular CU component-less; keeps one in-folder <cu-id>.itr frame and is never enforcement-failed.

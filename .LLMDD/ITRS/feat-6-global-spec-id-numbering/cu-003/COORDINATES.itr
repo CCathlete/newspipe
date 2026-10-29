@@ -1,0 +1,3 @@
+# COORDINATES: cu-003
+
+FILE..LLMDD/prompts/llm-driven-design-sys-prompt.itr.md, FILE..LLMDD/skills/init-repo/SKILL.md, FILE..LLMDD/tools/README.md. All three keys are present in the baseline.

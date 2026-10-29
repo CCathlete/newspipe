@@ -1,0 +1,6 @@
+# COORDINATES: cu-006
+
+FILE..LLMDD/tools/run-waves.py.
+CODEX..LLMDD/tools/run-waves.py=FUNCTION:def run_coder.
+CODEX..LLMDD/tools/run-waves.py=FUNCTION:async def run_wave_parallel.
+CODEX..LLMDD/tools/run-waves.py=FUNCTION:async def main_async.

@@ -86,3 +86,22 @@ presence does not imply type agreement.
 
 The new spec file. Design discussion continues against it; implementation
 starts only after the Designer approves the criteria and tests.
+
+
+## Skill validation
+
+Before creating the spec, run the deterministic validator to ensure all steps are followed:
+
+```bash
+python3 .LLMDD/tools/skill-check.py feature --print-prompt
+```
+
+The Advisor must execute every step from that prompt in order and report a checklist at the end.
+
+## Book tracking (MANDATORY)
+
+Before committing in the current repo, if the current repo is `llm-driven-design` and `~/Repos/llmdd-book` exists:
+1. Add a summary of changes to the llmdd-book (typically a new subsection under the current-version section of `docs/building-llm-driven-design.md`)
+2. `git -C ~/Repos/llmdd-book add docs/building-llm-driven-design.md`
+3. `git -C ~/Repos/llmdd-book commit -m "docs: <summary>"`
+4. Never push from either repo

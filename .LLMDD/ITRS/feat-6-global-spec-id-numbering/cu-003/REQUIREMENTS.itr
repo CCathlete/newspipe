@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-003
+
+Numbering must be a binding tensor rule rather than a convention buried in two skills, and the repo lifecycle must reset the counter so a fresh repo restarts at one. This delivers feature criterion 8. Depends on: cu-001 (the rule names the allocator), and touches no file cu-002 touches, so it may run in parallel with cu-002.

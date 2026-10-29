@@ -1,0 +1,462 @@
+# IMPLEMENTATION_STEPS: cu-001
+
+1. Write the allocator to .LLMDD/tools/next-spec-id.py with the exact content below (complete file, no placeholders): ```python
+"""Global per-repo spec-id allocator (feat-6).
+
+Allocates bug and feature serials from a plain-text counter plus every git
+ref, so ids stay unique per repository across branches and clones.
+
+CLI:
+    next-spec-id.py --kind bug|feature [--dry-run] [--prefix bugfix-feature]
+    next-spec-id.py --check
+
+Exit 0: clean, or an id printed. Exit 1: check violation. Exit 2: usage
+error. See .LLMDD/tools/check-advisor-approval.py for the sibling shape.
+"""
+from __future__ import annotations
+
+import argparse
+import re
+import subprocess
+import sys
+from collections.abc import Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TypeAlias
+
+Serial: TypeAlias = int
+SpecKind: TypeAlias = str
+CounterMap: TypeAlias = dict[str, Serial]
+KindMax: TypeAlias = dict[str, Serial]
+Findings: TypeAlias = list[str]
+
+COUNTER_REL: str = ".LLMDD/spec-driven/ids.txt"
+SPEC_DIRS: dict[str, str] = {
+    "bug": ".LLMDD/spec-driven/bugs",
+    "feature": ".LLMDD/spec-driven/features",
+}
+FEATURE_PREFIXES: Sequence[str] = ("feat-", "bugfix-feature-")
+BUG_PREFIX: str = "bug-"
+REF_NAMESPACES: Sequence[str] = ("refs/heads/", "refs/remotes/")
+SKIP_DIRS: Sequence[str] = ("templates",)
+BUG_RE: re.Pattern[str] = re.compile(r"^bug-(\d+)-")
+FEATURE_RE: re.Pattern[str] = re.compile(r"^(?:feat|bugfix-feature)-(\d+)-")
+COUNTER_RE: re.Pattern[str] = re.compile(r"^(bug|feature)=(\d+)\s*$")
+
+
+@dataclass(slots=True, frozen=True)
+class Usage:
+    """Usage problem that ends the run with exit 2."""
+
+    message: str
+
+
+@dataclass(slots=True, frozen=True)
+class Violation:
+    """Check failure that ends the run with exit 1."""
+
+    message: str
+
+
+@dataclass(slots=True, frozen=True)
+class RefSpec:
+    """One spec directory as seen at one git ref."""
+
+    ref: str
+    directory: str
+    names: Sequence[str]
+
+
+@dataclass(slots=True, frozen=True)
+class Repo:
+    """Repository root plus the resolved spec tree."""
+
+    root: Path
+
+    @property
+    def counter(self) -> Path:
+        return self.root / COUNTER_REL
+
+    def specs(self, kind: SpecKind) -> Path:
+        return self.root / SPEC_DIRS[kind]
+
+
+def repo_root() -> Path:
+    """Repository root is two parents above .LLMDD/tools/."""
+    return Path(__file__).resolve().parent.parent.parent
+
+
+def spec_names(path: Path) -> Sequence[str]:
+    """Spec filenames in one directory, empty when it is absent."""
+    if not path.is_dir():
+        return ()
+    return tuple(sorted(entry.name for entry in path.iterdir() if entry.is_file()))
+
+
+def tree_names(repo: Repo, kind: SpecKind) -> Sequence[str]:
+    """Spec filenames from the working tree."""
+    return spec_names(repo.specs(kind))
+
+
+def ref_names(repo: Repo, ref: str, kind: SpecKind) -> Sequence[str]:
+    """Spec filenames at one ref, empty when the path is absent there."""
+    try:
+        done: subprocess.CompletedProcess[str] = subprocess.run(
+            ["git", "-C", str(repo.root), "ls-tree", "--name-only", ref, "--", SPEC_DIRS[kind]],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return ()
+    if done.returncode != 0:
+        return ()
+    entries: list[str] = []
+    line: str
+    for line in done.stdout.splitlines():
+        entry: str = line.strip().rsplit("/", 1)[-1]
+        if entry.endswith(".md"):
+            entries.append(entry)
+    return tuple(entries)
+
+
+def all_refs(repo: Repo) -> Sequence[str]:
+    """Every branch ref in the clone, local and remote-tracking."""
+    try:
+        done: subprocess.CompletedProcess[str] = subprocess.run(
+            ["git", "-C", str(repo.root), "for-each-ref", "--format=%(refname)", *REF_NAMESPACES],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return ()
+    if done.returncode != 0:
+        return ()
+    return tuple(line.strip() for line in done.stdout.splitlines() if line.strip())
+
+
+def ref_serials(repo: Repo) -> KindMax:
+    """Highest serial per kind across every ref."""
+    highest: KindMax = {"bug": 0, "feature": 0}
+    ref: str
+    for ref in all_refs(repo):
+        kind: SpecKind
+        for kind in ("bug", "feature"):
+            names: Sequence[str] = ref_names(repo, ref, kind)
+            pattern: re.Pattern[str] = BUG_RE if kind == "bug" else FEATURE_RE
+            name: str
+            for name in names:
+                found: re.Match[str] | None = pattern.match(name)
+                if found is not None:
+                    highest[kind] = max(highest[kind], int(found.group(1)))
+        text: str = ref_counter_text(repo, ref)
+        key: str
+        value: str
+        for key, value in parse_counter(text):
+            if key in highest:
+                highest[key] = max(highest[key], int(value))
+    return highest
+
+
+def ref_counter_text(repo: Repo, ref: str) -> str:
+    """Counter file text at one ref, empty when absent."""
+    try:
+        done: subprocess.CompletedProcess[str] = subprocess.run(
+            ["git", "-C", str(repo.root), "show", ref + ":" + COUNTER_REL],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return ""
+    if done.returncode != 0:
+        return ""
+    return done.stdout
+
+
+def tree_serials(names: Sequence[str], kind: SpecKind) -> KindMax:
+    """Highest serial per kind from one set of spec filenames."""
+    highest: KindMax = {"bug": 0, "feature": 0}
+    pattern: re.Pattern[str] = BUG_RE if kind == "bug" else FEATURE_RE
+    name: str
+    for name in names:
+        found: re.Match[str] | None = pattern.match(name)
+        if found is not None:
+            highest[kind] = max(highest[kind], int(found.group(1)))
+    return highest
+
+
+def merge_max(left: KindMax, right: KindMax) -> KindMax:
+    """Element-wise maximum of two serial maps."""
+    return {key: max(left[key], right[key]) for key in left}
+
+
+def parse_counter(text: str) -> Sequence[tuple[str, str]]:
+    """Parse `kind=n` lines; unknown or malformed lines are ignored."""
+    rows: list[tuple[str, str]] = []
+    line: str
+    for line in text.splitlines():
+        found: re.Match[str] | None = COUNTER_RE.match(line.strip())
+        if found is not None:
+            rows.append((found.group(1), found.group(2)))
+    return tuple(rows)
+
+
+def read_counter(path: Path) -> CounterMap:
+    """Counter map from disk; a missing file seeds to empty."""
+    if not path.is_file():
+        return {}
+    try:
+        text: str = path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    return {key: int(value) for key, value in parse_counter(text)}
+
+
+def write_counter(path: Path, values: CounterMap) -> None:
+    """Write the counter file with stable key order."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines: str = "".join(key + "=" + str(values[key]) + "\n" for key in sorted(values))
+    path.write_text(lines, encoding="utf-8")
+
+
+def next_serial(repo: Repo, kind: SpecKind) -> Serial:
+    """Highest serial used anywhere in this repository, plus one."""
+    highest: KindMax = merge_max(ref_serials(repo), tree_serials(tree_names(repo, kind), kind))
+    other: SpecKind = "feature" if kind == "bug" else "bug"
+    highest = merge_max(highest, tree_serials(tree_names(repo, other), other))
+    return highest[kind] + 1
+
+
+def render_id(n: Serial, kind: SpecKind, prefix: str | None) -> str:
+    """Render the spec id for this run."""
+    lead: str = prefix if prefix else ("feat-" if kind == "feature" else BUG_PREFIX)
+    return lead + str(n) + "-"
+
+
+def check(repo: Repo) -> Findings:
+    """Collect every numbering violation in the working tree."""
+    findings: Findings = []
+    kinds: tuple[str, str] = ("bug", "feature")
+    kind: SpecKind
+    for kind in kinds:
+        names: Sequence[str] = tree_names(repo, kind)
+        pattern: re.Pattern[str] = BUG_RE if kind == "bug" else FEATURE_RE
+        seen: dict[Serial, str] = {}
+        name: str
+        for name in names:
+            found: re.Match[str] | None = pattern.match(name)
+            if found is None:
+                continue
+            serial: Serial = int(found.group(1))
+            if serial in seen:
+                findings.append("duplicate " + kind + " serial " + str(serial) + ": " + seen[serial] + " and " + name)
+            else:
+                seen[serial] = name
+    stored: CounterMap = read_counter(repo.counter)
+    kind = "bug"
+    for kind in kinds:
+        if kind in stored:
+            behind: Serial = next_serial(repo, kind) - 1
+            if stored[kind] < behind:
+                findings.append("counter " + kind + "=" + str(stored[kind]) + " is behind serial " + str(behind))
+    roots: tuple[str, str] = (".LLMDD/DTRS", ".LLMDD/ITRS")
+    root: str
+    for root in roots:
+        directory: Path = repo.root / root
+        if not directory.is_dir():
+            continue
+        entry: Path
+        for entry in sorted(directory.iterdir()):
+            if not entry.is_dir():
+                continue
+            if entry.name in SKIP_DIRS:
+                continue
+            spec: Path = repo.root / ".LLMDD/spec-driven/features" / (entry.name + ".md")
+            bug_spec: Path = repo.root / ".LLMDD/spec-driven/bugs" / (entry.name + ".md")
+            if not spec.is_file() and not bug_spec.is_file():
+                findings.append("orphan artifact " + root + "/" + entry.name + " has no matching spec file")
+    return findings
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+        description="Allocate the next bug or feature id for this repository."
+    )
+    parser.add_argument("--kind", choices=["bug", "feature"], help="Which sequence to draw from.")
+    parser.add_argument("--dry-run", action="store_true", help="Print the id without writing the counter.")
+    parser.add_argument("--prefix", help="Id prefix for this run, for example bugfix-feature-.")
+    parser.add_argument("--check", action="store_true", help="Report numbering violations and exit non-zero.")
+    args: argparse.Namespace = parser.parse_args(argv)
+    return args
+
+
+def main(argv: list[str] | None = None) -> int:
+    args: argparse.Namespace = parse_args(argv)
+    repo: Repo = Repo(root=repo_root())
+    if args.check:
+        findings: Findings = check(repo)
+        if findings:
+            for finding in findings:
+                sys.stderr.write("VIOLATION: " + finding + "\n")
+            return 1
+        return 0
+    kind: SpecKind = str(args.kind)
+    if args.kind is None:
+        sys.stderr.write("usage: --kind bug|feature is required unless --check is given\n")
+        return 2
+    prefix: str | None = args.prefix
+    n: Serial = next_serial(repo, kind)
+    stored: CounterMap = read_counter(repo.counter)
+    if args.dry_run:
+        sys.stdout.write(render_id(n, kind, prefix) + "\n")
+        return 0
+    values: CounterMap = dict(stored)
+    values[kind] = max(n, values.get(kind, 0))
+    write_counter(repo.counter, values)
+    sys.stdout.write(render_id(n, kind, prefix) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+``` Prove: `python3 -m py_compile .LLMDD/tools/next-spec-id.py && echo COMPILE_OK` prints COMPILE_OK.
+2. Write the fixture test to .LLMDD/tools/test_next_spec_id.py with the exact content below (complete file, no placeholders): ```python
+"""Fixture test for next-spec-id.py (feat-6).
+
+Builds a throwaway repository under /tmp/opencode with bug-5 and feat-5,
+cuts two sibling branches, and asserts the allocator hands out different
+ids. No pytest; test_synopsis_budget.py is the standalone-script precedent.
+"""
+from __future__ import annotations
+
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+KIND_BUG: str = "bug"
+KIND_FEATURE: str = "feature"
+COUNTER_REL: str = ".LLMDD/spec-driven/ids.txt"
+EXIT_OK: int = 0
+EXIT_VIOLATION: int = 1
+BASE: str = "refs/heads/main"
+FIRST: str = "refs/heads/branch-a"
+SECOND: str = "refs/heads/branch-b"
+DUPLICATE_SPEC: str = ".LLMDD/spec-driven/bugs/bug-5-shadow.md"
+
+
+def run(command: list[str], cwd: Path) -> str:
+    """Run one command and return stdout, letting a failure raise."""
+    done: subprocess.CompletedProcess[str] = subprocess.run(
+        command, cwd=cwd, capture_output=True, text=True, check=True
+    )
+    return done.stdout.strip()
+
+
+def stage_allocator(repo: Path) -> Path:
+    """Copy the allocator into the fixture repo so __file__ gives its root."""
+    tools: Path = repo / ".LLMDD/tools"
+    tools.mkdir(parents=True, exist_ok=True)
+    source: Path = Path(__file__).resolve().parent / "next-spec-id.py"
+    target: Path = tools / "next-spec-id.py"
+    shutil.copyfile(source, target)
+    return target
+
+
+def allocator(repo: Path) -> list[str]:
+    """The allocator under test, staged inside the fixture repository."""
+    return [sys.executable, str(stage_allocator(repo))]
+
+
+def git(repo: Path, *args: str) -> str:
+    """Run one git command inside the fixture repository."""
+    return run(["git", *args], repo)
+
+
+def make_fixture(base: Path) -> Path:
+    """Create the fixture repository and return its path."""
+    root: Path = base / "spec-id-fixture"
+    if root.exists():
+        shutil.rmtree(root)
+    root.mkdir(parents=True)
+    git(root, "init", "--quiet", "--initial-branch=main")
+    git(root, "config", "user.email", "fixture@example.com")
+    git(root, "config", "user.name", "Fixture")
+    bugs: Path = root / ".LLMDD/spec-driven/bugs"
+    features: Path = root / ".LLMDD/spec-driven/features"
+    bugs.mkdir(parents=True)
+    features.mkdir(parents=True)
+    (bugs / "bug-5-fixture.md").write_text("# bug-5: fixture\n", encoding="utf-8")
+    (features / "feat-5-fixture.md").write_text("# feat-5: fixture\n", encoding="utf-8")
+    git(root, "add", "-A")
+    git(root, "commit", "--quiet", "-m", "fixture base")
+    git(root, "branch", "branch-a")
+    git(root, "branch", "branch-b")
+    return root
+
+
+def allocate(repo: Path, kind: str, ref: str) -> str:
+    """Allocate one id while checked out at ref."""
+    git(repo, "checkout", "--quiet", ref.replace("refs/heads/", ""))
+    out: str = run([*allocator(repo), "--kind", kind], repo)
+    return out
+
+
+def expect(condition: bool, label: str) -> None:
+    """Record one assertion, keeping all failures visible."""
+    if not condition:
+        raise AssertionError("failed: " + label)
+
+
+def main() -> int:
+    base: Path = Path("/tmp/opencode")
+    repo: Path = make_fixture(base)
+    first: str = allocate(repo, KIND_BUG, FIRST)
+    expect(first.startswith("bug-"), "branch-a id carries the bug prefix, got " + first)
+    git(repo, "add", "-A")
+    git(repo, "commit", "--quiet", "-m", "bump for branch-a")
+    second: str = allocate(repo, KIND_BUG, SECOND)
+    git(repo, "checkout", "--quiet", "main")
+    expect(second != first, "sibling branches share the id " + second)
+    both: str = run([*allocator(repo), "--check"], repo)
+    expect(both == "", "clean repository must report no finding, got " + both)
+    shadow: Path = repo / DUPLICATE_SPEC
+    shadow.write_text("# bug-5: shadow\n", encoding="utf-8")
+    result: subprocess.CompletedProcess[str] = subprocess.run(
+        [*allocator(repo), "--check"], cwd=repo, capture_output=True, text=True, check=False
+    )
+    expect(result.returncode == EXIT_VIOLATION, "duplicate serial must exit 1, got " + str(result.returncode))
+    shadow.unlink()
+    dry: str = run([*allocator(repo), "--kind", KIND_FEATURE, "--dry-run"], repo)
+    expect(dry.startswith("feat-"), "dry-run prints a feature id, got " + dry)
+    sys.stdout.write("PASS\n")
+    return EXIT_OK
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+``` Prove: `python3 -m py_compile .LLMDD/tools/test_next_spec_id.py && echo TEST_COMPILE_OK` prints TEST_COMPILE_OK.
+3. Run the fixture test with the exact command below: ```sh
+python3 .LLMDD/tools/test_next_spec_id.py
+``` Prove: `python3 .LLMDD/tools/test_next_spec_id.py` prints PASS and exits 0.
+4. Run the strict type probe on both new files with the exact command below: ```sh
+uvx mypy --strict .LLMDD/tools/next-spec-id.py .LLMDD/tools/test_next_spec_id.py
+``` Prove: `uvx mypy --strict .LLMDD/tools/next-spec-id.py .LLMDD/tools/test_next_spec_id.py` prints Success and reports zero errors.
+5. Prove the allocator is global across branches in this repository with the exact commands below, where the dry runs must leave the counter untouched: ```sh
+git branch --list
+python3 .LLMDD/tools/next-spec-id.py --kind feature --dry-run
+python3 .LLMDD/tools/next-spec-id.py --kind bug --dry-run
+python3 .LLMDD/tools/next-spec-id.py --check
+git status --short
+``` Prove: `python3 .LLMDD/tools/next-spec-id.py --check` exits 0 and prints nothing, and `git status --short` lists only the two new tool files plus .LLMDD/DTRS/feat-6-global-spec-id-numbering/repo.dtr.
+6. Run the discipline audit on both new files with the exact command below: ```sh
+grep -c "Any" .LLMDD/tools/next-spec-id.py .LLMDD/tools/test_next_spec_id.py
+grep -n "^[A-Za-z_]* *=" .LLMDD/tools/next-spec-id.py | grep -v ":.*: " | head
+echo audit_done
+``` Prove: `grep -c "Any" .LLMDD/tools/next-spec-id.py .LLMDD/tools/test_next_spec_id.py` prints a 0 count for each file.
+Do NOT touch: .LLMDD/skills/bug/SKILL.md, .LLMDD/skills/feature/SKILL.md, .LLMDD/skills/init-repo/SKILL.md, .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md, .LLMDD/spec-driven/ids.txt, .LLMDD/tools/README.md, .LLMDD/tools/run-waves.py, .LLMDD/tools/validate-steps.py, .LLMDD/tools/check-advisor-approval.py, any Scala source, any ITR frame or feedback file.
+Stop when COMPILE_OK, TEST_COMPILE_OK, the fixture test prints PASS, mypy strict reports zero errors, the check exits 0 and the audit prints zero counts; skill rewiring belongs to cu-002 and the tensor rule, init-repo reset and tools README belong to cu-003.

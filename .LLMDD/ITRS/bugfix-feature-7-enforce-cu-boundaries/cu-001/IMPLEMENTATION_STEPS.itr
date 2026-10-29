@@ -1,0 +1,214 @@
+# IMPLEMENTATION_STEPS: cu-001
+
+1. Create .LLMDD/tools/cu_scope.py with the shared no-touch vocabulary. The prose clauses used by the shipped bugfix-feature-5 frames become matchable globs, so the clauses carrying the most weight are the ones enforcement can reach. Two details are load-bearing and were found by running the shipped frames through this code before it was written into this frame. The shipped frames end their no-touch list with a sentence period, so entries are right-trimmed before lookup, or that clause reports as unparsed. And path normalisation strips a leading ./ by prefix rather than by character set, because a character strip deletes the leading dot of every dotfile path in this repository. Finally, scope is prose: both readers look only at what sits outside a fenced block, because a path or a Do NOT touch line inside a fence is a fixture, an assert or a shipped-code sample and never a declaration, so a frame cannot contradict its own boundary with the example it uses to prove that boundary.
+
+```python
+"""Shared CU scope vocabulary: parse a Do NOT touch list into matchable patterns."""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from fnmatch import fnmatch
+from typing import Final, Sequence, TypeAlias
+
+Pattern: TypeAlias = str
+
+NO_TOUCH_LABEL: Final[str] = "Do NOT touch:"
+
+PROSE_TO_GLOB: Final[dict[str, str]] = {
+    "any scala source": "**/*.scala",
+    "any python tool": ".LLMDD/tools/*.py",
+    "any itr frame or feedback file": ".LLMDD/ITRS/**",
+    "any itr frame file": ".LLMDD/ITRS/**",
+    "any dtr file": ".LLMDD/DTRS/**",
+}
+
+_PATHISH: Final[re.Pattern[str]] = re.compile(r"^[\w./*-]+$")
+_EXT: Final[re.Pattern[str]] = re.compile(r"[\w./-]+\.(?:py|scala|md|json|itr|txt|sbt|yaml|yml)")
+_FENCE: Final[re.Pattern[str]] = re.compile(r"```.*?```", re.S)
+
+
+@dataclass(frozen=True, slots=True)
+class NoTouch:
+    entries: Sequence[str]
+    patterns: Sequence[Pattern]
+    unparsed: Sequence[str]
+
+
+EMPTY: Final[NoTouch] = NoTouch(entries=(), patterns=(), unparsed=())
+
+
+def prose_only(body: str) -> str:
+    return _FENCE.sub("", body)
+
+
+def _split_entries(body: str) -> Sequence[str]:
+    for raw_line in body.splitlines():
+        stripped: str = raw_line.strip()
+        if stripped.startswith(NO_TOUCH_LABEL):
+            tail: str = stripped[len(NO_TOUCH_LABEL):]
+            return [part.strip() for part in tail.split(",") if part.strip()]
+    return ()
+
+
+def _trim(entry: str) -> str:
+    return entry.rstrip(".;:")
+
+
+def parse_no_touch(body: str) -> NoTouch:
+    prose: str = prose_only(body)
+    entries: Sequence[str] = _split_entries(prose)
+    patterns: list[Pattern] = []
+    unparsed: list[str] = []
+    for entry in entries:
+        clean: str = _trim(entry)
+        mapped: str | None = PROSE_TO_GLOB.get(clean.lower())
+        if mapped is not None:
+            patterns.append(mapped)
+        elif _PATHISH.match(clean):
+            patterns.append(clean)
+        else:
+            unparsed.append(entry)
+    return NoTouch(entries=entries, patterns=tuple(patterns), unparsed=tuple(unparsed))
+
+
+def is_touched(patterns: Sequence[Pattern], path: str) -> bool:
+    normalised: str = path[2:] if path.startswith("./") else path
+    return any(fnmatch(normalised, pattern) for pattern in patterns)
+
+
+def write_paths(body: str) -> Sequence[str]:
+    return tuple(dict.fromkeys(_EXT.findall(prose_only(body))))
+```
+
+The module deliberately annotates variable-length sequences as Sequence rather than as a variadic tuple form, keeping the source free of ellipsis tokens so the F2 placeholder rule stays meaningful on this module.
+
+Prove: `python3 -m py_compile .LLMDD/tools/cu_scope.py`
+
+2. Prove the parser against the four shipped bugfix-feature-5 frames. Every entry must normalise, with nothing left unparsed:
+
+```sh
+cd /home/kcat/Repos/llm-driven-design
+python3 - <<'PY'
+import sys
+sys.path.insert(0, ".LLMDD/tools")
+from cu_scope import is_touched, parse_no_touch, write_paths
+base = ".LLMDD/ITRS/bugfix-feature-5-enforce-advisor-read-only-approval"
+for cu in ("cu-001", "cu-002", "cu-003", "cu-004"):
+    body = open(f"{base}/{cu}/IMPLEMENTATION_STEPS.itr").read()
+    parsed = parse_no_touch(body)
+    assert not parsed.unparsed, (cu, parsed.unparsed)
+    print(cu, len(parsed.entries), len(parsed.patterns))
+tick = chr(96) * 3
+synthetic = ("1. Illustrate fenced blocks are ignored\n\n" + tick + "python\n" +
+             "Do NOT touch: .LLMDD/tools/z_helper.py, any Scala source\n" + "x = 1\n" + tick + "\n" +
+             "Prove: `python3 -m py_compile .LLMDD/tools/x.py`\n" + "Do NOT touch: README.md\n" + "Stop when green.\n")
+parsed_syn = parse_no_touch(synthetic)
+assert list(parsed_syn.entries) == ["README.md"], parsed_syn.entries
+assert ".LLMDD/tools/z_helper.py" not in write_paths(synthetic)
+scala_probe = parse_no_touch("Do NOT touch: any Scala source\nStop when green.\n")
+assert is_touched(scala_probe.patterns, "itr-compiler/src/main/scala/A.scala")
+assert not is_touched(scala_probe.patterns, "README.md")
+print("ALL_FRAMES_PARSE")
+PY
+```
+
+Prove: `ALL_FRAMES_PARSE` is printed as the final line and the exit status is 0.
+
+3. Add the F4 design-time checks to .LLMDD/tools/validate-steps.py so an absent, empty, unparseable or self-contradictory no-touch list fails validation. Add this import beside the existing module imports at the top of the file:
+
+```python
+from fnmatch import fnmatch
+
+from cu_scope import NoTouch, parse_no_touch, write_paths
+```
+
+Insert these checks inside check(), after the existing Stop when test and before the F6 placeholder checks:
+
+```python
+    declared: NoTouch = parse_no_touch(body)
+    if not declared.entries:
+        fails.append("F7: no-touch list is absent or empty")
+    for bad in declared.unparsed:
+        fails.append(f"F7: no-touch entry is neither a path nor a known clause: {bad}")
+    owned: Sequence[str] = write_paths(body)
+    for guarded in declared.patterns:
+        clash: str = next((w for w in owned if fnmatch(w, guarded)), "")
+        if clash:
+            fails.append(f"F7: no-touch list contains this CU own write target: {clash}")
+```
+
+Prove: `python3 -m py_compile .LLMDD/tools/validate-steps.py`
+
+4. Prove the inversion of the bug-10 reproduction. The fixture that printed PASS cu-bad and exited 0 must now exit non-zero naming the offending path. The section marker is assembled from two parts on purpose, so this frame never contains the literal marker string that validate-steps.py splits its own input on:
+
+```sh
+cd /home/kcat/Repos/llm-driven-design
+printf '1. Edit .LLMDD/tools/x.py
+
+```python
+x = 1
+```
+
+Prove: `python3 -m py_compile .LLMDD/tools/x.py`
+
+Do NOT touch: .LLMDD/tools/x.py, any Scala source
+Stop when green.
+' > /tmp/opencode/cu-bad-steps.txt
+python3 - <<'PY'
+import json, pathlib
+head = "#" + " IMPLEMENTATION_STEPS" + ":"
+tail = "#" + " ACCEPTANCE" + ":"
+body = pathlib.Path("/tmp/opencode/cu-bad-steps.txt").read_text()
+batch = {"cus": [{"cu-id": "cu-bad", "content": head + body + tail + "\n1. x is 1\n"}]}
+pathlib.Path("/tmp/opencode/batch.json").write_text(json.dumps(batch))
+PY
+python3 .LLMDD/tools/validate-steps.py /tmp/opencode/batch.json
+```
+
+Prove: `python3 .LLMDD/tools/validate-steps.py /tmp/opencode/batch.json` exits 1 and prints a line beginning F7 naming .LLMDD/tools/x.py as this CU own write target.
+
+5. Prove no existing frame regresses. Every shipped CU body must still validate, which is what shows this CU introduced no format change:
+
+```sh
+cd /home/kcat/Repos/llm-driven-design
+regressions=0
+for f in .LLMDD/ITRS/bugfix-feature-5-enforce-advisor-read-only-approval/cu-*/IMPLEMENTATION_STEPS.itr; do
+  python3 - "$f" <<'PY'
+import json, pathlib, sys
+head = "#" + " IMPLEMENTATION_STEPS" + ":"
+tail = "#" + " ACCEPTANCE" + ":"
+body = pathlib.Path(sys.argv[1]).read_text()
+batch = {"cus": [{"cu-id": "probe", "content": head + body + tail + "\n1. ok\n"}]}
+pathlib.Path("/tmp/opencode/probe.json").write_text(json.dumps(batch))
+PY
+  python3 .LLMDD/tools/validate-steps.py /tmp/opencode/probe.json > /tmp/opencode/probe.out 2>&1 || regressions=$((regressions+1))
+  echo "$(basename "$(dirname "$f")") -> $(head -1 /tmp/opencode/probe.out)"
+done
+echo "REGRESSIONS=$regressions"
+```
+
+Prove: `REGRESSIONS=0` is the final line of the loop output.
+
+6. Prove this feature's own three frames validate under the vocabulary this CU just shipped:
+
+```sh
+cd /home/kcat/Repos/llm-driven-design
+failures=0
+for f in .LLMDD/ITRS/bugfix-feature-7-enforce-cu-boundaries/cu-*/IMPLEMENTATION_STEPS.itr; do
+  python3 - "$f" <<PY
+import json,pathlib,sys
+head="#"+" IMPLEMENTATION_STEPS:"+",tail="#"+" ACCEPTANCE"+":",body=pathlib.Path(sys.argv[1]).read_text()
+batch={"cus":[{"cu-id":"probe","content":head+body+tail+"\n1. ok\n"}]}
+pathlib.Path("/tmp/opencode/probe7.json").write_text(json.dumps(batch))
+PY
+  python3 .LLMDD/tools/validate-steps.py /tmp/opencode/probe7.json > /tmp/opencode/probe7.out 2>&1 || failures=$((failures+1))
+  echo "$(basename "$(dirname "$f")") -> $(head -1 /tmp/opencode/probe7.out)"
+done
+echo "FEATURE7_FAILURES=$failures"
+```
+
+Prove: `FEATURE7_FAILURES=0` is the final line.
+
+Do NOT touch: .LLMDD/tools/run-waves.py, .LLMDD/tools/check-advisor-approval.py, .LLMDD/tools/next-spec-id.py, .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md, .LLMDD/agents, .LLMDD/skills, any ITR frame file, any DTR file, any Scala source.
+Stop when steps 1 through 6 are green: the shared module compiles and carries no ellipsis token, all four shipped frames parse with nothing unparsed, a fenced declaration is ignored while the prose declaration wins, validate-steps compiles, the self-contradictory fixture exits 1 with an F7 line, no shipped frame regresses, and this feature's own three frames validate. cu-002 owns run-waves.py and must not begin before this CU lands.

@@ -1,0 +1,9 @@
+# ACCEPTANCE: cu-001
+
+1. _breach_detail_for_cu has no dead branches and only returns scope-correct breaches.
+2. run_wave_parallel has no try/except; uses match/case on Ok/Err.
+3. Corrections use the same model and are logged as cu-<id>.correction-<n>.log.
+4. After 3 failed correction attempts the CU is escalated with breach detail in the per-CU lead prompt.
+5. Unattributed breaches are passed to the wave lead context.
+6. `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"` prints ok.
+7. `cd /home/kcat/Repos/llm-driven-design && python3 -m unittest discover -s .LLMDD/tests -v` exits 0.

@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-004
+
+Bring YAMLFormat to parity (verify its parser has no key-order assumption; fix the same way if it does) and lock the whole fix with regression tests: a JSONFormat key-order unit test, section-splitting unit tests, and an end-to-end integration test that compiles an inline-section batch through Compile + FileSystem and asserts the four-file CU folder layout. Full sbt suite must stay green. This covers the YAML side of criterion 1 and feature criteria 5 and 8.

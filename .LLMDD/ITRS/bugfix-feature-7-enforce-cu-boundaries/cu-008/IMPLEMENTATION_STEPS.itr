@@ -1,0 +1,266 @@
+# IMPLEMENTATION_STEPS: cu-008
+
+1. Create .LLMDD/tests/test_cu_boundary.py with the suite below. It loads the runner from disk with importlib because the runner file name contains a hyphen:
+
+```python
+"""Regression suite for CU boundary measurement and enforcement."""
+import importlib.util
+import json
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from types import ModuleType
+from typing import Sequence
+
+import unittest
+
+ROOT: Path = Path(__file__).resolve().parents[2]
+TOOLS: Path = ROOT / ".LLMDD" / "tools"
+sys.path.insert(0, str(TOOLS))
+
+from cu_scope import (  # noqa: E402
+    has_enforceable_patterns, is_touched, parse_no_touch, resolve_patterns,
+    write_paths)
+
+RUNNER_PATH: Path = TOOLS / "run-waves.py"
+_SPEC = importlib.util.spec_from_file_location("run_waves_tool", RUNNER_PATH)
+if _SPEC is None or _SPEC.loader is None:
+    raise RuntimeError("cannot load the wave runner module")
+RUNNER: ModuleType = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(RUNNER)
+
+
+def _event(tool: str, payload: dict[str, str]) -> str:
+    """Render one tool_use line shaped like the opencode JSON stream."""
+    part: dict[str, object] = {
+        "type": "tool", "tool": tool, "state": {"input": payload}}
+    return json.dumps({"type": "tool_use", "part": part})
+
+
+class TestScopeParsing(unittest.TestCase):
+    def test_semicolon_list(self) -> None:
+        parsed = parse_no_touch(
+            "Do NOT touch: a/b.py; c/d.py\nStop when green.\n")
+        self.assertEqual(parsed.patterns, ("a/b.py", "c/d.py"))
+        self.assertEqual(parsed.unparsed, ())
+
+    def test_wrapped_list(self) -> None:
+        parsed = parse_no_touch(
+            "Do NOT touch: .opencode/agents/verifier.md,\n"
+            "        any Scala source, any Python tool.\n"
+            "Stop when green.\n")
+        self.assertIn("**/*.scala", parsed.patterns)
+        self.assertIn(".LLMDD/tools/*.py", parsed.patterns)
+
+    def test_directory_expands(self) -> None:
+        parsed = parse_no_touch("Do NOT touch: .LLMDD/agents\nStop when x\n")
+        self.assertEqual(parsed.patterns, (".LLMDD/agents/**",))
+        self.assertTrue(is_touched(parsed.patterns, ".LLMDD/agents/coder.md"))
+
+    def test_dot_slash_keeps_dotfile(self) -> None:
+        parsed = parse_no_touch("Do NOT touch: ./.LLMDD/agents\nStop when x\n")
+        self.assertEqual(parsed.patterns, (".LLMDD/agents/**",))
+
+    def test_unparsed_is_surfaced(self) -> None:
+        parsed = parse_no_touch(
+            "Do NOT touch: the sys-prompt tensor, any Scala source\nStop when x\n")
+        self.assertEqual(parsed.unparsed, ("the sys-prompt tensor",))
+        self.assertIn("**/*.scala", parsed.patterns)
+
+    def test_empty_is_unenforceable(self) -> None:
+        self.assertFalse(has_enforceable_patterns(parse_no_touch("")))
+        self.assertFalse(has_enforceable_patterns(parse_no_touch(
+            "Do NOT touch: the sys-prompt tensor\nStop when x\n")))
+
+    def test_star_does_not_cross_separator(self) -> None:
+        parsed = parse_no_touch("Do NOT touch: any Python tool\nStop when x\n")
+        self.assertTrue(is_touched(parsed.patterns, ".LLMDD/tools/x.py"))
+        self.assertFalse(is_touched(parsed.patterns, ".LLMDD/tools/sub/x.py"))
+
+    def test_symlink_resolution(self) -> None:
+        parsed = parse_no_touch(
+            "Do NOT touch: .opencode/agents/llmdd/coder.md\nStop when x\n")
+        resolved: Sequence[str] = resolve_patterns(parsed.patterns, ROOT)
+        self.assertIn(".LLMDD/agents/coder.md", resolved)
+
+    def test_write_index_is_step_scoped(self) -> None:
+        body = (
+            "1. Add the helper to .LLMDD/tools/thing.py\n\n"
+            "```python\nx = 1\n```\n\n"
+            "Prove: `python3 -m py_compile .LLMDD/tools/other.py`\n\n"
+            "2. Prove docs/notes.md is intact\n\n"
+            "```sh\nls docs/notes.md\n```\n\n"
+            "Prove: `ls docs/notes.md`\n"
+            "Do NOT touch: .LLMDD/tools/guarded.py\n"
+            "Stop when green.\n")
+        found: Sequence[str] = write_paths(body)
+        self.assertIn(".LLMDD/tools/thing.py", found)
+        self.assertNotIn(".LLMDD/tools/other.py", found)
+        self.assertNotIn(".LLMDD/tools/guarded.py", found)
+
+
+class TestAttribution(unittest.TestCase):
+    def test_coder_writes_reads_tool_events(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root: Path = Path(raw)
+            log_dir: Path = root / "logs"
+            log_dir.mkdir()
+            lines: list[str] = [
+                _event("write", {"path": str(root / ".LLMDD" / "tools" / "a.py")}),
+                _event("edit", {"path": str(root / "src" / "b.py")}),
+                _event("shell", {"command": "echo x > src/c.py"}),
+                _event("read", {"path": str(root / "src" / "ignored.py")}),
+                "not json at all",
+            ]
+            (log_dir / "cu-001.attempt-0.log").write_text("\n".join(lines) + "\n")
+            writes = RUNNER.coder_writes("cu-001", log_dir, root)
+            self.assertEqual(writes.cu_id, "cu-001")
+            self.assertIn(".LLMDD/tools/a.py", writes.paths)
+            self.assertIn("src/b.py", writes.paths)
+            self.assertIn("src/c.py", writes.paths)
+            self.assertNotIn("src/ignored.py", writes.paths)
+
+    def test_coder_writes_reads_every_attempt(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root: Path = Path(raw)
+            log_dir: Path = root / "logs"
+            log_dir.mkdir()
+            (log_dir / "cu-002.attempt-0.log").write_text(
+                _event("write", {"path": str(root / "src" / "one.py")}) + "\n")
+            (log_dir / "cu-002.attempt-1.log").write_text(
+                _event("edit", {"path": str(root / "src" / "two.py")}) + "\n")
+            writes = RUNNER.coder_writes("cu-002", log_dir, root)
+            self.assertIn("src/one.py", writes.paths)
+            self.assertIn("src/two.py", writes.paths)
+
+    def test_attribute_writes_splits_claimed_and_residual(self) -> None:
+        per_cu = [
+            RUNNER.CoderWrites(cu_id="cu-001", paths=("src/a.py",)),
+            RUNNER.CoderWrites(cu_id="cu-002", paths=("src/b.py",)),
+        ]
+        split = RUNNER.attribute_writes(
+            ("src/a.py", "src/b.py", "src/c.py"), per_cu)
+        self.assertEqual(split.unattributed, ("src/c.py",))
+
+    def test_wave_writes_includes_untracked_and_drops_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root: Path = Path(raw)
+            git: list[str] = ["git", "-C", str(root)]
+            subprocess.run(git + ["init", "-q"], check=True)
+            (root / "tracked.txt").write_text("one\n")
+            subprocess.run(git + ["add", "tracked.txt"], check=True)
+            subprocess.run(
+                git + ["-c", "user.email=a@b.c", "-c", "user.name=t",
+                       "commit", "-q", "-m", "base"], check=True)
+            (root / "tracked.txt").write_text("two\n")
+            (root / "created.txt").write_text("new\n")
+            found: Sequence[str] = RUNNER.wave_writes(
+                root, "HEAD", frozenset({"dirty.txt"}))
+            self.assertIn("tracked.txt", found)
+            self.assertIn("created.txt", found)
+            filtered: Sequence[str] = RUNNER.wave_writes(
+                root, "HEAD", frozenset({"tracked.txt"}))
+            self.assertNotIn("tracked.txt", filtered)
+            self.assertIn("created.txt", filtered)
+
+
+class TestBoundaryRules(unittest.TestCase):
+    def _guards(self) -> dict[str, object]:
+        return {
+            "cu-001": parse_no_touch(
+                "Do NOT touch: .LLMDD/agents, src/owned.py\nStop when x\n"),
+            "cu-002": parse_no_touch(
+                "Do NOT touch: src/other.py\nStop when x\n"),
+        }
+
+    def test_own_no_touch_breach(self) -> None:
+        writes = RUNNER.WaveWrites(
+            per_cu=(RUNNER.CoderWrites(
+                cu_id="cu-001", paths=(".LLMDD/agents/coder.md",)),),
+            unattributed=(),
+        )
+        breached = RUNNER.boundary_breaches(writes, self._guards())
+        self.assertEqual(len(breached), 1)
+        self.assertEqual(breached[0].rule, "no-touch")
+        self.assertEqual(breached[0].path, ".LLMDD/agents/coder.md")
+
+    def test_sibling_write_is_not_a_breach(self) -> None:
+        writes = RUNNER.WaveWrites(
+            per_cu=(RUNNER.CoderWrites(
+                cu_id="cu-001", paths=("src/owned.py",)),),
+            unattributed=(),
+        )
+        breached = RUNNER.boundary_breaches(writes, self._guards())
+        self.assertEqual(breached, ())
+
+    def test_shared_write_breach(self) -> None:
+        writes = RUNNER.WaveWrites(
+            per_cu=(
+                RUNNER.CoderWrites(cu_id="cu-001", paths=("src/shared.py",)),
+                RUNNER.CoderWrites(cu_id="cu-002", paths=("src/shared.py",)),
+            ),
+            unattributed=(),
+        )
+        breached = RUNNER.boundary_breaches(writes, self._guards())
+        self.assertEqual(
+            sorted(item.rule for item in breached),
+            ["shared-write", "shared-write"])
+
+    def test_unattributed_breach_names_the_guard(self) -> None:
+        writes = RUNNER.WaveWrites(
+            per_cu=(RUNNER.CoderWrites(cu_id="cu-001", paths=()),),
+            unattributed=("src/other.py",),
+        )
+        breached = RUNNER.boundary_breaches(writes, self._guards())
+        self.assertEqual(len(breached), 1)
+        self.assertEqual(breached[0].scope, "wave")
+        self.assertIn("cu-002", breached[0].rule)
+
+    def test_unenforceable_fails_closed(self) -> None:
+        writes = RUNNER.WaveWrites(
+            per_cu=(RUNNER.CoderWrites(cu_id="cu-009", paths=("src/a.py",)),),
+            unattributed=(),
+        )
+        breached = RUNNER.boundary_breaches(writes, {"cu-009": parse_no_touch("")})
+        self.assertEqual(len(breached), 1)
+        self.assertEqual(breached[0].rule, "unenforceable")
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+Prove: `python3 -c "import ast; ast.parse(open('.LLMDD/tests/test_cu_boundary.py').read()); print('ok')"`
+
+2. Create .LLMDD/tests/README.md so the suite location is documented:
+
+```markdown
+# LLMDD tool tests
+
+Run every tool regression test with:
+
+```sh
+cd /home/kcat/Repos/llm-driven-design
+python3 -m unittest discover -s .LLMDD/tests -v
+```
+
+`test_cu_boundary.py` proves the CU boundary contract: no-touch parsing,
+segment-aware matching, symlink resolution, the precise write index,
+per-CU attribution from the coder event log, untracked file coverage,
+baseline subtraction, and the three enforcement rules.
+```
+
+Prove: `python3 -c "import pathlib; print(pathlib.Path('.LLMDD/tests/README.md').is_file())"`
+
+3. Run the suite and require a green result:
+
+```sh
+cd /home/kcat/Repos/llm-driven-design
+python3 -m unittest discover -s .LLMDD/tests -v
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -m unittest discover -s .LLMDD/tests 2>&1 | tail -3`
+
+Do NOT touch: .LLMDD/tools/run-waves.py, .LLMDD/tools/cu_scope.py, any DTR file, any ITR frame file, any ITR frame or feedback file, any Scala source
+Stop when the suite passes with zero failures and zero errors.

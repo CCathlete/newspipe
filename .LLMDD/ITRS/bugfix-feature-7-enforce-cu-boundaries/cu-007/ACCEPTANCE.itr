@@ -1,0 +1,6 @@
+# ACCEPTANCE: cu-007
+
+T007.1 A per-CU lead that writes a path on its CU no-touch list fails the wave with rule lead.
+T007.2 A wave lead that writes a path on the no-touch list of a CU it was not asked to repair fails the wave with rule lead.
+T007.3 The dirty baseline is recomputed per wave, excludes paths this run wrote, and includes untracked files.
+T007.4 Escalated CUs are read from the feedback folder and excluded from the wave lead guard set.

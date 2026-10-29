@@ -1,0 +1,2 @@
+cd /home/kcat/Repos/llm-driven-design
+python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/feat-9-enforce-cu-boundary-redirect --app repo --waves .LLMDD/ITRS/feat-9-enforce-cu-boundary-redirect/waves.json

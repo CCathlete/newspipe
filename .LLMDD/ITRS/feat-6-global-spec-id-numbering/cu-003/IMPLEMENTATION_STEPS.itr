@@ -1,0 +1,45 @@
+# IMPLEMENTATION_STEPS: cu-003
+
+1. Add the rule line below to .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md immediately after the existing RULE.ADV.APPROVAL_REQUIRED line, keeping the file's one-rule-per-line RULE.X.Y format: ```text
+RULE.NUM.GLOBAL_SPEC_IDS=Bug and feature ids are allocated only by .LLMDD/tools/next-spec-id.py, which reads .LLMDD/spec-driven/ids.txt plus every git ref, so an id is unique per repository across branches and clones. Numbers are never hand-derived and never reused; gaps are expected and permitted. Before merging, or whenever a duplicate serial is suspected, run next-spec-id.py --check and resolve to the highest number before merging.
+``` Prove: `grep -c "RULE.NUM.GLOBAL_SPEC_IDS" .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md` prints 1.
+2. Extend the cleanup instruction in .LLMDD/skills/init-repo/SKILL.md by replacing its cleanup sentence with the exact sentence below so the counter is removed alongside the spec directories: ```text
+Delete .LLMDD/ITRS/, .LLMDD/DTRS/, .LLMDD/spec-driven/features/, .LLMDD/spec-driven/bugs/ and .LLMDD/spec-driven/ids.txt, leaving each present but empty, so a fresh repository restarts at serial 1.
+``` Prove: `grep -c "spec-driven/ids.txt" .LLMDD/skills/init-repo/SKILL.md` prints a non-zero count.
+3. Write .LLMDD/tools/README.md with the exact content below (the file is currently empty): ```markdown
+# .LLMDD/tools
+
+Repo-agnostic tooling carried by the .LLMDD standard. Every tool derives
+the repository root from its own location, so the folder works unchanged
+in any repository that carries a .LLMDD folder.
+
+## next-spec-id.py
+
+Allocates the next bug or feature serial for this repository. It reads
+the plain-text counter at `.LLMDD/spec-driven/ids.txt` plus every git ref
+under `refs/heads` and `refs/remotes`, so two branches cut from the same
+state of dev never receive the same number.
+
+```sh
+python3 .LLMDD/tools/next-spec-id.py --kind bug
+python3 .LLMDD/tools/next-spec-id.py --kind feature --prefix bugfix-feature-
+python3 .LLMDD/tools/next-spec-id.py --kind feature --dry-run
+python3 .LLMDD/tools/next-spec-id.py --check
+```
+
+`--kind` prints the id and bumps the counter. `--prefix` chooses the id
+lead, so a bug or bugs fix prints `bugfix-feature-<n>-` from the feature
+sequence. `--dry-run` prints without writing. `--check` never writes and
+fails on a duplicate serial, on an artifact directory with no matching
+spec file, or on a counter behind a serial present in the tree.
+
+Exit codes follow the convention shared with `check-advisor-approval.py`:
+0 clean or id printed, 1 check violation, 2 usage error.
+
+## check-advisor-approval.py
+
+Validates a Designer-issued approval token against a proposed change.
+Exit 0 allows, 1 denies, 2 is a usage error.
+``` Prove: `grep -c "next-spec-id.py" .LLMDD/tools/README.md` prints a non-zero count and `wc -c .LLMDD/tools/README.md` prints a value above 200.
+Do NOT touch: .LLMDD/tools/next-spec-id.py, .LLMDD/tools/test_next_spec_id.py, .LLMDD/skills/bug/SKILL.md, .LLMDD/skills/feature/SKILL.md, .LLMDD/spec-driven/ids.txt, any DTR or ITR artifact.
+Stop when the tensor carries RULE.NUM.GLOBAL_SPEC_IDS exactly once, init-repo removes .LLMDD/spec-driven/ids.txt, and .LLMDD/tools/README.md documents both tools.

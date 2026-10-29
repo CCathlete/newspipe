@@ -117,3 +117,11 @@ The execute command is given only after the dry-run is verified and
 Implemented code, committed by the code lead. Per-CU feedback is consumed
 during the run (untracked). Feeds
 STEP6 (VERIFY) and STEP7 (E2E_VERIFY).
+
+## Book tracking (MANDATORY)
+
+Before committing in the current repo, if the current repo is `llm-driven-design` and `~/Repos/llmdd-book` exists:
+1. Add a summary of changes to the llmdd-book (typically a new subsection under the current-version section of `docs/building-llm-driven-design.md`)
+2. `git -C ~/Repos/llmdd-book add docs/building-llm-driven-design.md`
+3. `git -C ~/Repos/llmdd-book commit -m "docs: <summary>"`
+4. Never push from either repo

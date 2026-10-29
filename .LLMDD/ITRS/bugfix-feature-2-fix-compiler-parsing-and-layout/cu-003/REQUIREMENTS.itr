@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-003
+
+Enforce the flat-CU fix at compile time: compiling a new-schema batch in which any regular CU omits one or more of the four required sections must fail with non-zero exit, naming the offending CU id plus the missing section(s), and must leave no flat cu-<id>.itr blob (at root or inside the CU folder) behind for the offending CU. Genuinely component-less legacy batches keep their single in-folder <cu-id>.itr frame and are never failed (feat-1 criterion 11). This is feature criterion 7.

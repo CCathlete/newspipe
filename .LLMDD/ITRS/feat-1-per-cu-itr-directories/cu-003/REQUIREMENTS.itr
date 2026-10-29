@@ -1,0 +1,9 @@
+# REQUIREMENTS: cu-003
+# TIMESTAMP: 2026-10-09
+
+The writer emits one subdirectory per regular CU holding its four component
+files and NO per-CU .itr blob for component-carrying CUs (component-less
+legacy CUs keep one <cu-id>.itr inside their folder, never at root);
+keeps ARCH.itr/LEGEND.itr and other globals at the ITR root; writes root
+SYNOPSIS.itr (features, MAX_ATTEMPTS, implementation summary); keeps
+IMPLEMENTATION_STEPS.itr gitignored.

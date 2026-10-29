@@ -1,0 +1,6 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-10T11:42:08.414171538Z
+# DTR-COORDINATES: 
+
+ARCH rules for bugfix-feature-3 (bare section labels accepted as aliases). Hexagonal architecture: domain models in itrcompiler.domain.models; compile orchestration in itrcompiler.application.services; CLI parsing in itrcompiler.control.cli; filesystem access only via itrcompiler.infrastructure.filesystem. No cross-layer dependencies. Port flow outbound to inbound. The splitter lives in itrcompiler.infrastructure.parsers (JSONFormat.splitInlineSections) matching against the shared CU.sectionLabels list in the domain layer, so parser and validation agree by construction. New validation failures must be typed domain errors surfaced with the offending CU id and component name.

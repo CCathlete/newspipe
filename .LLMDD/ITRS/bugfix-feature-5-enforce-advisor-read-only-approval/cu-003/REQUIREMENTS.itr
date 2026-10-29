@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-003
+
+Create the deterministic approval-token gate: a token schema plus a gate script at .LLMDD/tools/check-advisor-approval.py that validates a Designer-issued token file (.LLMDD/approvals/<id>.json holding id, files, commands, reason, granted_by, expires) against a proposed change, exiting zero only for a valid unexpired in-scope token and non-zero otherwise, with unit checks proving each denial. This delivers feature criterion 2 (deterministic enforcement, never prose alone) plus the script half of criterion 3. Depends on: nothing (new files only; no shared edits with cu-004).

@@ -1,0 +1,108 @@
+# IMPLEMENTATION_STEPS: cu-007
+
+1. Append the lead helpers to .LLMDD/tools/run-waves.py directly after the enforce_boundary function:
+
+```python
+def _paths_against(paths: Sequence[str], guards: dict[str, NoTouch],
+                   scope: str) -> Sequence[BoundaryBreach]:
+    """Hold one agent's writes to a set of CU guards."""
+    found: list[BoundaryBreach] = []
+    path: str
+    for path in paths:
+        owners: list[str] = [
+            cu for cu, declared in guards.items()
+            if is_touched(declared.patterns, path)]
+        if owners:
+            found.append(BoundaryBreach(
+                scope=scope, path=path,
+                rule="lead:" + ",".join(sorted(owners))))
+    return tuple(found)
+
+
+def _escalated_in(wave_cus: Sequence[str], feedback_dir: Path) -> set[str]:
+    """CU ids whose feedback marks STATUS=ESCALATION."""
+    found: set[str] = set()
+    cu: str
+    text: str
+    for cu in wave_cus:
+        match _read_file_text(feedback_dir / f"{cu}.feedback.txt"):
+            case Ok(text) if "STATUS=ESCALATION" in text:
+                found.add(cu)
+            case _:
+                pass
+    return found
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+2. Change _dirty_paths in .LLMDD/tools/run-waves.py so untracked files count as dirt:
+
+```python
+    match _git_run("status", "--porcelain", "--untracked-files=all", cwd=project_dir):
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && grep -c "untracked-files=all" .LLMDD/tools/run-waves.py`
+
+3. Insert the per-CU lead gate in .LLMDD/tools/run-waves.py directly after the per-CU lead loop and before the comment that recomputes files changed:
+
+```python
+    guard_breaches: list[BoundaryBreach] = []
+    escalated_set: set[str] = set(escalated_cus)
+    lead_cu: str
+    lead_ref: Path
+    lead_left: asyncio.Future[Ok[CoderOutput] | Err[Exception]]
+    for lead_cu, lead_ref, lead_left in coder_futures:
+        if lead_cu not in escalated_set:
+            continue
+        raw_lead: CoderWrites = coder_writes(f"lead-{lead_cu}", log_dir, project_dir)
+        guard_breaches.extend(_owned_breaches(
+            CoderWrites(cu_id=lead_cu, paths=raw_lead.paths), guards))
+    if guard_breaches:
+        report_breaches(tuple(guard_breaches), feedback_dir)
+        all_passed = False
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && grep -c "guard_breaches" .LLMDD/tools/run-waves.py`
+
+4. Change the run-level baseline in .LLMDD/tools/run-waves.py to a run-level accumulator, so each wave can subtract what this run already wrote:
+
+```python
+    tracker: CreditTracker = CreditTracker()
+    run_written: set[str] = set()
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && grep -c "run_written: set\[str\] = set()" .LLMDD/tools/run-waves.py`
+
+5. Insert the per-wave baseline in .LLMDD/tools/run-waves.py at the start of the wave loop, directly after the CU list is printed and before the dry-run branch:
+
+```python
+        baseline_dirty: frozenset[str] = frozenset(
+            _dirty_paths(project_dir) - run_written)
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && grep -c "baseline_dirty: frozenset\[str\] = frozenset" .LLMDD/tools/run-waves.py`
+
+6. Insert the wave lead gate in .LLMDD/tools/run-waves.py directly after the line that sets lead_ok from the wave lead return code:
+
+```python
+        escalated_ids: set[str] = _escalated_in(wave_cus, feedback_dir)
+        wave_lead_paths: Sequence[str] = coder_writes(
+            f"lead-wave-{wave_num}", log_dir, project_dir).paths
+        lead_guards: dict[str, NoTouch] = {}
+        guard_name: str
+        guard_path: Path
+        for guard_name, guard_path in cu_files:
+            if guard_name not in escalated_ids:
+                lead_guards[guard_name] = _resolved(
+                    _cu_no_touch(guard_path), project_dir)
+        lead_breaches: Sequence[BoundaryBreach] = _paths_against(
+            wave_lead_paths, lead_guards, f"lead-wave-{wave_num}")
+        if lead_breaches:
+            report_breaches(lead_breaches, feedback_dir)
+            all_passed = False
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && grep -c "lead_guards" .LLMDD/tools/run-waves.py`
+
+Do NOT touch: .LLMDD/tools/cu_scope.py, any DTR file, any ITR frame file, any ITR frame or feedback file, any Scala source
+Stop when the module parses, the per-CU lead and the wave lead are both checked, and each wave recomputes its baseline.

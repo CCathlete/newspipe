@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-003
+
+T2 — `python3 -m py_compile .LLMDD/tools/check-advisor-approval.py` exits 0; missing, malformed, expired, file-scope, and command-scope probes exit 1; the valid in-scope probe exits 0 printing `ALLOWED: t-valid`; `grep -c "Any"` on the script prints 0; `.LLMDD/approvals/` holds `.gitkeep` and no `*.json` grant.

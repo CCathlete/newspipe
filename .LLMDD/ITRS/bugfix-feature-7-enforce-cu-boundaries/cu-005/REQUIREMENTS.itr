@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-005
+
+Measure the per-CU change set from each CU's own opencode JSON log, not the shared wave diff. Parse tool_use events for write, edit and patch paths from state.input.path, and extract paths from shell commands by redirection and repo-rooted quoted paths. Include every attempt log for the agent. Compute the wave change set from git diff against base_ref plus untracked files, subtract dirt that predated the wave. Attribute every wave-changed path to the CU whose log claimed it; the remainder is unattributed. Expose CoderWrites, WaveWrites, coder_writes, wave_writes, attribute_writes.

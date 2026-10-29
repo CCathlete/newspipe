@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-002
+
+T4 and T5 u2014 `python3 .LLMDD/tools/next-spec-id.py --check` exits 0 printing nothing; `python3 .LLMDD/tools/next-spec-id.py --kind feature --dry-run` prints `feat-7-`; `python3 .LLMDD/tools/next-spec-id.py --kind bug --dry-run` prints `bug-6-`; `grep -c "highest existing" .LLMDD/skills/bug/SKILL.md .LLMDD/skills/feature/SKILL.md` prints two zero counts; `git status --short -- .LLMDD/spec-driven/ids.txt` prints nothing after both dry runs.

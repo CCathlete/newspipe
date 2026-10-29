@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-001
+
+Feature tests T1-T4: T1 u2014 the all-bare batch from bug-3 compiles to <out>/cu-001/{COORDINATES,REQUIREMENTS,IMPLEMENTATION_STEPS,ACCEPTANCE}.itr with exit 0, no cu-001/cu-001.itr blob. T2 u2014 the all-colon batch is unchanged (four files); a mixed bare/colon batch yields the same four-file folder. T3 u2014 a two-section batch fails non-zero naming CU id + missing sections, no blob. T4 u2014 sbt test from itr-compiler/ green including the new bare-label parser test. Commands: .LLMDD/tools/itr-compiler --compile --json-content <batch> --out-folder <tmp>/ plus sbt test from itr-compiler/.

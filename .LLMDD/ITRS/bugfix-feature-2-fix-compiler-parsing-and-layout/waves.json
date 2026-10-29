@@ -1,0 +1,5 @@
+[
+  {"wave": 1, "description": "Independent foundations, full parallel (2 coders): JSON key-order parsing + flat-CU enforcement on disjoint files", "cus": ["cu-001", "cu-003"]},
+  {"wave": 2, "description": "Inline-section splitter on the refactored JSON parser (same-file serial after cu-001)", "cus": ["cu-002"]},
+  {"wave": 3, "description": "YAML parity + end-to-end regression coverage over the full fix", "cus": ["cu-004"]}
+]

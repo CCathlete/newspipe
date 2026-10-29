@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+Make JSONFormat.parse accept CU object keys in any order (JSON objects are unordered per RFC 8259), so batches round-tripped through key-reordering tooling (sort_keys, formatters, editors) compile. Batches with byte-identical values in different key orders must parse to equal CUBatch results and compile with exit 0 when arch and legend are present. This resolves bug-1 (bug-1-json-batch-key-order-rejected) and feature criteria 1-2.

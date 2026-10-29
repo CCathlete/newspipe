@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+Replace the blanket bash allow in the Advisor permission frontmatter with a read-only bash allowlist plus a default ask wildcard, keeping edit deny. The Advisor default posture becomes capability-level read-only so a write without a Designer approval grant is refused even when advisory prose is ignored. This delivers feature criterion 1 and criterion 3 for the frontmatter half. Depends on: nothing.

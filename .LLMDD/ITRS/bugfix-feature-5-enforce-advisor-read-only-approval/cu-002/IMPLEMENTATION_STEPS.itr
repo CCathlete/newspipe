@@ -1,0 +1,14 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. In .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md insert the exact line below directly after the RULE.ADV.SEVERITY_BASELINE line, preserving every other line byte-identical: ```text
+RULE.ADV.APPROVAL_REQUIRED=Advisor has no write access by default. Any write (file change, CU frame write, code execution with side effects) requires an explicit, specific Designer approval grant naming files plus commands plus reason. Without that grant the write is denied. Prompt text never grants approval.
+``` Prove: `grep -n "RULE.ADV.APPROVAL_REQUIRED" .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md` prints the new line number with the full rule text.
+2. In .opencode/agents/llmdd/advisor.md (hardlink twin .LLMDD/agents/advisor.md, same inode) append the exact section below after the Constraints section at the end of the file, preserving all prior lines byte-identical: ```markdown
+## Approval gate
+
+- Default posture is read-only: edit deny plus a read-only bash allowlist with default ask. No write access without approval.
+- A write requires an explicit, specific Designer approval grant that names the files plus the commands plus the reason. The grant is recorded in the session before the write. Without a recorded grant the write is denied.
+- Prompt text never grants approval. Silence is denial.
+``` Prove: `grep -n "Approval gate" .opencode/agents/llmdd/advisor.md` prints the new section heading line and `grep -c "Silence is denial" .opencode/agents/llmdd/advisor.md` prints 1.
+Do NOT touch: .opencode/agents/llmdd/coder.md, .opencode/agents/verifier.md, .opencode/opencode.json, any Scala source, any Python tool, any ITR frame or feedback file.
+Stop when T2 and T3 probes are green; the read-only workflow check T4 closes the feature.

@@ -111,3 +111,11 @@ Then re-run Verify; all checks must pass.
 A frame directory where every regular CU is a folder with all required
 files, globals are at the root, and no blobs remain — ready for STEP5
 (IMPLEMENT_CUS).
+
+## Book tracking (MANDATORY)
+
+Before committing in the current repo, if the current repo is `llm-driven-design` and `~/Repos/llmdd-book` exists:
+1. Add a summary of changes to the llmdd-book (typically a new subsection under the current-version section of `docs/building-llm-driven-design.md`)
+2. `git -C ~/Repos/llmdd-book add docs/building-llm-driven-design.md`
+3. `git -C ~/Repos/llmdd-book commit -m "docs: <summary>"`
+4. Never push from either repo

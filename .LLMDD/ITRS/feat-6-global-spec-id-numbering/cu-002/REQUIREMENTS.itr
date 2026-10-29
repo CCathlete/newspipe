@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+Both spec skills allocate by scanning the working directory, which is branch-scoped and therefore hands the same serial to two branches cut from the same state of dev. Route allocation through .LLMDD/tools/next-spec-id.py and seed this repository's counter. This delivers feature criterion 7. Depends on: cu-001 (the allocator must exist before a skill may call it).

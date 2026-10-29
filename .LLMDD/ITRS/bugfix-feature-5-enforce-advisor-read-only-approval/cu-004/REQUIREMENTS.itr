@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-004
+
+Widen the Advisor frontmatter to the read-only set plus git plus mkdir/touch for scratch, amend RULE.ADV.APPROVAL_REQUIRED to the scoped-token plus gate-script semantics, and amend the Approval gate body to match, so the default posture allows inspection plus scratch creation while every code change needs a valid in-scope token validated by the gate script. This delivers criterion 1 in full plus the wording half of criteria 2 and 3, and keeps criterion 4 with scratch writes needing no token. Depends on: cu-003 (the gate script exists before the wording references it; no shared files so ordering is by reference only).

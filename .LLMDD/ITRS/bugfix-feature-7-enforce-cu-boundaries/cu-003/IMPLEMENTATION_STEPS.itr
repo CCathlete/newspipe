@@ -1,0 +1,166 @@
+# IMPLEMENTATION_STEPS: cu-003
+
+1. Add the dirty-tree probe to .LLMDD/tools/run-waves.py, immediately after the _cu_no_touch helper added by cu-002. It returns the set of tracked paths reported dirty, or an empty set when git cannot answer, so a git failure never blocks a wave. The porcelain status line is three status characters followed by a space, so the path starts at index three:
+
+```python
+def _dirty_paths(project_dir: Path) -> frozenset[str]:
+    """Return tracked paths currently dirty, empty when git cannot answer."""
+    dirty: frozenset[str]
+    match _git_run("status", "--porcelain", "--untracked-files=no", cwd=project_dir):
+        case Ok(out):
+            dirty = frozenset(line[3:].strip() for line in out.splitlines() if len(line) > 3)
+        case Err(_):
+            dirty = frozenset()
+    return dirty
+```
+
+Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py`
+
+2. Add the ownership index and the clash evaluator for a wave. Place both immediately after _dirty_paths. Read the steps frame for write targets, not the requirements frame. Extend the cu_scope import so write_paths is available:
+
+```python
+def _wave_write_index(cu_files: Sequence[tuple[str, Path]]) -> dict[str, Sequence[str]]:
+    """Map each CU id to the write targets its frame declares in prose."""
+    index: dict[str, Sequence[str]] = {}
+    cu_id: str
+    directory: Path
+    for cu_id, directory in cu_files:
+        steps_file: Path = directory / "IMPLEMENTATION_STEPS.itr"
+        opened: Ok[typing.TextIO] | Err[Exception] = _open_file(steps_file)
+        if isinstance(opened, Err):
+            continue
+        handle: typing.TextIO = opened.value
+        text: str = handle.read()
+        handle.close()
+        index[cu_id] = write_paths(text)
+    return index
+
+
+def _wave_dirty_clashes(cu_files: Sequence[tuple[str, Path]],
+                        baseline_dirty: frozenset[str]) -> list[tuple[str, str]]:
+    """Return (owner, path) pairs whose write target was dirty before the run."""
+    owners: dict[str, Sequence[str]] = _wave_write_index(cu_files)
+    return sorted({
+        (owner, path)
+        for owner, paths in owners.items()
+        for path in paths
+        if path in baseline_dirty
+    })
+```
+
+```python
+from cu_scope import NoTouch, is_touched, parse_no_touch, write_paths
+```
+
+Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py`
+
+3. Snapshot dirty paths once before the wave loop and refuse any wave whose CU targets an already-dirty path. Capture baseline_dirty immediately after tracker initialisation. Inside the per-wave body after the dry-run branch and before the pre-wave HEAD ref, evaluate against the pre-run baseline and abort non-zero on clash:
+
+```python
+    tracker: CreditTracker = CreditTracker()
+    baseline_dirty: frozenset[str] = _dirty_paths(project_dir)
+```
+
+```python
+        clashes: list[tuple[str, str]] = _wave_dirty_clashes(cu_files, baseline_dirty)
+        if clashes:
+            owner: str
+            path: str
+            for owner, path in clashes:
+                _fail(f"wave {wave_num}: CU {owner} declares {path} was already dirty before this run")
+            sys.exit(1)
+```
+
+Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py`
+
+4. Prove the dirty-tree probe correctly detects dirty paths:
+
+```sh
+rm -rf /tmp/opencode/dirtyprobe
+mkdir -p /tmp/opencode/dirtyprobe/tools
+cd /tmp/opencode/dirtyprobe
+git init -q .
+printf 'x = 1\n' > tools/a.py
+git add tools/a.py
+git -c user.email=a@b -c user.name=c commit -qm init
+python3 - <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "/home/kcat/Repos/llm-driven-design/.LLMDD/tools")
+import run_waves as rw
+root = Path("/tmp/opencode/dirtyprobe")
+assert rw._dirty_paths(root) == frozenset()
+PY
+printf 'x = 2\n' >> tools/a.py
+python3 - <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "/home/kcat/Repos/llm-driven-design/.LLMDD/tools")
+import run_waves as rw
+root = Path("/tmp/opencode/dirtyprobe")
+assert "tools/a.py" in rw._dirty_paths(root)
+print("PROBE_DETECTS_DIRTY")
+PY
+```
+
+Prove: `PROBE_DETECTS_DIRTY` is printed and the exit status is 0.
+
+5. Prove the ownership index reads targets from the implementation steps of the compiled frames:
+
+```sh
+cd /home/kcat/Repos/llm-driven-design
+python3 - <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, ".LLMDD/tools")
+import run_waves as rw
+base = Path(".LLMDD/ITRS/bugfix-feature-7-enforce-cu-boundaries")
+cu_files = sorted((p.name, p) for p in base.iterdir() if p.is_dir() and p.name.startswith("cu-"))
+index = rw._wave_write_index(cu_files)
+assert len(index) == 3
+assert ".LLMDD/tools/cu_scope.py" in index["cu-001"]
+assert ".LLMDD/tools/run-waves.py" in index["cu-002"]
+assert ".LLMDD/tools/run-waves.py" in index["cu-003"]
+print("INDEX_NON_EMPTY")
+PY
+```
+
+Prove: `INDEX_NON_EMPTY` is printed and the exit status is 0.
+
+6. Prove the clash evaluator flags a CU whose declared write path was dirty at baseline:
+
+```sh
+rm -rf /tmp/opencode/clashprobe
+mkdir -p /tmp/opencode/clashprobe/frames/cu-001 /tmp/opencode/clashprobe/tools
+cd /tmp/opencode/clashprobe
+git init -q .
+printf 'x = 1\n' > tools/target.py
+git add tools/target.py
+git -c user.email=a@b -c user.name=c commit -qm init
+printf '1. Create tools/target.py\n\nProve: `python3 -m py_compile tools/target.py`\nDo NOT touch: README.md\nStop when green.\n' > frames/cu-001/IMPLEMENTATION_STEPS.itr
+python3 - <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "/home/kcat/Repos/llm-driven-design/.LLMDD/tools")
+import run_waves as rw
+root = Path("/tmp/opencode/clashprobe")
+cu_files = [("cu-001", root / "frames" / "cu-001")]
+assert rw._wave_dirty_clashes(cu_files, frozenset()) == []
+assert rw._wave_dirty_clashes(cu_files, frozenset(["tools/target.py"])) == [("cu-001", "tools/target.py")]
+print("CLASH_DETECTED")
+PY
+```
+
+Prove: `CLASH_DETECTED` is printed and the exit status is 0.
+
+7. Prove wave planning is unaffected by the new pre-flight:
+
+```sh
+cd /home/kcat/Repos/llm-driven-design
+python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/bugfix-feature-7-enforce-cu-boundaries --app repo --waves .LLMDD/ITRS/bugfix-feature-7-enforce-cu-boundaries/waves.json --dry-run
+```
+
+Prove: `--dry-run` exits 0 and the plan lists cu-001, cu-002 and cu-003.
+
+Do NOT touch: .LLMDD/tools/validate-steps.py, .LLMDD/tools/cu_scope.py, .LLMDD/tools/check-advisor-approval.py, .LLMDD/tools/next-spec-id.py, .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md, .LLMDD/agents, .LLMDD/skills, any ITR frame file, any DTR file, any Scala source.
+Stop when steps 1 through 7 are green, the dirty probe correctly identifies modified files, the ownership index reads write targets from implementation steps, the clash evaluator flags dirty write targets, and wave planning still resolves all three CUs.

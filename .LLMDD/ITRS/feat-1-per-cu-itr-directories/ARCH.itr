@@ -1,0 +1,9 @@
+# ARCH: feat-1-per-cu-itr-directories
+# TIMESTAMP: 2026-10-09
+
+Hexagonal architecture: domain models in itrcompiler.domain.models; compile
+orchestration in itrcompiler.application.services; CLI parsing in
+itrcompiler.control.cli; filesystem access only via
+itrcompiler.infrastructure.filesystem. No cross-layer dependencies. Port
+flow outbound to inbound. New validation failures must be typed domain
+errors surfaced with the offending CU id and component name.

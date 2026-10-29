@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-006
+
+Enforce the CU boundary on the measured change sets with no silent pass. Replace the wave-wide diff inside run_coder with the CU's own attributed write set, drop its no_touch parameter and its in-loop breach check, and gate flat frames. Add the enforcement block that applies three rules: a CU fails when its attributed set hits its own no-touch list, two CUs fail when their attributed sets intersect, and the wave fails when an unattributed change hits any no-touch list in the wave. A CU whose no-touch list yields no enforceable pattern fails closed. Run the pass once per wave after every coder has finished, write the breach report, mark the wave failed, and make the process exit non-zero when the run does not converge.

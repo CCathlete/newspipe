@@ -5,6 +5,9 @@
     ".LLMDD/ITRS/*",
     ".LLMDD/DTRS/*",
     "!.LLMDD/approvals/*",
+    ".LLMDD/agents/*",
+    ".LLMDD/prompts/*",
+    ".LLMDD/skills/*",
     ".LLMDD/tests/*"
   ],
   "commands": [
@@ -13,7 +16,7 @@
     "python3 .LLMDD/tools/validate-steps.py *",
     ".LLMDD/tools/dtr-builder *",
     ".LLMDD/tools/itr-compiler *",
-    "python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/* --app * --waves .LLMDD/ITRS/* --dry-run",
+    "python* .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/* --app * --waves .LLMDD/ITRS/* --dry-run",
     "sbt compile *",
     "sbt test *",
     "sbt testOnly *",
@@ -24,7 +27,7 @@
     "git apply *",
     "git rm --cached *"
   ],
-  "reason": "Standing Designer grant: the Advisor operates all .LLMDD design artifacts and .LLMDD tools freely, no per-run token needed, plus sbt compile/test/testOnly/assembly for verification (these write only gitignored target/). Scoped to AUTHORED paths only. Deliberately excluded: .LLMDD/prompts, .LLMDD/tools, .LLMDD/skills, .LLMDD/agents, .LLMDD/instructions (synced from the llm-driven-design repo -- local edits are drift the next sync clobbers); pipelines/** (application code, RULE.ADV.NO_IMPLEMENTATION, the Coder's); the operational run-waves.py run (spawns Coder sessions and spends credits -- the Designer's paste); git push (pre-push hook blocks agents).",
-  "granted_by": "Designer, in-session: \"you should be able to write into .LLMDD and operate all the .LLMDD tools freely you don't need tokens for that\" plus \"add sbt compile, sbt assembly, sbt test to the allowed operations and make the token unexpired\" plus \"freehand dry run: the run-waves --dry-run entry is granted across every ITR, app and waves file with no per-run token needed; the operational run stays the Designer's paste\"",
+  "reason": "Standing Designer grant: the Advisor operates all .LLMDD design artifacts and .LLMDD tools freely, no per-run token needed, plus sbt compile/test/testOnly/assembly for verification (these write only gitignored target/). Scoped to AUTHORED paths only. Deliberately excluded: pipelines/** (application code, RULE.ADV.NO_IMPLEMENTATION, the Coder's); git push (pre-push hook blocks agents).",
+  "granted_by": "Designer, in-session: \"you should be able to write into .LLMDD and operate all the .LLMDD tools freely you don't need tokens for that\" plus \"add sbt compile, sbt assembly, sbt test to the allowed operations and make the token unexpired\"",
   "expires": "2099-12-31"
 }

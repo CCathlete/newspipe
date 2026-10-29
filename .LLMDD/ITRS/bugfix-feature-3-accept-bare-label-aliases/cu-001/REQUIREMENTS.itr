@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+Accept bare section labels (REQUIREMENTS, COORDINATES, IMPLEMENTATION_STEPS, ACCEPTANCE without trailing colon) as aliases of the colon labels in splitInlineSections, so Advisor batches drafted from the skill prose compile to four-file CU folders instead of silent legacy blobs. Mixed bare/colon batches split fully; partially-labeled batches keep failing loudly. This resolves bug-3 (bug-3-silent-blob-on-bare-section-labels) and all four feature criteria.

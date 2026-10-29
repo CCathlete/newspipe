@@ -1,0 +1,12 @@
+# SYNOPSIS: feat-1-per-cu-itr-directories
+# TIMESTAMP: 2026-10-09
+
+FEATURES_IMPLEMENTED=feat-1-per-cu-itr-directories
+MAX_ATTEMPTS=3
+DTR=.LLMDD/DTRS/feat-1-per-cu-itr-directories/itr-compiler.dtr
+BATCH=batch.json
+CUS=cu-001,cu-002,cu-003,cu-004,cu-005
+ENFORCED_BY=itr-compiler
+SUMMARY.1=This ITR implements feat-1-per-cu-itr-directories: teach the itr-compiler to emit and enforce one cu-<id>/ subdirectory per regular CU (COORDINATES.itr, REQUIREMENTS.itr, IMPLEMENTATION_STEPS.itr, ACCEPTANCE.itr) instead of a single flat frame, keeping ARCH.itr/LEGEND.itr global at the ITR root.
+SUMMARY.2=Concretely: cu-001 extends the CU/CUBatch domain models with component and synopsis fields; cu-002 extends required-parts validation to fail naming the CU and the missing piece (Advisor-placed overrides exempt); cu-003 extends the writer to emit the CU folders, this root SYNOPSIS.itr, and gitignored steps files; cu-004 extends the JSON/YAML batch schema while staying backward compatible; cu-005 adds executable tests T1-T7.
+SUMMARY.3=Done means the bundled compiler binary reproduces this very ITR layout from batch.json on its own, all new and existing suites are green, and Coders work from the per-CU folders retrying to MAX_ATTEMPTS=3 before escalating to the code lead.

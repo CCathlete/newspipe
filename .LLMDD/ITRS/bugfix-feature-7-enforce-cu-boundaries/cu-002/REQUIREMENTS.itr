@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+Enforce the CU no-touch boundary at run time. The wave runner already computes the per-CU changed-file list from the git diff; this CU compares that list against the no-touch set parsed by the shared vocabulary and fails the CU when it intersects, naming the offending path. No CU content format changes and no existing frame recompiles.

@@ -1,0 +1,6 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-16T08:57:16.229021795Z
+# DTR-COORDINATES: 
+
+ARCH rules for bugfix-feature-5 (Advisor read-only approval enforcement). Hexagonal architecture is untouched: this feature changes agent permission frontmatter plus system-tensor wording only, and adds no application dependencies. Binding constraints for every CU in this batch: the Advisor default posture is read-only; any write requires an explicit, specific Designer approval grant naming files plus commands plus reason; without that grant the write is denied at capability level; prompt text alone never grants approval. The coder.md read-only allowlist pattern with a default ask wildcard is the reference shape.

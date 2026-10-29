@@ -1,0 +1,58 @@
+# IMPLEMENTATION_STEPS: cu-002 (validation with relevant errors)
+# TIMESTAMP: 2026-10-09
+# WORKDIR: itr-compiler/
+# DEPENDS_ON: cu-001 merged (uses CU.missingComponents, CUSynopsis.isComplete)
+
+STEP 1 — Add component + synopsis validation.
+File: src/main/scala/itrcompiler/application/services/RequiredPartsValidation.scala
+- Add method:
+```scala
+def validateComponents(batch: CUBatch): Seq[String] =
+  batch.cus.filter(_.cuType == RegularCU).flatMap { cu =>
+    cu.missingComponents.toSeq.sorted.map(name => s"CU '${cu.id}' is missing component '$name'")
+  }
+```
+Only RegularCU is checked: arch/legend never carry components.
+- Add method:
+```scala
+def validateSynopsis(batch: CUBatch): Seq[String] = batch.synopsis match {
+  case None => Seq("SYNOPSIS is missing: batch carries no synopsis data (features, MAX_ATTEMPTS, implementation summary)")
+  case Some(s) if !s.isComplete => Seq("SYNOPSIS is incomplete: implementation summary is missing or empty")
+  case _ => Seq.empty
+}
+```
+- Do NOT change `validateBatch` / `validateForSingleCU` signatures or the
+  ARCH/LEGEND logic — existing tests (RequiredPartsValidationTest) must keep
+  passing unmodified.
+
+STEP 2 — Fail compilation with the relevant error.
+File: src/main/scala/itrcompiler/application/services/Compile.scala
+- In `execute`, immediately after the existing required-parts block, add:
+```scala
+val componentErrors = requiredPartsValidation.validateComponents(batch)
+val synopsisErrors = requiredPartsValidation.validateSynopsis(batch)
+val feat1Errors = componentErrors ++ synopsisErrors
+if (feat1Errors.nonEmpty) {
+  throw new IllegalStateException(
+    "ITR enforcement failed:\n" + feat1Errors.mkString("\n")
+  )
+}
+```
+- Same exception type as the existing missing-parts failure
+  (IllegalStateException), same fail-fast position: before any file is
+  written, so a violating batch leaves the output folder untouched.
+
+STEP 3 — Override exemption (no code needed, enforce by rule).
+- Validation inspects ONLY CUs present in the batch. Files already on disk
+  in the output folder whose names match no batch CU id (Advisor-placed
+  overrides) are never validated, never deleted, never overwritten unless
+  `--force` targets their exact path. Write a code comment stating this at
+  the new block in Compile.execute so no future change "fixes" it.
+
+STEP 4 — Verify.
+- `sbt "testOnly itrcompiler.application.services.*"` green (old tests pass).
+- New file src/test/scala/itrcompiler/application/services/Feat1ValidationTest.scala:
+  batch missing one component -> IllegalStateException naming CU id +
+  component (T2); batch without synopsis -> names MAX_ATTEMPTS/synopsis
+  (T3/T7); batch with hand-placed extra file on disk + valid batch ->
+  compiles, extra file untouched (T4 setup).

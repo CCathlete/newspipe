@@ -15,7 +15,11 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Optional, TypedDict
+from typing import Optional, Sequence, TypedDict
+
+from fnmatch import fnmatch
+
+from cu_scope import NoTouch, parse_no_touch, write_paths
 
 class BatchCu(TypedDict, total=False):
     cu_id: str
@@ -81,6 +85,18 @@ def check(cu_id: str, text: str) -> list[str]:
         fails.append("F4: missing Do NOT touch list")
     if "Stop when" not in body:
         fails.append("F4: missing Stop when condition")
+    declared: NoTouch = parse_no_touch(body)
+    if not declared.entries:
+        fails.append("F7: no-touch list is absent or empty")
+    bad: str
+    for bad in declared.unparsed:
+        fails.append(f"F7: no-touch entry is neither a path nor a known clause: {bad}")
+    owned: Sequence[str] = write_paths(body)
+    guarded: str
+    for guarded in declared.patterns:
+        clash: str = next((w for w in owned if fnmatch(w, guarded)), "")
+        if clash:
+            fails.append(f"F7: no-touch list contains this CU own write target: {clash}")
     code_free: str = FENCE.sub("", body)
     if PLACEHOLDER.search(code_free) or EG.search(code_free):
         fails.append("F6: placeholder token outside code (TBD/TODO/FIXME/XXX/e.g./etc.)")

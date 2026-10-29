@@ -1,0 +1,3 @@
+[
+  {"wave": 1, "description": "Bare-label aliases on the splitter plus parser regression tests (single CU)", "cus": ["cu-001"]}
+]

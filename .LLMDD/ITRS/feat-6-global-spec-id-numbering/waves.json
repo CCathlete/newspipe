@@ -1,0 +1,2 @@
+[{"wave": 1, "description": "Build the ref-aware allocator plus its fixture test (new files only, no shared edits).", "cus": ["cu-001"]},
+ {"wave": 2, "description": "Rewire the two spec skills onto the allocator and seed the counter; add the tensor rule, the init-repo reset and the tools README. The two CUs touch disjoint files.", "cus": ["cu-002", "cu-003"]}]

@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-002
+
+T2 — `grep -n "RULE.ADV.APPROVAL_REQUIRED" .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md` prints one hit and `grep -n "Approval gate" .opencode/agents/llmdd/advisor.md` prints one hit. T3 — advisory prose stripped in a probe still leaves the frontmatter deny in place (T1 re-run green). T4 — `ls .LLMDD/DTRS/bugfix-feature-5-enforce-advisor-read-only-approval/` plus `cat .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md` succeed with no approval grant and `git status --porcelain` shows no modifications from the read path.

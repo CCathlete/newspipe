@@ -1,0 +1,7 @@
+# REQUIREMENTS: cu-001
+# TIMESTAMP: 2026-10-09
+
+Extend the domain model so a CU carries four named components
+(coordinates, requirements, implementation-steps, acceptance) plus CU-level
+metadata, and the batch carries synopsis data (implemented feature ids,
+MAX_ATTEMPTS).

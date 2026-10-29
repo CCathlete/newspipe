@@ -1,0 +1,44 @@
+# IMPLEMENTATION_STEPS: cu-005 (executable proof T1-T7)
+# TIMESTAMP: 2026-10-09
+# WORKDIR: itr-compiler/ for Scala tests; repo root for the gitignore check
+# DEPENDS_ON: cu-001..cu-004 merged. Run `sbt test` FULL suite at the end.
+
+STEP 1 — Scala integration tests (T1-T4, T6a, T7).
+New files under src/test/scala/itrcompiler/integration/, following the
+existing style (AnyFunSpec, temp dir via Files.createTempDirectory,
+TestHelper.createCompile where handy):
+- Feat1LayoutTest.scala (T1): batch arch+legend+2 component-carrying CUs ->
+  assert cu-<id>/ holds all four component files, root SYNOPSIS.itr contains
+  FEATURES_IMPLEMENTED + MAX_ATTEMPTS + non-empty SUMMARY, ARCH.itr/LEGEND.itr at root,
+  and NO flat out/cu-<id>.itr files exist for the component-carrying CUs
+  (criterion 11). Also compile a legacy component-less batch and assert its
+  single frame lands inside cu-<id>/ (backward compatibility, still no root flat).
+- Feat1ValidationTest.scala (T2/T3/T7): component omitted -> IllegalStateException
+  message contains CU id + component name; synopsis absent -> names MAX_ATTEMPTS;
+  summary blank -> names summary. Assert NO output files were written on failure
+  (fail-fast before writes, per cu-002 step 2).
+- Feat1OverrideTest.scala (T4): pre-place an extra file in the out folder,
+  compile a valid batch without --force and with --force -> exit 0 both times,
+  extra file byte-identical afterwards.
+- Creation semantics (T6a): CU with coordinates ["NOPE.DoesNotExist"] compiles
+  exit 0 — nonexistent areas mean creation, never an error.
+
+STEP 2 — Gitignore proof (T5).
+- No new Scala test: T5 is the shell command
+  `git -C <repo-root> check-ignore <itr>/cu-001/IMPLEMENTATION_STEPS.itr`
+  exiting 0. The code lead runs it in E2E verify. (It passes today via the
+  `**/IMPLEMENTATION_STEPS.itr` rule added to the root .gitignore.)
+
+STEP 3 — Runner retry budget (T6b).
+- File: .LLMDD/tools/test_synopsis_budget.py (new, self-testing script, no new
+  harness): parses `MAX_ATTEMPTS=<int>` out of a SYNOPSIS.itr path given as
+  argv[1], asserts it equals the retry cap the runner would use, prints
+  `BUDGET_OK <n>`. Run: `python3 .LLMDD/tools/test_synopsis_budget.py
+  .LLMDD/ITRS/feat-1-per-cu-itr-directories/SYNOPSIS.itr` must print
+  `BUDGET_OK 3`. Full runner enforcement of the budget is out of scope for
+  feat-1; this test pins the contract (budget comes from SYNOPSIS.itr).
+
+STEP 4 — Full suite green.
+- `sbt test` from itr-compiler/ : every suite passes, old and new. If any
+  pre-existing suite fails, the breakage is yours — fix it here, do not
+  touch other CUs' files. ACCEPTANCE is met only on a fully green run.

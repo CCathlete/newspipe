@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+Split the four inline labeled sections (REQUIREMENTS:, COORDINATES:, IMPLEMENTATION_STEPS:, ACCEPTANCE:) in a regular CU's content string into CU.components, so normal Advisor-drafted batches compile to a cu-<id>/ folder holding COORDINATES.itr, REQUIREMENTS.itr, IMPLEMENTATION_STEPS.itr, ACCEPTANCE.itr with no cu-<id>/cu-<id>.itr blob. An explicit "components" object in the batch, when present, wins over splitting. This resolves bug-2 (bug-2-flat-cu-itr-instead-of-folder) and feature criterion 3.

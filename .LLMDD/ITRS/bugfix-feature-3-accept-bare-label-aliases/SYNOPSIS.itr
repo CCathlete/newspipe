@@ -1,0 +1,5 @@
+FEATURES_IMPLEMENTED=bugfix-feature-3-accept-bare-label-aliases
+MAX_ATTEMPTS=3
+CUS=arch,legend,cu-001
+ENFORCED_BY=itr-compiler
+SUMMARY=Accept bare section labels as aliases in splitInlineSections so skill-prose batches compile to four-file CU folders instead of silent legacy blobs (bug-3).

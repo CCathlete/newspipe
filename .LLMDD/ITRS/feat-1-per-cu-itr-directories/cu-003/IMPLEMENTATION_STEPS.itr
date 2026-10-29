@@ -1,0 +1,60 @@
+# IMPLEMENTATION_STEPS: cu-003 (writer: CU folders + SYNOPSIS.itr)
+# TIMESTAMP: 2026-10-09
+# WORKDIR: itr-compiler/
+# DEPENDS_ON: cu-001 merged (uses CU.componentFileNames, CUBatch.synopsis)
+
+STEP 1 — Write per-CU component files.
+File: src/main/scala/itrcompiler/infrastructure/filesystem/FileSystem.scala
+- In `write`, FIRST branch: if `cu.cuType == RegularCU && cu.components.nonEmpty`,
+  write ONLY the cu-<id>/ component files via `writeComponents` and RETURN —
+  no per-CU .itr blob is ever written for such CUs. Component-less CUs
+  (legacy batches) keep the existing path: one <cu-id>.itr frame inside
+  cu-<id>/, never at the output root.
+- Create directory `outFolder.resolve(cu.id)`; for each `(key, body)` in
+  `cu.components`, write file `CU.componentFileNames(key)` with content:
+  `"# " + key.toUpperCase.replace("-", "_") + ": " + cu.id + "\n\n" + body + "\n"`
+  (yields `# COORDINATES: cu-001`, matching the manual ITR layout).
+- Component files obey the SAME `force` flag as the flat frame: skip when
+  the file exists and `force=false` (mirrors the existing early-return, so
+  manual folders survive recompiles).
+- Never delete any file in the output folder. Only create or overwrite the
+  exact paths above. Advisor-placed overrides are therefore preserved by
+  construction.
+
+STEP 2 — Write root SYNOPSIS.itr once per compile.
+- Add method to FileSystem:
+```scala
+def writeSynopsis(outFolder: Path, synopsis: CUSynopsis, cus: Seq[CU], force: Boolean): Unit = {
+  Files.createDirectories(outFolder)
+  val target = outFolder.resolve("SYNOPSIS.itr")
+  if (!force && Files.exists(target)) return
+  val body =
+    s"FEATURES_IMPLEMENTED=${synopsis.features.mkString(",")}\n" +
+    s"MAX_ATTEMPTS=${synopsis.maxAttempts}\n" +
+    s"CUS=${cus.map(_.id).mkString(",")}\n" +
+    s"ENFORCED_BY=itr-compiler\n" +
+    s"SUMMARY=${synopsis.summary}\n"
+  Files.write(target, body.getBytes(StandardCharsets.UTF_8))
+}
+```
+- File: src/main/scala/itrcompiler/application/services/Compile.scala — call
+  `cuStore`/`fileSystem.writeSynopsis` after the per-CU store loop, only
+  when `batch.synopsis.isDefined`. (Validation in cu-002 guarantees it is
+  defined in batch mode; single-CU raw mode has no synopsis -> skip.)
+- Wiring: FileSystem already implements all ports; expose writeSynopsis
+  through CUStore (`def storeSynopsis(...)`) to keep Compile depending on
+  the application layer, not infrastructure directly (ARCH.DIP).
+
+STEP 3 — Gitignore (no code).
+- IMPLEMENTATION_STEPS.itr is already ignored repo-wide by `**/IMPLEMENTATION_STEPS.itr`
+  in the root `.gitignore` (added for feat-1). Do NOT add ignore logic to
+  the compiler. Verify with:
+  `git -C <repo-root> check-ignore <out>/cu-001/IMPLEMENTATION_STEPS.itr`
+  must exit 0 (this command IS test T5 in cu-005).
+
+STEP 4 — Verify.
+- `sbt "testOnly itrcompiler.integration.SingleCUWriteTest itrcompiler.integration.BatchJSONWriteTest itrcompiler.integration.BatchYAMLWriteTest"` green (old layout behavior unchanged for component-less batches).
+- New file src/test/scala/itrcompiler/integration/Feat1LayoutTest.scala (T1):
+  batch with arch+legend+2 component-carrying CUs -> assert
+  `out/cu-<id>/COORDINATES.itr` etc. exist, root `SYNOPSIS.itr` contains
+  FEATURES_IMPLEMENTED, MAX_ATTEMPTS and non-empty SUMMARY; ARCH.itr/LEGEND.itr at root.

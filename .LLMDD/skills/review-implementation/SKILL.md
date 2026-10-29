@@ -1,9 +1,9 @@
 ---
-name: validate-implementation
+name: review-implementation
 description: Review a completed wave run against its requirements — inspect the implementation diff, wave logs and feedback, re-run acceptance tests independently, and when everything is green mark linked bugs Resolved and features Implemented, then commit. Use after run-waves.py finishes all waves for a feature.
 ---
 
-# validate-implementation
+# review-implementation
 
 Post-implementation review for WORKFLOW STEP5 (IMPLEMENT_CUS) into STEP6/7
 (VERIFY / E2E VERIFY). The agent verifies a finished wave run for one
@@ -11,8 +11,9 @@ feature (`<feature-name>` = the feature ID) and, only on a full pass,
 closes the loop in the spec-driven tracker: linked bug files under
 `.LLMDD/spec-driven/bugs/` go to Resolved, the feature file under
 `.LLMDD/spec-driven/features/` goes to Implemented. Then the agent
-commits. One invocation = one feature. Never batch two features in one
-run.
+commits, and records the validation in the llmdd-book repo with a
+separate commit (step 8 — mandatory, not optional). One invocation = one
+feature. Never batch two features in one run.
 
 ## When to use
 
@@ -141,6 +142,20 @@ git commit -m "Review: validate <feature-name> waves — mark <bug-id> resolved"
 - Verify the commit lists only intended files. Never push (the
   Designer pushes; a pre-push hook blocks agents anyway).
 
+### 8. Book summary (llmdd-book — mandatory)
+
+Every validation commit in this repo is accompanied by a summary in the
+`llmdd-book` repo (`~/Repos/llmdd-book`,
+`docs/building-llm-driven-design.md`, new subsection under the
+current-version section: verdict, re-run evidence, gaps/follow-ups,
+workspace/skill/lessons notes). Commit it separately with a `docs:`
+message. Never push from either repo — the Designer pushes.
+
+```sh
+git -C ~/Repos/llmdd-book add docs/building-llm-driven-design.md
+git -C ~/Repos/llmdd-book commit -m "docs: <subsection> <feature-name> validation verdict"
+```
+
 ## Rules
 
 - Evidence before synthesis: every verdict cites a live command
@@ -162,9 +177,12 @@ git commit -m "Review: validate <feature-name> waves — mark <bug-id> resolved"
 5. Bug file(s) Resolved with summary + proving tests; feature file
    Implemented.
 6. Final commit contains spec/bug paths only, and nothing else.
+7. Book subsection added and committed in llmdd-book with a `docs:`
+   message; nothing pushed from either repo.
 
 ## Output
 
 A validation verdict (PASS with re-run evidence, or FAIL with
-findings) plus, on PASS, the spec-closing commit — the feature is
-done and the tracker says so.
+findings) plus, on PASS, the spec-closing commit and the llmdd-book
+summary commit — the feature is done, the tracker says so, and the book
+records it.

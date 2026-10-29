@@ -1,0 +1,3 @@
+# COORDINATES: cu-002
+
+FILE..LLMDD/prompts/llm-driven-design-sys-prompt.itr.md, FILE..LLMDD/agents/advisor.md. The second key is the hardlink twin of .opencode/agents/llmdd/advisor.md (same inode).

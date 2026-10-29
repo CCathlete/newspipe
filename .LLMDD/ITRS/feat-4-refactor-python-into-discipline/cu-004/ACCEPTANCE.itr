@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-004
+
+T1 u2014 compileall exits 0. T2 u2014 both Any and bare-generic probes print nothing. T3 u2014 slots/frozen probes show the required sites. T4 u2014 try inventory equals the allowlist with markers. T5 u2014 BUDGET_OK 3, exit 0. T6 u2014 dry run exits 0, plan shape unchanged. T7 u2014 validator output byte-identical. Criterion 6 u2014 diff stat shows only the two files.

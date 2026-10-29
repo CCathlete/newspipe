@@ -1,0 +1,6 @@
+# ACCEPTANCE: cu-001
+# TIMESTAMP: 2026-10-09
+
+Unit tests construct CUs with all four components and a batch with synopsis
+data; missing-component construction is rejected at the model or validation
+layer (see cu-002).

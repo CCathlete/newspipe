@@ -1,0 +1,48 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. Replace the naming section of .LLMDD/skills/bug/SKILL.md with the exact section below, leaving the template, file-location and rules sections untouched: ```markdown
+## Naming
+
+`bug-<n>-<short-name>.md`, for example `bug-6-force-flag-skips-frames.md`.
+
+- `<n>` comes from the allocator, never from a directory scan. Run
+  `python3 .LLMDD/tools/next-spec-id.py --kind bug` from the repo root and
+  use the id it prints; the tool reads the counter and every git ref, so
+  two branches never receive the same serial. Never reuse a number.
+- `<short-name>` is kebab-case, symptom-oriented, at most six words.
+``` Prove: `grep -c "highest existing" .LLMDD/skills/bug/SKILL.md` prints 0.
+2. Replace the naming section of .LLMDD/skills/feature/SKILL.md with the exact section below, leaving the template, file-location and rules sections untouched: ```markdown
+## Naming
+
+`feat-<n>-<short-name>.md`, for example `feat-6-add-dtr-pointer.md`.
+
+- `<n>` comes from the allocator, never from a directory scan. Run
+  `python3 .LLMDD/tools/next-spec-id.py --kind feature` from the repo root
+  and use the id it prints. For a bug or bugs fix, also pass
+  `--prefix bugfix-feature-` and the tool prints
+  `bugfix-feature-<n>-`. The tool reads the counter and every git ref, so
+  two branches never receive the same serial. Never reuse a number.
+- `<short-name>` is kebab-case, imperative, at most six words.
+
+The bugfix feature serial shares the feature sequence, exactly as the
+rules section below already requires.
+``` Prove: `grep -c "highest existing" .LLMDD/skills/feature/SKILL.md` prints 0.
+3. Update the frontmatter description of .LLMDD/skills/bug/SKILL.md and .LLMDD/skills/feature/SKILL.md so the serial is described as allocated by next-spec-id.py and unique per repository across branches, replacing the wording that describes a directory scan: ```yaml
+name: bug
+description: Create a new spec-driven bug file under .LLMDD/spec-driven/bugs/ with a serial bug-<n>-<name> id allocated by .LLMDD/tools/next-spec-id.py and unique per repository across branches, bug detail, resolution status, and (when resolved) fix summary plus proving tests. Use whenever a defect is reported in LLMDD v9.
+```
+---
+name: feature
+description: Create a new spec-driven feature file under .LLMDD/spec-driven/features/ with a serial feat-<n>-<name> id (bugfix-feature-<n>-<name> for bug or bugs fixes) allocated by .LLMDD/tools/next-spec-id.py and unique per repository across branches, motivation synopsis, implementation status, acceptance criteria and tests. Use whenever a new feature is scoped in LLMDD v9.
+``` Prove: `grep -c "highest existing" .LLMDD/skills/bug/SKILL.md .LLMDD/skills/feature/SKILL.md` prints two lines that both read 0, and `grep -c "next-spec-id.py" .LLMDD/skills/bug/SKILL.md .LLMDD/skills/feature/SKILL.md` prints two non-zero counts.
+4. Create this repository's counter at .LLMDD/spec-driven/ids.txt with the exact content below, seeded from the existing spec tree: ```text
+bug=5
+feature=6
+``` Prove: `python3 .LLMDD/tools/next-spec-id.py --check` exits 0 and prints nothing.
+5. Prove the counter is untouched by a dry run and that the next ids are correct with the exact commands below: ```sh
+python3 .LLMDD/tools/next-spec-id.py --kind feature --dry-run
+python3 .LLMDD/tools/next-spec-id.py --kind bug --dry-run
+git status --short -- .LLMDD/spec-driven/ids.txt
+``` Prove: `python3 .LLMDD/tools/next-spec-id.py --kind feature --dry-run` prints `feat-7-`, the bug dry run prints `bug-6-`, and `git status --short -- .LLMDD/spec-driven/ids.txt` prints nothing.
+Do NOT touch: .LLMDD/tools/next-spec-id.py, .LLMDD/tools/test_next_spec_id.py, .LLMDD/spec-driven/features/feat-6-global-spec-id-numbering.md, .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md, .LLMDD/skills/init-repo/SKILL.md, .LLMDD/tools/README.md, any DTR or ITR artifact.
+Stop when both skills name the allocator, no skill mentions a directory scan, this repository carries .LLMDD/spec-driven/ids.txt with bug=5 and feature=6, and the two dry runs print feat-7- and bug-6- without writing; the tensor rule, init-repo reset and tools README belong to cu-003.

@@ -1,0 +1,21 @@
+# IMPLEMENTATION_STEPS: cu-001
+
+1. In .opencode/agents/llmdd/advisor.md (hardlink twin .LLMDD/agents/advisor.md, same inode, one edit updates both) replace lines 4 through 7 (the permission block) with the exact block below, preserving lines 1 through 3 and line 8 verbatim: ```yaml
+permission:
+  edit: deny
+  bash:
+    ls *: allow
+    cat *: allow
+    rg *: allow
+    git status *: allow
+    git diff *: allow
+    git log *: allow
+    "*": ask
+``` Prove: `sed -n '1,20p' .opencode/agents/llmdd/advisor.md` prints edit deny plus the six read-only bash rules plus the ask wildcard and no blanket bash allow line.
+2. In .LLMDD/agents/advisor.md run the static frontmatter audit with the exact commands below (read-only inspection, no file change): ```text
+grep -n "bash: allow" .opencode/agents/llmdd/advisor.md; echo blanket_check_done
+grep -n "edit: deny" .opencode/agents/llmdd/advisor.md
+grep -n '"\*": ask' .opencode/agents/llmdd/advisor.md
+``` Prove: `grep -c "bash: allow" .opencode/agents/llmdd/advisor.md` prints 0 and `grep -c '"\*": ask' .opencode/agents/llmdd/advisor.md` prints 1.
+Do NOT touch: .opencode/agents/llmdd/coder.md, .opencode/agents/verifier.md, .opencode/opencode.json, .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md, any Scala source, any Python tool.
+Stop when T1 probes are green for the frontmatter; tensor wording plus the approval-gate body section belong to cu-002.

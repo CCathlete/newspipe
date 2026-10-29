@@ -1,0 +1,6 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-17T06:18:10.721519299Z
+# DTR-COORDINATES: 
+
+ARCH rules for feat-6 (global per-repo spec numbering). Hexagonal architecture is untouched: this feature adds agent tooling and prompt rules only, and introduces no application dependency. Binding constraints for every CU in this batch: ARCH.PYTHON.EXPLICIT_DECLARATION (every variable annotated at first binding), ARCH.PYTHON.NO_ANY (no typing.Any, no bare dict/list/tuple/set), ARCH.PYTHON.SLOTTED_FROZEN_DATACLASS, ARCH.PYTHON.MONADIC_ERROR (expected failures returned, not raised through try-except). The tool must be repo-agnostic: the repository root is derived from __file__, no repository-specific bug or feature name is assumed, because the .LLMDD folder is a portable standard. A committed counter file is branch-scoped and cannot express a repo-global sequence, so the allocator reads every git ref; a sqlite counter is forbidden because a binary counter file cannot be hand-merged when two branches bump it.

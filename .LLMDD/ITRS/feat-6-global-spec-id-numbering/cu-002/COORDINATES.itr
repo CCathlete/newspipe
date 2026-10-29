@@ -1,0 +1,3 @@
+# COORDINATES: cu-002
+
+FILE..LLMDD/skills/bug/SKILL.md, FILE..LLMDD/skills/feature/SKILL.md. .LLMDD/spec-driven/ids.txt is a creation absent from the baseline. No DTR key exists for either counter file in any prior cycle, so its coordinate is absent by design.

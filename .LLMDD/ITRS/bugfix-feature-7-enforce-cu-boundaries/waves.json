@@ -1,0 +1,6 @@
+[
+  {"wave": 1, "description": "cu-004 hardens the shared cu_scope vocabulary (parsing, segment-aware matching, symlink resolution, step-scoped write index) and cu-005 adds per-CU change attribution to run-waves.py. Different files, so they run in parallel.", "cus": ["cu-004", "cu-005"]},
+  {"wave": 2, "description": "cu-006 replaces the wave-wide diff inside run_coder with the attributed change set and adds the three boundary rules plus the fail-closed, fail-non-zero enforcement pass. Same file as cu-005, so it waits.", "cus": ["cu-006"]},
+  {"wave": 3, "description": "cu-007 gates the per-CU lead and the wave lead and recomputes the dirty baseline per wave. Same file as cu-006, so it waits.", "cus": ["cu-007"]},
+  {"wave": 4, "description": "cu-008 adds the regression suite that proves the contract stays enforced.", "cus": ["cu-008"]}
+]

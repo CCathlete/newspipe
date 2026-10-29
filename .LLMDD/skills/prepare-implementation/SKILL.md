@@ -22,6 +22,10 @@ by pasting the printed command.
   `bugfix-feature-6-enrichment-consumer-poll-contract`). Never batch
   two features in one run.
 
+End result must be successful dry run of wave command. If you didn't reach the end result you fix until you reach a successful dry run of wave command.
+
+DO NOT RUN WAVE COMMAND WITHOUT --dry-run
+
 ## Prerequisites
 
 - Feature spec exists at
@@ -76,7 +80,7 @@ accepted with `--yaml-content`). First two entries are always
 
 Every regular CU content carries all four labeled sections with
 implementation-grade detail (see `compile-itr` + 
-`validate-implementation-steps`):
+`review-implementation-steps`):
 
 - **REQUIREMENTS** — slice of the feature this CU delivers.
 - **COORDINATES** — exact DTR keys touched, verified against the
@@ -209,3 +213,11 @@ git commit -m "Prep: DTR plus ITR frames plus waves for <feature-name> (cu-001..
 
 Committed prep for `<feature-name>` plus the printed wave command —
 the Designer pastes it to start STEP5.
+
+## Book tracking (MANDATORY)
+
+Before committing in the current repo, if the current repo is `llm-driven-design` and `~/Repos/llmdd-book` exists:
+1. Add a summary of changes to the llmdd-book (typically a new subsection under the current-version section of `docs/building-llm-driven-design.md`)
+2. `git -C ~/Repos/llmdd-book add docs/building-llm-driven-design.md`
+3. `git -C ~/Repos/llmdd-book commit -m "docs: <summary>"`
+4. Never push from either repo

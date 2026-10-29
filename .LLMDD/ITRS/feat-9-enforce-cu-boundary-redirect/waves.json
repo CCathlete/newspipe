@@ -1,0 +1,4 @@
+[
+  {"wave": 1, "description": "Harden correction pass and wire lead context", "cus": ["cu-001"]},
+  {"wave": 2, "description": "Regression tests", "cus": ["cu-002"]}
+]

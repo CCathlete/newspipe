@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+Deliver CU boundary checking at design time. A CU must declare its no-touch set in a form that can actually be matched, and a CU that lists its own write target as untouchable must fail before it is ever compiled. This CU creates the shared vocabulary in a new module so the design-time and run-time checks parse the same text with the same rules. Duplicating the parser in each tool is the same class of drift this feature exists to stop.

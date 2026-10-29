@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+Create the deterministic allocator that makes spec ids unique per repository across branches and clones: the tool .LLMDD/tools/next-spec-id.py plus its fixture test .LLMDD/tools/test_next_spec_id.py. The allocator takes the highest serial seen in the working tree plus every git ref, both from spec filenames and from each ref's counter, then writes max+1 to the plain-text counter .LLMDD/spec-driven/ids.txt. This delivers feature criteria 1, 2, 3, 4, 5 and 6. Depends on: nothing (new files only; no shared edit with cu-002 or cu-003).

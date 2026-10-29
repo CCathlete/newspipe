@@ -18,7 +18,10 @@ import typing
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Generic, Iterator, Literal, Optional, Sequence, TypeAlias, TypedDict, TypeVar, cast
+from typing import Final, Generic, Iterator, Literal, Optional, Sequence, TypeAlias, TypedDict, TypeVar, cast
+
+from cu_scope import (NoTouch, has_enforceable_patterns, is_touched,
+    parse_no_touch, resolve_patterns, write_paths)
 
 
 # ── Defaults ───────────────────────────────────────────────────────
@@ -671,6 +674,69 @@ _COMPONENT_FILES: Sequence[str] = ("COORDINATES.itr", "REQUIREMENTS.itr",
                     "IMPLEMENTATION_STEPS.itr", "ACCEPTANCE.itr")
 
 
+def _cu_no_touch(cu_ref: Path) -> NoTouch:
+    """Return the no-touch set declared by one CU frame folder or file."""
+    steps: Path = cu_ref / "IMPLEMENTATION_STEPS.itr" if cu_ref.is_dir() else cu_ref
+    opened: Ok[typing.TextIO] | Err[Exception] = _open_file(steps)
+    if isinstance(opened, Err):
+        return parse_no_touch("")
+    handle: typing.TextIO = opened.value
+    text: str = handle.read()
+    handle.close()
+    return parse_no_touch(text)
+
+
+def _dirty_paths(project_dir: Path) -> frozenset[str]:
+    """Return paths currently dirty (tracked and untracked), empty when git cannot answer."""
+    dirty: frozenset[str]
+    match _git_run("status", "--porcelain", "--untracked-files=all", cwd=project_dir):
+        case Ok(out):
+            lines: list[str] = out.splitlines()
+            # _git_run strips the whole output, so when the first porcelain
+            # line has its X column set to a space (worktree-only change,
+            # " M path") that space is eaten and the path would shift one
+            # character left. A native line whose X column is a letter is
+            # either XY (letter at index 1) or X+space+space (separator at
+            # index 2), so letter + one space + non-space can only be a
+            # stripped line — restore the lost column before the index-3 parse.
+            if (lines and len(lines[0]) > 2 and lines[0][0].isalpha()
+                    and lines[0][1] == " " and lines[0][2] != " "):
+                lines[0] = " " + lines[0]
+            dirty = frozenset(line[3:].strip() for line in lines if len(line) > 3)
+        case Err(_):
+            dirty = frozenset()
+    return dirty
+
+
+def _wave_write_index(cu_files: Sequence[tuple[str, Path]]) -> dict[str, Sequence[str]]:
+    """Map each CU id to the write targets its frame declares in prose."""
+    index: dict[str, Sequence[str]] = {}
+    cu_id: str
+    directory: Path
+    for cu_id, directory in cu_files:
+        steps_file: Path = directory / "IMPLEMENTATION_STEPS.itr"
+        opened: Ok[typing.TextIO] | Err[Exception] = _open_file(steps_file)
+        if isinstance(opened, Err):
+            continue
+        handle: typing.TextIO = opened.value
+        text: str = handle.read()
+        handle.close()
+        index[cu_id] = write_paths(text)
+    return index
+
+
+def _wave_dirty_clashes(cu_files: Sequence[tuple[str, Path]],
+                        baseline_dirty: frozenset[str]) -> list[tuple[str, str]]:
+    """Return (owner, path) pairs whose write target was dirty before the run."""
+    owners: dict[str, Sequence[str]] = _wave_write_index(cu_files)
+    return sorted({
+        (owner, path)
+        for owner, paths in owners.items()
+        for path in paths
+        if path in baseline_dirty
+    })
+
+
 def _file_cu_id(f: Path) -> str | None:
     """Return the CU-ID header of a frame file, or None."""
     opened: Ok[typing.TextIO] | Err[Exception] = _open_file(f)
@@ -788,6 +854,119 @@ def git_diff_names(work_dir: Path, ref: str) -> list[str]:
 
 def git_stash_ref(work_dir: Path) -> str:
     return _git("rev-parse", "HEAD", cwd=work_dir)
+
+
+# ── Per-CU change attribution ──────────────────────────────────────
+
+WRITE_TOOLS: Final[frozenset[str]] = frozenset({"write", "edit", "patch"})
+_SHELL_WRITE: Final[re.Pattern[str]] = re.compile(
+    r"(?:>>?|tee|cp|mv|touch|mkdir\s+-p)\s+([^\s;|&<>'\"`]+)")
+_QUOTED_REPO_PATH: Final[re.Pattern[str]] = re.compile(
+    r"['\"]((?:\.LLMDD|src|scripts|docs|conf|project|itr-buffer|dtr-builder|"
+    r"itr-compiler|commit-tool)/[\w./-]+)['\"]")
+
+
+@dataclass(frozen=True, slots=True)
+class CoderWrites:
+    cu_id: str
+    paths: Sequence[str]
+
+
+@dataclass(frozen=True, slots=True)
+class WaveWrites:
+    per_cu: Sequence[CoderWrites]
+    unattributed: Sequence[str]
+
+
+def _text_of(raw: object) -> str:
+    return raw if isinstance(raw, str) else ""
+
+
+def _tool_input(ev: JsonEvent) -> EventPart:
+    part: EventPart = _as_part(ev.get("part", {}))
+    state: EventPart = _as_part(part.get("state", {}))
+    return _as_part(state.get("input", {}))
+
+
+def _shell_candidates(command: str) -> Sequence[str]:
+    found: list[str] = [match.group(1) for match in _SHELL_WRITE.finditer(command)]
+    found.extend(_QUOTED_REPO_PATH.findall(command))
+    return tuple(found)
+
+
+def _tool_candidates(ev: JsonEvent) -> Sequence[str]:
+    part: EventPart = _as_part(ev.get("part", {}))
+    if _text_of(part.get("type")) != "tool":
+        return ()
+    tool: str = _text_of(part.get("tool"))
+    if tool in WRITE_TOOLS:
+        path: str = _text_of(_tool_input(ev).get("path"))
+        return (path,) if path else ()
+    if tool == "shell":
+        return _shell_candidates(_text_of(_tool_input(ev).get("command")))
+    return ()
+
+
+def _repo_relative(project_dir: Path, raw: str) -> str | None:
+    candidate: Path = Path(raw.strip("'\"`"))
+    if not candidate.is_absolute():
+        candidate = project_dir / candidate
+    try:
+        return candidate.resolve().relative_to(project_dir.resolve()).as_posix()
+    except (OSError, ValueError):
+        return None
+
+
+def coder_writes(log_prefix: str, log_dir: Path, project_dir: Path) -> CoderWrites:
+    found: list[str] = []
+    log_file: Path
+    for pattern in (f"{log_prefix}.attempt-*.log", f"{log_prefix}.correction-*.log"):
+        for log_file in sorted(log_dir.glob(pattern)):
+            opened: Ok[typing.TextIO] | Err[Exception] = _open_file(log_file)
+            if isinstance(opened, Err):
+                continue
+            handle: typing.TextIO = opened.value
+            line: str
+            for line in handle:
+                parsed: Ok[JsonEvent] | Err[ValueError] = _parse_event_line(line.strip())
+                if isinstance(parsed, Err):
+                    continue
+                raw: str
+                for raw in _tool_candidates(parsed.value):
+                    relative: str | None = _repo_relative(project_dir, raw)
+                    if relative is not None:
+                        found.append(relative)
+            handle.close()
+    return CoderWrites(cu_id=log_prefix, paths=tuple(dict.fromkeys(found)))
+
+
+def wave_writes(project_dir: Path, base_ref: str,
+                baseline_dirty: frozenset[str]) -> Sequence[str]:
+    changed: list[str] = []
+    match _git_run("diff", "--name-only", base_ref, cwd=project_dir):
+        case Ok(out):
+            changed.extend(out.splitlines())
+        case Err(_):
+            pass
+    match _git_run("ls-files", "--others", "--exclude-standard", cwd=project_dir):
+        case Ok(out):
+            changed.extend(out.splitlines())
+        case Err(_):
+            pass
+    unique: frozenset[str] = frozenset(path for path in changed if path)
+    return tuple(sorted(unique - baseline_dirty))
+
+
+def attribute_writes(wave_paths: Sequence[str],
+                     per_cu: Sequence[CoderWrites]) -> WaveWrites:
+    claimed: set[str] = set()
+    writes: CoderWrites
+    for writes in per_cu:
+        claimed.update(writes.paths)
+    return WaveWrites(
+        per_cu=tuple(per_cu),
+        unattributed=tuple(path for path in wave_paths if path not in claimed),
+    )
 
 
 # ── Live-streaming with JSON parsing ──────────────────────────────
@@ -1116,17 +1295,10 @@ def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
             combined_usage.session_id = attempt_usage.session_id
         combined_usage.model = model
 
-        # Git diff from project root — use stash_ref to isolate per-CU changes
-        # when running in parallel (avoids capturing changes from other CUs)
-        diff_args: list[str] = ["diff", "--name-only"]
-        if stash_ref:
-            diff_args.append(stash_ref)
-        diff_out: str
-        match _git_run(*diff_args, cwd=project_dir):
-            case Ok(diff_out):
-                files_changed = diff_out.splitlines() if diff_out else []
-            case Err(_):
-                files_changed = []
+        # The CU's change set comes from this agent's own tool calls, never
+        # from the shared working tree: a sibling's writes are not ours, and
+        # a file this agent created without git add is still counted.
+        files_changed = list(coder_writes(cu_id, log_dir, project_dir).paths)
 
         # Determine if this attempt succeeded
         succeeded: bool = stream_rc == 0 and not is_refusal and not is_error
@@ -1208,7 +1380,8 @@ VERIFICATION_DETAILS=CU not implemented
 def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
                   feedback_dir: Path, log_dir: Path, timeout: int,
                   project_dir: Path, wave_cus: list[str],
-                  fallback_models: Sequence[str] = ()) -> tuple[int, TokenUsage]:
+                  fallback_models: Sequence[str] = (),
+                  unattributed_context: str = "") -> tuple[int, TokenUsage]:
     colour: str = C.BR_MAG
     prefix: str = "[LEAD]"
     usage: TokenUsage = TokenUsage()
@@ -1217,24 +1390,34 @@ def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
 
     if is_final:
         commit_instruction: str = (
-            f"\n7. Read COMMIT_MESSAGE fields from all feedback files across all waves\n"
-            f"8. Consolidate into a single commit message\n"
-            f"9. Stage all changes and commit with the consolidated message\n"
+            f"\n8. Read COMMIT_MESSAGE fields from all feedback files across all waves\n"
+            f"9. Consolidate into a single commit message\n"
+            f"10. Stage all changes and commit with the consolidated message\n"
         )
     else:
         commit_instruction = (
-            f"\n7. Prepare a COMMIT_MESSAGE for this wave in {feedback_dir}/wave-{wave}-commit.txt\n"
-            f"8. Do NOT commit \u2014 the final wave lead will commit\n"
+            f"\n8. Prepare a COMMIT_MESSAGE for this wave in {feedback_dir}/wave-{wave}-commit.txt\n"
+            f"9. Do NOT commit \u2014 the final wave lead will commit\n"
         )
+
+    if unattributed_context:
+        u: str = (
+            f"\nUNATTRIBUTED CHANGES (no owning CU):\n"
+            f"{unattributed_context}\n\n"
+            f"These changes were made by no CU in this wave. Routes to the wave lead per Rule 3.\n\n"
+        )
+    else:
+        u = ""
 
     prompt: str = (
         f"You are the code lead for wave {wave}.\n\n"
         f"1. Read feedback files for this wave\u2019s CUs: {', '.join(wave_cus)}\n"
         f"2. For any CU with STATUS=ESCALATION: read the CU frame file and implement it yourself\n"
         f"3. Write a feedback file for each escalated CU you implement\n"
-        f"4. Run verification tests for all implemented CUs\n"
-        f"5. Fix any test failures\n"
-        f"6. Write verification report to {feedback_dir}/wave-{wave}-verification.txt\n"
+        f"4. {u}"
+        f"5. Run verification tests for all implemented CUs\n"
+        f"6. Fix any test failures\n"
+        f"7. Write verification report to {feedback_dir}/wave-{wave}-verification.txt\n"
         f"{commit_instruction}\n"
         f"Max fix iterations: {max_iterations}"
     )
@@ -1301,18 +1484,26 @@ def run_code_lead(wave: int, num_waves: int, model: str, max_iterations: int,
 def run_per_cu_lead(cu_id: str, cu_file: Path, model: str, max_iterations: int,
                      feedback_dir: Path, log_dir: Path, timeout: int,
                      project_dir: Path,
-                     fallback_models: Sequence[str] = ()) -> Ok[tuple[int, TokenUsage]] | Err[Exception]:
-    """Run code lead for a single escalated CU immediately.
-    Returns Ok((rc, usage)) or Err."""
+                     fallback_models: Sequence[str] = (),
+                     breach_context: str = "") -> Ok[tuple[int, TokenUsage]] | Err[Exception]:
     colour: str = C.BR_MAG
     prefix: str = f"[LEAD-{cu_id}]"
     usage: TokenUsage = TokenUsage()
+
+    if breach_context:
+        bc: str = (
+            f"\nBOUNDARY VIOLATIONS (why escalated):\n"
+            f"{breach_context}\n\n"
+        )
+    else:
+        bc = ""
 
     prompt: str = (
         f"You are the code lead. CU {cu_id} was escalated by the coder.\n\n"
         f"1. {_cu_read_instructions(cu_file)}\n"
         f"2. Read the escalation feedback at {feedback_dir / f'{cu_id}.feedback.txt'}\n"
-        f"3. Implement the CU yourself (the coder failed)\n"
+        f"{bc}"
+        f"3. Implement the CU yourself (the coder failed). Stay inside the CU scope.\n"
         f"4. Write updated feedback to {feedback_dir / f'{cu_id}.feedback.txt'}\n"
         f"5. Do NOT commit \u2014 the final wave lead will commit\n\n"
         f"Max fix iterations: {max_iterations}"
@@ -1432,6 +1623,269 @@ def update_convergence(path: Path, wave_num: int, wave_cus: list[str],
     save_convergence(path, data)
 
 
+# ── CU boundary enforcement ─────────────────────────────────────────
+
+@dataclass(frozen=True, slots=True)
+class BoundaryBreach:
+    """One boundary violation: which scope, which path, which rule."""
+    scope: str
+    path: str
+    rule: str
+
+
+def _resolved(declared: NoTouch, project_dir: Path) -> NoTouch:
+    """Resolve declared patterns through symlinks against the repo root."""
+    return NoTouch(
+        entries=declared.entries,
+        patterns=resolve_patterns(declared.patterns, project_dir),
+        unparsed=declared.unparsed,
+    )
+
+
+def _owned_breaches(writes: CoderWrites,
+                    guards: dict[str, NoTouch]) -> Sequence[BoundaryBreach]:
+    """Rule 1: a CU that writes a path its own frame forbids fails."""
+    declared: NoTouch = guards.get(writes.cu_id, parse_no_touch(""))
+    if not has_enforceable_patterns(declared):
+        return (BoundaryBreach(scope=writes.cu_id, path="", rule="unenforceable"),)
+    found: list[BoundaryBreach] = []
+    path: str
+    for path in writes.paths:
+        if is_touched(declared.patterns, path):
+            found.append(BoundaryBreach(scope=writes.cu_id, path=path, rule="no-touch"))
+    return tuple(found)
+
+
+def _collision_breaches(per_cu: Sequence[CoderWrites]) -> Sequence[BoundaryBreach]:
+    """Rule 2: two CU scopes writing one path in a wave both fail."""
+    owners: dict[str, list[str]] = {}
+    writes: CoderWrites
+    for writes in per_cu:
+        path: str
+        for path in writes.paths:
+            owners.setdefault(path, []).append(writes.cu_id)
+    found: list[BoundaryBreach] = []
+    path2: str
+    ids: list[str]
+    for path2, ids in sorted(owners.items()):
+        if len(ids) < 2:
+            continue
+        cu: str
+        for cu in ids:
+            found.append(BoundaryBreach(scope=cu, path=path2, rule="shared-write"))
+    return tuple(found)
+
+
+def _unattributed_breaches(unattributed: Sequence[str],
+                           guards: dict[str, NoTouch]) -> Sequence[BoundaryBreach]:
+    """Rule 3: a change no CU claimed is still held to every guard."""
+    found: list[BoundaryBreach] = []
+    path: str
+    for path in unattributed:
+        owners: list[str] = [
+            cu for cu, declared in guards.items()
+            if is_touched(declared.patterns, path)]
+        if owners:
+            found.append(BoundaryBreach(
+                scope="wave", path=path,
+                rule="unattributed:" + ",".join(sorted(owners))))
+    return tuple(found)
+
+
+def boundary_breaches(writes: WaveWrites,
+                      guards: dict[str, NoTouch]) -> Sequence[BoundaryBreach]:
+    """Apply all three rules to one measured wave."""
+    found: list[BoundaryBreach] = []
+    per: CoderWrites
+    for per in writes.per_cu:
+        found.extend(_owned_breaches(per, guards))
+    found.extend(_collision_breaches(writes.per_cu))
+    found.extend(_unattributed_breaches(writes.unattributed, guards))
+    return tuple(found)
+
+
+def report_breaches(breaches: Sequence[BoundaryBreach], feedback_dir: Path) -> None:
+    """Print every breach and leave the same record on disk."""
+    breach: BoundaryBreach
+    for breach in breaches:
+        _fail(f"CU boundary {breach.rule}: {breach.scope} -> {breach.path}")
+    text: str = "\n".join(
+        f"SCOPE={b.scope}\nRULE={b.rule}\nPATH={b.path}\n" for b in breaches)
+    match _write_file_text(feedback_dir / "boundary-breaches.txt", text):
+        case Ok(_):
+            pass
+        case Err(e):
+            _warn(f"Cannot write boundary report: {e}")
+
+
+def enforce_boundary(per_cu: Sequence[CoderWrites], project_dir: Path,
+                     base_ref: str, baseline_dirty: frozenset[str],
+                     guards: dict[str, NoTouch],
+                     feedback_dir: Path) -> tuple[Sequence[BoundaryBreach], Sequence[str]]:
+    """Measure the wave, attribute it to CUs, and apply every rule."""
+    wave_paths: Sequence[str] = wave_writes(project_dir, base_ref, baseline_dirty)
+    attributed: WaveWrites = attribute_writes(wave_paths, per_cu)
+    breaches: Sequence[BoundaryBreach] = boundary_breaches(attributed, guards)
+    if breaches:
+        report_breaches(breaches, feedback_dir)
+    claimed: set[str] = set()
+    writes: CoderWrites
+    for writes in per_cu:
+        claimed.update(writes.paths)
+    return breaches, tuple(sorted(claimed | set(wave_paths)))
+
+
+def _paths_against(paths: Sequence[str], guards: dict[str, NoTouch],
+                   scope: str) -> Sequence[BoundaryBreach]:
+    """Hold one agent's writes to a set of CU guards."""
+    found: list[BoundaryBreach] = []
+    path: str
+    for path in paths:
+        owners: list[str] = [
+            cu for cu, declared in guards.items()
+            if is_touched(declared.patterns, path)]
+        if owners:
+            found.append(BoundaryBreach(
+                scope=scope, path=path,
+                rule="lead:" + ",".join(sorted(owners))))
+    return tuple(found)
+
+
+def _unattributed_detail(feedback_dir: Path) -> str:
+    """Rule 3 detail: wave-scoped breach lines from the last report."""
+    text: str
+    match _read_file_text(feedback_dir / "boundary-breaches.txt"):
+        case Ok(text):
+            blocks: list[str] = []
+            block: str
+            for block in text.strip().split("\n\n"):
+                if "SCOPE=wave" not in block:
+                    continue
+                fields: list[str] = [
+                    line.strip() for line in block.strip().splitlines()
+                    if line.strip()]
+                blocks.append(" ".join(fields))
+            return "\n".join(blocks)
+        case Err(_):
+            return ""
+
+
+def _escalated_in(wave_cus: Sequence[str], feedback_dir: Path) -> set[str]:
+    """CU ids whose feedback marks STATUS=ESCALATION."""
+    found: set[str] = set()
+    cu: str
+    text: str
+    for cu in wave_cus:
+        match _read_file_text(feedback_dir / f"{cu}.feedback.txt"):
+            case Ok(text) if "STATUS=ESCALATION" in text:
+                found.add(cu)
+            case _:
+                pass
+    return found
+
+
+# ── CU boundary correction pass ───────────────────────────────────
+
+def _breach_detail_for_cu(breaches: Sequence[BoundaryBreach], cu_id: str) -> str:
+    lines: list[str] = []
+    b: BoundaryBreach
+    for b in breaches:
+        if b.scope == cu_id and b.rule in ("no-touch", "shared-write"):
+            lines.append(f"SCOPE={b.scope} RULE={b.rule} PATH={b.path}")
+            continue
+        if b.rule == "shared-write" and b.scope == cu_id:
+            lines.append(f"SCOPE={b.scope} RULE={b.rule} PATH={b.path}")
+    return "\n".join(lines)
+
+
+def _run_coder_correction(cu_file: Path, cu_id: str, model: str,
+                          breaches: Sequence[BoundaryBreach],
+                          feedback_dir: Path, log_dir: Path,
+                          timeout: int, project_dir: Path,
+                          colour_code: str, prefix: str) -> Ok[CoderOutput] | Err[Exception]:
+    detail: str = _breach_detail_for_cu(breaches, cu_id)
+    prompt: str = (
+        f"CORRECTION PASS for CU {cu_id}.\n"
+        f"You went out of scope. Fix ONLY these violations:\n"
+        f"{detail}\n\n"
+        f"Rules:\n"
+        f"1. {_cu_read_instructions(cu_file)}\n"
+        f"2. Fix ONLY the listed paths. Revert or move out-of-scope changes.\n"
+        f"3. Do NOT change in-scope files unnecessarily.\n"
+        f"4. Do NOT read other CU folders.\n"
+        f"5. Write feedback to {feedback_dir / f'{cu_id}.feedback.txt'} if needed.\n"
+        f"6. Do NOT commit.\n"
+        f"Your scope is EXACTLY one CU: {cu_id}.\n"
+    )
+    combined_usage: TokenUsage = TokenUsage()
+    files_changed: list[str] = []
+    attempt: int
+    for attempt in range(3):
+        log_file: Path = log_dir / f"{cu_id}.correction-{attempt}.log"
+        attempt_usage: TokenUsage = TokenUsage()
+        cmd: list[str] = [
+            "opencode", "run",
+            "--model", model,
+            "--agent", "llmdd/coder",
+            "--format", "json",
+            "--auto",
+            prompt,
+        ]
+        log_fh: typing.TextIO
+        match _open_file(log_file, "w"):
+            case Ok(log_fh):
+                match _stream_process_json(cmd, log_fh, colour_code, prefix,
+                                           timeout, project_dir, attempt_usage):
+                    case Ok(rc):
+                        stream_rc = rc
+                    case Err(e):
+                        log_fh.close()
+                        return Err(e)
+                log_fh.close()
+            case Err(e):
+                return Err(e)
+        combined_usage.input += attempt_usage.input
+        combined_usage.output += attempt_usage.output
+        combined_usage.reasoning += attempt_usage.reasoning
+        combined_usage.cache_read += attempt_usage.cache_read
+        combined_usage.cache_write += attempt_usage.cache_write
+        combined_usage.total += attempt_usage.total
+        combined_usage.cost += attempt_usage.cost
+        if attempt_usage.session_id:
+            combined_usage.session_id = attempt_usage.session_id
+        files_changed = list(coder_writes(cu_id, log_dir, project_dir).paths)
+        text: str
+        match _read_file_text(log_file):
+            case Ok(text):
+                lowered_text: str = text.lower()
+                is_refusal: bool = False
+                p: str
+                for p in _REFUSAL_PATTERNS:
+                    if p.lower() in lowered_text:
+                        is_refusal = True
+                        break
+                is_error_lines: bool = False
+                line: str
+                ev: JsonEvent
+                for line in text.splitlines():
+                    parsed_line: Ok[JsonEvent] | Err[ValueError] = _parse_event_line(line)
+                    if isinstance(parsed_line, Err):
+                        continue
+                    ev = parsed_line.value
+                    if ev.get("type") == "error":
+                        is_error_lines = True
+                        break
+            case Err(_):
+                is_refusal = False
+                is_error_lines = False
+        is_error: bool = is_error_lines if stream_rc == 0 else False
+        succeeded: bool = stream_rc == 0 and not is_refusal and not is_error
+        if succeeded:
+            break
+    return Ok(CoderOutput(rc=stream_rc, files_changed=files_changed,
+                          usage=combined_usage, model_used=model))
+
+
 # ── Parallel wave execution ──────────────────────────────────────
 
 async def run_wave_parallel(
@@ -1449,10 +1903,11 @@ async def run_wave_parallel(
     lead_fallbacks: list[str],
     max_fix_iterations: int,
     no_per_cu_lead: bool,
-) -> tuple[dict[str, list[str]], bool]:
+    baseline_dirty: frozenset[str],
+) -> tuple[dict[str, list[str]], bool, Sequence[str]]:
     """Run all CUs in a wave in parallel via ThreadPoolExecutor.
 
-    Returns (wave_files_changed, all_passed).
+    Returns (wave_files_changed, all_passed, written).
     No try/except in this function — all error handling via Result monad + match/case.
     """
     wave_files_changed: dict[str, list[str]] = {}
@@ -1467,7 +1922,7 @@ async def run_wave_parallel(
             pass
         case Err(e):
             _fail(f"Cannot get git HEAD: {e}")
-            return {}, False
+            return {}, False, ()
 
     pool: concurrent.futures.ThreadPoolExecutor
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(cu_files)) as pool:
@@ -1510,31 +1965,189 @@ async def run_wave_parallel(
                     wave_files_changed[cu_id] = []
                     all_passed = False
 
+    guards: dict[str, NoTouch] = {}
+    guard_cu: str
+    guard_file: Path
+    for guard_cu, guard_file in cu_files:
+        guards[guard_cu] = _resolved(_cu_no_touch(guard_file), project_dir)
+
+    per_cu_writes: list[CoderWrites] = []
+    write_cu: str
+    write_file: Path
+    for write_cu, write_file in cu_files:
+        per_cu_writes.append(coder_writes(write_cu, log_dir, project_dir))
+
+    breaches: Sequence[BoundaryBreach]
+    written: Sequence[str]
+    breaches, written = enforce_boundary(
+        per_cu_writes, project_dir, stash_ref, baseline_dirty, guards, feedback_dir)
+
+    breached_cus: set[str] = set()
+    b: BoundaryBreach
+    for b in breaches:
+        if b.scope != "wave" and b.rule in ("no-touch", "shared-write"):
+            breached_cus.add(b.scope)
+    model_by_cu: dict[str, str] = {}
+    cu_id_c: str
+    cu_file_c2: Path
+    fut_c: asyncio.Future[Ok[CoderOutput] | Err[Exception]]
+    for cu_id_c, cu_file_c2, fut_c in coder_futures:
+        res_m: Ok[CoderOutput] | Err[Exception] = await future_result(fut_c)
+        co: CoderOutput
+        match res_m:
+            case Ok(co):
+                if co.model_used:
+                    model_by_cu[cu_id_c] = co.model_used
+            case Err(_):
+                pass
+    colour_by_cu: dict[str, str] = {}
+    cidx: int
+    cu_id_c2: str
+    _cu_file_c2: Path
+    for cidx, (cu_id_c2, _cu_file_c2) in enumerate(cu_files):
+        cc: str
+        _cp: str
+        cc, _cp = CODER_COLOURS[cidx % len(CODER_COLOURS)]
+        colour_by_cu[cu_id_c2] = cc
+    correction_failed: set[str] = set()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as cpool:
+        cu_corr: str
+        for cu_corr in sorted(breached_cus):
+            if cu_corr not in model_by_cu or not model_by_cu[cu_corr]:
+                continue
+            cu_file_c3: Path | None = None
+            cid3: str
+            cfile3: Path
+            for cid3, cfile3 in cu_files:
+                if cid3 == cu_corr:
+                    cu_file_c3 = cfile3
+                    break
+            if cu_file_c3 is None:
+                continue
+            attempts_made: int = 0
+            attempt_c: int
+            for attempt_c in range(3):
+                attempts_made = attempt_c + 1
+                per_cu_writes_c: list[CoderWrites] = []
+                wc_id_c: str
+                wc_file_c: Path
+                for wc_id_c, wc_file_c in cu_files:
+                    per_cu_writes_c.append(coder_writes(wc_id_c, log_dir, project_dir))
+                breaches_c: Sequence[BoundaryBreach]
+                written_c: Sequence[str]
+                breaches_c, written_c = enforce_boundary(
+                    per_cu_writes_c, project_dir, stash_ref, baseline_dirty, guards, feedback_dir)
+                if not breaches_c:
+                    break
+                still: bool = False
+                bb: BoundaryBreach
+                for bb in breaches_c:
+                    if bb.scope == cu_corr and bb.rule in ("no-touch", "shared-write"):
+                        still = True
+                        break
+                if not still:
+                    break
+                fut_cc: asyncio.Future[Ok[CoderOutput] | Err[Exception]] = loop.run_in_executor(
+                    cpool, _run_coder_correction, cu_file_c3, cu_corr,
+                    model_by_cu[cu_corr], breaches_c, feedback_dir, log_dir,
+                    1800, project_dir, colour_by_cu.get(cu_corr, C.BR_CYN), f"[{cu_corr}]")
+                res_cc: Ok[CoderOutput] | Err[Exception] = await future_result(fut_cc)
+                e_c: Exception
+                match res_cc:
+                    case Ok(_):
+                        pass
+                    case Err(e_c):
+                        _fail(f"Correction failed for {cu_corr}: {e_c}")
+                        break
+            if attempts_made >= 3:
+                per_cu_writes_c2: list[CoderWrites] = []
+                wc_id_c2: str
+                wc_file_c2: Path
+                for wc_id_c2, wc_file_c2 in cu_files:
+                    per_cu_writes_c2.append(coder_writes(wc_id_c2, log_dir, project_dir))
+                breaches_c2: Sequence[BoundaryBreach]
+                written_c2: Sequence[str]
+                breaches_c2, written_c2 = enforce_boundary(
+                    per_cu_writes_c2, project_dir, stash_ref, baseline_dirty, guards, feedback_dir)
+                still2: bool = False
+                bb2: BoundaryBreach
+                for bb2 in breaches_c2:
+                    if bb2.scope == cu_corr and bb2.rule in ("no-touch", "shared-write"):
+                        still2 = True
+                        break
+                if still2:
+                    correction_failed.add(cu_corr)
+    per_cu_writes = []
+    wc_id: str
+    wc_file: Path
+    for wc_id, wc_file in cu_files:
+        per_cu_writes.append(coder_writes(wc_id, log_dir, project_dir))
+    breaches, written = enforce_boundary(
+        per_cu_writes, project_dir, stash_ref, baseline_dirty, guards, feedback_dir)
+
+    if breaches:
+        all_passed = False
+
     # Per-CU lead checks (sequential after all coders done — avoids file conflicts)
     escalated_cus: list[str] = []
     _leftover: asyncio.Future[Ok[CoderOutput] | Err[Exception]]
     text: str
     lead_rc: int
     lead_usage: TokenUsage
+    breach_detail_by_cu: dict[str, str] = {}
+    for cu_id in sorted(set([b.scope for b in breaches if b.scope not in ("wave",)])):
+        breach_detail_by_cu[cu_id] = _breach_detail_for_cu(breaches, cu_id)
+    cf: str
+    for cf in sorted(correction_failed):
+        if cf not in breach_detail_by_cu:
+            breach_detail_by_cu[cf] = _breach_detail_for_cu(breaches, cf)
     for cu_id, cu_file, _leftover in coder_futures:
         if no_per_cu_lead:
             continue
+        is_esc: bool = False
         match _read_file_text(feedback_dir / f"{cu_id}.feedback.txt"):
             case Ok(text) if "STATUS=ESCALATION" in text:
-                escalated_cus.append(cu_id)
-                _warn(f"Escalation detected: {cu_id}")
-                match run_per_cu_lead(
-                    cu_id, cu_file, lead_model, max_fix_iterations,
-                    feedback_dir, log_dir, lead_timeout, project_dir,
-                    lead_fallbacks,
-                ):
-                    case Ok((lead_rc, lead_usage)):
-                        tracker.accumulate(lead_usage)
-                        wc.coders[f"{cu_id}-lead"] = lead_usage
-                    case Err(e):
-                        _fail(f"Lead failed on {cu_id}: {e}")
+                is_esc = True
             case _:
                 pass
+        if not is_esc and cu_id in correction_failed:
+            is_esc = True
+        if is_esc:
+            if cu_id not in escalated_cus:
+                escalated_cus.append(cu_id)
+            _warn(f"Escalation detected: {cu_id}")
+            match run_per_cu_lead(
+                cu_id, cu_file, lead_model, max_fix_iterations,
+                feedback_dir, log_dir, lead_timeout, project_dir,
+                lead_fallbacks,
+                breach_context=breach_detail_by_cu.get(cu_id, ""),
+            ):
+                case Ok((lead_rc, lead_usage)):
+                    tracker.accumulate(lead_usage)
+                    wc.coders[f"{cu_id}-lead"] = lead_usage
+                case Err(e):
+                    _fail(f"Lead failed on {cu_id}: {e}")
+
+    guard_breaches: list[BoundaryBreach] = []
+    escalated_set: set[str] = set(escalated_cus)
+    lead_cu: str
+    lead_ref: Path
+    lead_left: asyncio.Future[Ok[CoderOutput] | Err[Exception]]
+    for lead_cu, lead_ref, lead_left in coder_futures:
+        if lead_cu not in escalated_set:
+            continue
+        raw_lead: CoderWrites = coder_writes(f"lead-{lead_cu}", log_dir, project_dir)
+        owned: Sequence[BoundaryBreach] = _owned_breaches(
+            CoderWrites(cu_id=lead_cu, paths=raw_lead.paths), guards)
+        for breach in owned:
+            if breach.rule == "no-touch":
+                guard_breaches.append(
+                    BoundaryBreach(scope=breach.scope, path=breach.path, rule="lead"))
+            else:
+                guard_breaches.append(breach)
+    if guard_breaches:
+        report_breaches(tuple(guard_breaches), feedback_dir)
+        all_passed = False
 
     # After all per-CU leads, recompute files changed from pre-wave ref.
     # This captures files committed by leads (coders' files_changed is empty
@@ -1549,12 +2162,12 @@ async def run_wave_parallel(
             case Err(_):
                 pass
 
-    return wave_files_changed, all_passed
+    return wave_files_changed, all_passed, written
 
 
 # ── Async entry point ────────────────────────────────────────────
 
-async def main_async(args: argparse.Namespace) -> None:
+async def main_async(args: argparse.Namespace) -> int:
     """Async entry point — drives wave execution.
     No try/except in this function — all error handling via match/case on Result monad.
     """
@@ -1632,6 +2245,7 @@ async def main_async(args: argparse.Namespace) -> None:
     if not args.dry_run:
         save_convergence(convergence_file, {"waves": [], "status": "RUNNING"})
     tracker: CreditTracker = CreditTracker()
+    run_written: set[str] = set()
 
     wave_def: WaveDef
     for wave_def in waves:
@@ -1646,6 +2260,9 @@ async def main_async(args: argparse.Namespace) -> None:
         print(_banner_line())
         _info(f"CUs: {', '.join(wave_cus)}")
         print()
+
+        baseline_dirty: frozenset[str] = frozenset(
+            _dirty_paths(project_dir) - run_written)
 
         cu_files: list[tuple[str, Path]] = []
         cu_id: str
@@ -1669,6 +2286,14 @@ async def main_async(args: argparse.Namespace) -> None:
             print()
             continue
 
+        clashes: list[tuple[str, str]] = _wave_dirty_clashes(cu_files, baseline_dirty)
+        if clashes:
+            owner: str
+            path: str
+            for owner, path in clashes:
+                _fail(f"wave {wave_num}: CU {owner} declares {path} was already dirty before this run")
+            sys.exit(1)
+
         # Capture pre-wave HEAD ref for accurate file tracking after wave lead commits
         ref: str
         pre_wave_ref: str | None
@@ -1684,7 +2309,9 @@ async def main_async(args: argparse.Namespace) -> None:
 
         wave_files_changed: dict[str, list[str]]
         all_passed: bool
-        wave_files_changed, all_passed = await run_wave_parallel(
+        written: Sequence[str]
+        run_written: set[str]
+        wave_files_changed, all_passed, written = await run_wave_parallel(
             cu_files, wc, tracker,
             feedback_dir, log_dir, project_dir,
             args.coder_model, args.coder_fallbacks,
@@ -1693,7 +2320,9 @@ async def main_async(args: argparse.Namespace) -> None:
             args.lead_fallbacks,
             args.max_fix_iterations,
             args.no_per_cu_lead,
+            baseline_dirty,
         )
+        run_written.update(written)
 
         # Wave file summary
         print(f"  {C.BOLD}Wave {wave_num} files changed:{C.RESET}")
@@ -1723,9 +2352,26 @@ async def main_async(args: argparse.Namespace) -> None:
             wave_num, num_waves, args.lead_model, args.max_fix_iterations,
             feedback_dir, log_dir, args.lead_timeout,
             project_dir, wave_cus, args.lead_fallbacks,
+            unattributed_context=_unattributed_detail(feedback_dir),
         )
         tracker.accumulate(lead_usage)
         lead_ok: bool = lead_rc == 0
+
+        escalated_ids: set[str] = _escalated_in(wave_cus, feedback_dir)
+        wave_lead_paths: Sequence[str] = coder_writes(
+            f"lead-wave-{wave_num}", log_dir, project_dir).paths
+        lead_guards: dict[str, NoTouch] = {}
+        guard_name: str
+        guard_path: Path
+        for guard_name, guard_path in cu_files:
+            if guard_name not in escalated_ids:
+                lead_guards[guard_name] = _resolved(
+                    _cu_no_touch(guard_path), project_dir)
+        lead_breaches: Sequence[BoundaryBreach] = _paths_against(
+            wave_lead_paths, lead_guards, f"lead-wave-{wave_num}")
+        if lead_breaches:
+            report_breaches(lead_breaches, feedback_dir)
+            all_passed = False
 
         # After wave lead, merge files committed by wave lead into file tracking
         diff_out: str
@@ -1768,7 +2414,7 @@ async def main_async(args: argparse.Namespace) -> None:
         print()
         _print_accumulated(tracker)
         print(_banner_line())
-        return
+        return 0
 
     convergence: ConvergenceData = load_convergence(convergence_file)
     total_escalations: int = 0
@@ -1801,6 +2447,10 @@ async def main_async(args: argparse.Namespace) -> None:
     print()
     _print_accumulated(tracker)
     print(_banner_line())
+
+    if convergence["status"] == "CONVERGED":
+        return 0
+    return 1
 
 
 def main(argv: list[str] | None = None) -> None:

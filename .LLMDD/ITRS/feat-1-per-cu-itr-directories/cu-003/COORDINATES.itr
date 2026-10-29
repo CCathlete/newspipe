@@ -1,0 +1,5 @@
+# COORDINATES: cu-003
+# TIMESTAMP: 2026-10-09
+
+TYPE.scala.itrcompiler.application.services.CUStore.scala.CUStore
+TYPE.scala.itrcompiler.infrastructure.filesystem.FileSystem.scala.FileSystem

@@ -1,0 +1,288 @@
+# IMPLEMENTATION_STEPS: cu-006
+
+1. Change the cu_scope import line in .LLMDD/tools/run-waves.py so the enforcement block can resolve symlinked patterns and fail closed:
+
+```python
+from cu_scope import (NoTouch, has_enforceable_patterns, is_touched,
+    parse_no_touch, resolve_patterns, write_paths)
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+2. Replace the whole _cu_no_touch function with the version below so a flat frame file is gated as well as a per-CU folder:
+
+```python
+def _cu_no_touch(cu_ref: Path) -> NoTouch:
+    """Return the no-touch set declared by one CU frame folder or file."""
+    steps: Path = cu_ref / "IMPLEMENTATION_STEPS.itr" if cu_ref.is_dir() else cu_ref
+    opened: Ok[typing.TextIO] | Err[Exception] = _open_file(steps)
+    if isinstance(opened, Err):
+        return parse_no_touch("")
+    handle: typing.TextIO = opened.value
+    text: str = handle.read()
+    handle.close()
+    return parse_no_touch(text)
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+3. Change the run_coder signature so it no longer receives a no-touch set, since enforcement now runs once per wave with every CU's log available:
+
+```python
+def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
+              feedback_dir: Path, log_dir: Path, timeout: int,
+              project_dir: Path, coder_colour: tuple[str, str],
+              stash_ref: str = "") -> Ok[CoderOutput] | Err[Exception]:
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+4. In .LLMDD/tools/run-waves.py, replace the diff block and the old breach block inside run_coder with the attributed change set below. The old text starts at the comment Git diff from project root and ends at the return Err for the no-touch list:
+
+```python
+        # The CU's change set comes from this agent's own tool calls, never
+        # from the shared working tree: a sibling's writes are not ours, and
+        # a file this agent created without git add is still counted.
+        files_changed = list(coder_writes(cu_id, log_dir, project_dir).paths)
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && grep -c "touched its no-touch list" .LLMDD/tools/run-waves.py`
+
+5. Append the enforcement block to .LLMDD/tools/run-waves.py immediately before the run_wave_parallel definition:
+
+```python
+# u2500u2500 CU boundary enforcement u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+
+@dataclass(frozen=True, slots=True)
+class BoundaryBreach:
+    """One boundary violation: which scope, which path, which rule."""
+    scope: str
+    path: str
+    rule: str
+
+
+def _resolved(declared: NoTouch, project_dir: Path) -> NoTouch:
+    """Resolve declared patterns through symlinks against the repo root."""
+    return NoTouch(
+        entries=declared.entries,
+        patterns=resolve_patterns(declared.patterns, project_dir),
+        unparsed=declared.unparsed,
+    )
+
+
+def _owned_breaches(writes: CoderWrites,
+                    guards: dict[str, NoTouch]) -> Sequence[BoundaryBreach]:
+    """Rule 1: a CU that writes a path its own frame forbids fails."""
+    declared: NoTouch = guards.get(writes.cu_id, parse_no_touch(""))
+    if not has_enforceable_patterns(declared):
+        return (BoundaryBreach(scope=writes.cu_id, path="", rule="unenforceable"),)
+    found: list[BoundaryBreach] = []
+    path: str
+    for path in writes.paths:
+        if is_touched(declared.patterns, path):
+            found.append(BoundaryBreach(scope=writes.cu_id, path=path, rule="no-touch"))
+    return tuple(found)
+
+
+def _collision_breaches(per_cu: Sequence[CoderWrites]) -> Sequence[BoundaryBreach]:
+    """Rule 2: two CU scopes writing one path in a wave both fail."""
+    owners: dict[str, list[str]] = {}
+    writes: CoderWrites
+    for writes in per_cu:
+        path: str
+        for path in writes.paths:
+            owners.setdefault(path, []).append(writes.cu_id)
+    found: list[BoundaryBreach] = []
+    path2: str
+    ids: list[str]
+    for path2, ids in sorted(owners.items()):
+        if len(ids) < 2:
+            continue
+        cu: str
+        for cu in ids:
+            found.append(BoundaryBreach(scope=cu, path=path2, rule="shared-write"))
+    return tuple(found)
+
+
+def _unattributed_breaches(unattributed: Sequence[str],
+                           guards: dict[str, NoTouch]) -> Sequence[BoundaryBreach]:
+    """Rule 3: a change no CU claimed is still held to every guard."""
+    found: list[BoundaryBreach] = []
+    path: str
+    for path in unattributed:
+        owners: list[str] = [
+            cu for cu, declared in guards.items()
+            if is_touched(declared.patterns, path)]
+        if owners:
+            found.append(BoundaryBreach(
+                scope="wave", path=path,
+                rule="unattributed:" + ",".join(sorted(owners))))
+    return tuple(found)
+
+
+def boundary_breaches(writes: WaveWrites,
+                      guards: dict[str, NoTouch]) -> Sequence[BoundaryBreach]:
+    """Apply all three rules to one measured wave."""
+    found: list[BoundaryBreach] = []
+    per: CoderWrites
+    for per in writes.per_cu:
+        found.extend(_owned_breaches(per, guards))
+    found.extend(_collision_breaches(writes.per_cu))
+    found.extend(_unattributed_breaches(writes.unattributed, guards))
+    return tuple(found)
+
+
+def report_breaches(breaches: Sequence[BoundaryBreach], feedback_dir: Path) -> None:
+    """Print every breach and leave the same record on disk."""
+    breach: BoundaryBreach
+    for breach in breaches:
+        _fail(f"CU boundary {breach.rule}: {breach.scope} -> {breach.path}")
+    text: str = "\n".join(
+        f"SCOPE={b.scope}\nRULE={b.rule}\nPATH={b.path}\n" for b in breaches)
+    match _write_file_text(feedback_dir / "boundary-breaches.txt", text):
+        case Ok(_):
+            pass
+        case Err(e):
+            _warn(f"Cannot write boundary report: {e}")
+
+
+def enforce_boundary(per_cu: Sequence[CoderWrites], project_dir: Path,
+                     base_ref: str, baseline_dirty: frozenset[str],
+                     guards: dict[str, NoTouch],
+                     feedback_dir: Path) -> tuple[Sequence[BoundaryBreach], Sequence[str]]:
+    """Measure the wave, attribute it to CUs, and apply every rule."""
+    wave_paths: Sequence[str] = wave_writes(project_dir, base_ref, baseline_dirty)
+    attributed: WaveWrites = attribute_writes(wave_paths, per_cu)
+    breaches: Sequence[BoundaryBreach] = boundary_breaches(attributed, guards)
+    if breaches:
+        report_breaches(breaches, feedback_dir)
+    claimed: set[str] = set()
+    writes: CoderWrites
+    for writes in per_cu:
+        claimed.update(writes.paths)
+    return breaches, tuple(sorted(claimed | set(wave_paths)))
+
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+6. Change the run_wave_parallel signature in .LLMDD/tools/run-waves.py so it receives the wave baseline and returns the paths this wave wrote:
+
+```python
+async def run_wave_parallel(
+    cu_files: list[tuple[str, Path]],
+    wc: WaveCredits,
+    tracker: CreditTracker,
+    feedback_dir: Path,
+    log_dir: Path,
+    project_dir: Path,
+    coder_model: str,
+    coder_fallbacks: list[str],
+    cu_timeout: int,
+    lead_model: str,
+    lead_timeout: int,
+    lead_fallbacks: list[str],
+    max_fix_iterations: int,
+    no_per_cu_lead: bool,
+    baseline_dirty: frozenset[str],
+) -> tuple[dict[str, list[str]], bool, Sequence[str]]:
+    """Run all CUs in a wave in parallel via ThreadPoolExecutor.
+
+    Returns (wave_files_changed, all_passed, written).
+    No try/except in this function u2014 all error handling via Result monad + match/case.
+    """
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+7. Inside the dispatch loop of run_wave_parallel, replace the two lines that compute cu_frame_dir and no_touch plus the run_coder argument list with the call below, so the coder starts without a scope and the scope is applied after every coder has finished:
+
+```python
+            future: asyncio.Future[Ok[CoderOutput] | Err[Exception]] = loop.run_in_executor(
+                pool,
+                run_coder,
+                cu_file, cu_id, fallback_chain,
+                feedback_dir, log_dir, cu_timeout,
+                project_dir, coder_colour,
+                stash_ref,
+            )
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && grep -c "no_touch: NoTouch" .LLMDD/tools/run-waves.py`
+
+8. Insert the enforcement pass in .LLMDD/tools/run-waves.py directly after the coder-await loop and before the per-CU lead comment, so every CU's log exists before attribution:
+
+```python
+    guards: dict[str, NoTouch] = {}
+    guard_cu: str
+    guard_file: Path
+    for guard_cu, guard_file in cu_files:
+        guards[guard_cu] = _resolved(_cu_no_touch(guard_file), project_dir)
+
+    per_cu_writes: list[CoderWrites] = []
+    write_cu: str
+    write_file: Path
+    for write_cu, write_file in cu_files:
+        per_cu_writes.append(coder_writes(write_cu, log_dir, project_dir))
+
+    breaches: Sequence[BoundaryBreach]
+    written: Sequence[str]
+    breaches, written = enforce_boundary(
+        per_cu_writes, project_dir, stash_ref, baseline_dirty, guards, feedback_dir)
+    if breaches:
+        all_passed = False
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && grep -c "enforce_boundary" .LLMDD/tools/run-waves.py`
+
+9. Change the two return statements of run_wave_parallel in .LLMDD/tools/run-waves.py to carry the written paths:
+
+```python
+            return {}, False, ()
+```
+
+```python
+    return wave_files_changed, all_passed, written
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && grep -c "return wave_files_changed, all_passed, written" .LLMDD/tools/run-waves.py`
+
+10. Change main_async in .LLMDD/tools/run-waves.py to return an exit code and to unpack the written paths:
+
+```python
+async def main_async(args: argparse.Namespace) -> int:
+```
+
+```python
+        written: Sequence[str]
+        run_written: set[str]
+        wave_files_changed, all_passed, written = await run_wave_parallel(
+```
+
+```python
+            args.no_per_cu_lead,
+            baseline_dirty,
+        )
+        run_written.update(written)
+```
+
+```python
+    if convergence["status"] == "CONVERGED":
+        return 0
+    return 1
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+11. Change the two early returns of main_async in .LLMDD/tools/run-waves.py from a bare return to return 0, keeping the dry-run path non-failing:
+
+```python
+        _print_accumulated(tracker)
+        print(_banner_line())
+        return 0
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && grep -c "return 0" .LLMDD/tools/run-waves.py`
+
+Do NOT touch: .LLMDD/tools/cu_scope.py, any DTR file, any ITR frame file, any ITR frame or feedback file, any Scala source
+Stop when the module parses, enforce_boundary is called once per wave, and the process return value is 1 when convergence is not CONVERGED.

@@ -1,0 +1,5 @@
+# COORDINATES: cu-001
+
+FILE..LLMDD/tools/cu_scope.py is a creation absent from the baseline.
+FILE..LLMDD/tools/validate-steps.py.
+CODEX..LLMDD/tools/validate-steps.py=FUNCTION:def check.

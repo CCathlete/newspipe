@@ -1,0 +1,12 @@
+# LEGEND: feat-1-per-cu-itr-directories
+# TIMESTAMP: 2026-10-09
+
+CU = Computational Unit. ITR directory = compiled output folder for one
+feature. CU folder = per-CU subdirectory named after the CU id (e.g.
+cu-001/). COORDINATES.itr = DTR area affected/created by the CU.
+REQUIREMENTS.itr = what part of the feature the CU adds.
+IMPLEMENTATION_STEPS.itr = stepwise code instructions for the Coder
+(gitignored). ACCEPTANCE.itr = per-CU acceptance criteria +
+acceptance/regression tests. SYNOPSIS.itr = ITR-root file naming implemented
+features and defining MAX_ATTEMPTS. MAX_ATTEMPTS = max Coder retry count per
+CU before escalation to code lead.

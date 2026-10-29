@@ -1,0 +1,129 @@
+# IMPLEMENTATION_STEPS: cu-005
+
+1. Change the typing import at the top of .LLMDD/tools/run-waves.py to include Final:
+
+```python
+from typing import Final, Generic, Iterator, Literal, Optional, Sequence, TypeAlias, TypedDict, TypeVar, cast
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+2. Append the per-CU change attribution block to .LLMDD/tools/run-waves.py immediately before the Live-streaming section:
+
+```python
+# u2500u2500 Per-CU change attribution u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+
+WRITE_TOOLS: Final[frozenset[str]] = frozenset({"write", "edit", "patch"})
+_SHELL_WRITE: Final[re.Pattern[str]] = re.compile(
+    r"(?:>>?|tee|cp|mv|touch|mkdir\s+-p)\s+([^\s;|&<>'\"`]+)")
+_QUOTED_REPO_PATH: Final[re.Pattern[str]] = re.compile(
+    r"['\"]((?:\.LLMDD|src|scripts|docs|conf|project|itr-buffer|dtr-builder|"
+    r"itr-compiler|commit-tool)/[\w./-]+)['\"]")
+
+
+@dataclass(frozen=True, slots=True)
+class CoderWrites:
+    cu_id: str
+    paths: Sequence[str]
+
+
+@dataclass(frozen=True, slots=True)
+class WaveWrites:
+    per_cu: Sequence[CoderWrites]
+    unattributed: Sequence[str]
+
+
+def _text_of(raw: object) -> str:
+    return raw if isinstance(raw, str) else ""
+
+
+def _tool_input(ev: JsonEvent) -> EventPart:
+    part: EventPart = _as_part(ev.get("part", {}))
+    state: EventPart = _as_part(part.get("state", {}))
+    return _as_part(state.get("input", {}))
+
+
+def _shell_candidates(command: str) -> Sequence[str]:
+    found: list[str] = [match.group(1) for match in _SHELL_WRITE.finditer(command)]
+    found.extend(_QUOTED_REPO_PATH.findall(command))
+    return tuple(found)
+
+
+def _tool_candidates(ev: JsonEvent) -> Sequence[str]:
+    part: EventPart = _as_part(ev.get("part", {}))
+    if _text_of(part.get("type")) != "tool":
+        return ()
+    tool: str = _text_of(part.get("tool"))
+    if tool in WRITE_TOOLS:
+        path: str = _text_of(_tool_input(ev).get("path"))
+        return (path,) if path else ()
+    if tool == "shell":
+        return _shell_candidates(_text_of(_tool_input(ev).get("command")))
+    return ()
+
+
+def _repo_relative(project_dir: Path, raw: str) -> str | None:
+    candidate: Path = Path(raw.strip("'\"`"))
+    if not candidate.is_absolute():
+        candidate = project_dir / candidate
+    try:
+        return candidate.resolve().relative_to(project_dir.resolve()).as_posix()
+    except (OSError, ValueError):
+        return None
+
+
+def coder_writes(log_prefix: str, log_dir: Path, project_dir: Path) -> CoderWrites:
+    found: list[str] = []
+    log_file: Path
+    for log_file in sorted(log_dir.glob(f"{log_prefix}.attempt-*.log")):
+        opened: Ok[typing.TextIO] | Err[Exception] = _open_file(log_file)
+        if isinstance(opened, Err):
+            continue
+        handle: typing.TextIO = opened.value
+        line: str
+        for line in handle:
+            parsed: Ok[JsonEvent] | Err[ValueError] = _parse_event_line(line.strip())
+            if isinstance(parsed, Err):
+                continue
+            raw: str
+            for raw in _tool_candidates(parsed.value):
+                relative: str | None = _repo_relative(project_dir, raw)
+                if relative is not None:
+                    found.append(relative)
+        handle.close()
+    return CoderWrites(cu_id=log_prefix, paths=tuple(dict.fromkeys(found)))
+
+
+def wave_writes(project_dir: Path, base_ref: str,
+                baseline_dirty: frozenset[str]) -> Sequence[str]:
+    changed: list[str] = []
+    match _git_run("diff", "--name-only", base_ref, cwd=project_dir):
+        case Ok(out):
+            changed.extend(out.splitlines())
+        case Err(_):
+            pass
+    match _git_run("ls-files", "--others", "--exclude-standard", cwd=project_dir):
+        case Ok(out):
+            changed.extend(out.splitlines())
+        case Err(_):
+            pass
+    unique: frozenset[str] = frozenset(path for path in changed if path)
+    return tuple(sorted(unique - baseline_dirty))
+
+
+def attribute_writes(wave_paths: Sequence[str],
+                     per_cu: Sequence[CoderWrites]) -> WaveWrites:
+    claimed: set[str] = set()
+    writes: CoderWrites
+    for writes in per_cu:
+        claimed.update(writes.paths)
+    return WaveWrites(
+        per_cu=tuple(per_cu),
+        unattributed=tuple(path for path in wave_paths if path not in claimed),
+    )
+```
+
+Prove: `cd /home/kcat/Repos/llm-driven-design && python3 -c "import ast; ast.parse(open('.LLMDD/tools/run-waves.py').read()); print('ok')"`
+
+Do NOT touch: .LLMDD/tools/cu_scope.py, any DTR file, any ITR frame file, any ITR frame or feedback file, any Scala source
+Stop when the module compiles and the new symbols are importable.

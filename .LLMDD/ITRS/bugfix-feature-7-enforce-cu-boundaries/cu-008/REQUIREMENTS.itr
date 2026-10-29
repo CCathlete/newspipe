@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-008
+
+Add the regression suite that proves every boundary hole stays closed. One test module under .LLMDD/tests imports the shared vocabulary and loads the wave runner module by file path, then asserts parsing, matching, the precise write index, per-CU attribution from a synthetic event log, the wave change set including untracked files, the unattributed residual, and each of the three enforcement rules plus the fail-closed case. The suite must run with python3 -m unittest discover and pass with no network and no opencode process.

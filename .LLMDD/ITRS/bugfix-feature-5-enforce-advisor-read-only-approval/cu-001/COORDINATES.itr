@@ -1,0 +1,3 @@
+# COORDINATES: cu-001
+
+FILE..LLMDD/agents/advisor.md, FILE..LLMDD/agents/coder.md. The first key is the hardlink twin of .opencode/agents/llmdd/advisor.md (same inode); the second key is the coder.md allowlist pattern used as reference shape.

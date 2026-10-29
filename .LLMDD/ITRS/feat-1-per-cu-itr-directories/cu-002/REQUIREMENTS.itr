@@ -1,0 +1,8 @@
+# REQUIREMENTS: cu-002
+# TIMESTAMP: 2026-10-09
+
+Compilation fails with a relevant error when any enforced rule is unmet:
+missing CU subdirectory content (any of the four components), missing root
+SYNOPSIS.itr, missing MAX_ATTEMPTS, or a missing/empty implementation
+summary in the synopsis data. Manually placed per-CU override files
+must be accepted without content enforcement.

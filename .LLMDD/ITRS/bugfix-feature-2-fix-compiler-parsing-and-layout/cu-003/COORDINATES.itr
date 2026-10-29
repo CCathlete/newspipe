@@ -1,0 +1,3 @@
+# COORDINATES: cu-003
+
+TYPE.scala.itrcompiler.application.services.RequiredPartsValidation.scala.RequiredPartsValidation + FILE.scala/itrcompiler/application/services/RequiredPartsValidation.scala + TYPE.scala.itrcompiler.application.services.Compile.scala.Compile + FILE.scala/itrcompiler/application/services/Compile.scala; a coordinates value may name a DTR area that does not exist yet, meaning the CU creates it.

@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-003
+
+Refuse to start a CU when a path belonging to another active CU is already dirty in the working tree. The bugfix-feature-5 cu-001 run found a file on its own no-touch list already modified by a sibling CU and narrated it rather than failing, and cu-002 found both of its edits already present from an aborted attempt. Catching that before the implementation step turns a narrated anomaly into a refusal.

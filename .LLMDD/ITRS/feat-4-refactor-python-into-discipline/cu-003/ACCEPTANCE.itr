@@ -1,0 +1,3 @@
+# ACCEPTANCE: cu-003
+
+T1 u2014 py_compile exits 0. T2 u2014 no typing.Any import and no Any annotation; no bare dict/list/tuple/set annotation. T3 u2014 slots=True on all dataclasses; frozen on Ok, Err, CoderOutput, ModelFallbackChain. T4 u2014 the only try sites are the six cu-002 wrappers plus the step-4 translator, each marked. T6 u2014 the feat-1 dry-run exits 0 with an unchanged plan shape. R1 u2014 reviewer confirms annotation completeness for lines 397-end by diff walk.

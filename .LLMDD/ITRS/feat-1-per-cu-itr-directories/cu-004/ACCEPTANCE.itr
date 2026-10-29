@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-004
+# TIMESTAMP: 2026-10-09
+
+Old-schema batches still compile unchanged (regression); new-schema batches
+round-trip all components into the written CU folders.

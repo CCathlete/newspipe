@@ -1,0 +1,120 @@
+# IMPLEMENTATION_STEPS: cu-003
+
+1. In .LLMDD/tools/run-waves.py replace _detect_refusal and _detect_error with the exact functions below (same patterns, same answers; file reads go through the monadic wrapper): ```python
+def _detect_refusal(log_file: Path) -> bool:
+    """Check if the log contains refusal patterns."""
+    read: Ok[str] | Err[Exception] = _read_file_text(log_file)
+    if isinstance(read, Err):
+        return False
+    text: str = read.value
+    lowered: str = text.lower()
+    pattern: str
+    for pattern in _REFUSAL_PATTERNS:
+        if pattern.lower() in lowered:
+            return True
+    return False
+
+
+def _detect_error(log_file: Path) -> bool:
+    """Check if the log contains error patterns (but not tool output)."""
+    read: Ok[str] | Err[Exception] = _read_file_text(log_file)
+    if isinstance(read, Err):
+        return False
+    text: str = read.value
+    line: str
+    pattern: str
+    for line in text.splitlines():
+        if "toolResult" in line or "tool_result" in line:
+            continue
+        for pattern in _ERROR_PATTERNS:
+            if pattern in line:
+                return True
+    return False
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+2. In .LLMDD/tools/run-waves.py replace _file_cu_id with the exact function below (same header scan, same answers; open goes through the monadic wrapper): ```python
+def _file_cu_id(f: Path) -> str | None:
+    """Return the CU-ID header of a frame file, or None."""
+    opened: Ok[typing.TextIO] | Err[Exception] = _open_file(f)
+    if isinstance(opened, Err):
+        return None
+    log_fh: typing.TextIO = opened.value
+    line: str
+    for line in log_fh:
+        found: Optional[re.Match[str]] = _CUID_RE.match(line)
+        if found is not None:
+            log_fh.close()
+            return found.group(1).strip()
+    log_fh.close()
+    return None
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+3. In .LLMDD/tools/run-waves.py replace _git with the exact function below (same stdout-or-empty contract; git spawn goes through _git_run, which already wraps timeout and OS failure): ```python
+def _git(*args: str, cwd: Path | None = None) -> str:
+    """Run git and return stdout; empty string when git is unavailable."""
+    base: Path = cwd if cwd is not None else Path.cwd()
+    ran: Ok[str] | Err[Exception] = _git_run(*args, cwd=base)
+    if isinstance(ran, Err):
+        return ""
+    return ran.value
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+4. In .LLMDD/tools/run-waves.py insert the exact _parse_event_line helper below directly above _stream_process_json, then replace the per-line parse branch inside _reader and the per-line scan loop inside run_coder to match on it (same raw-line fallback print, same error-event detection, same toolResult skip). Exact helper: ```python
+def _parse_event_line(line: str) -> Ok[JsonEvent] | Err[ValueError]:
+    """Parse one streamed log line as a JSON event."""
+lines are EXPECTED raw process output; the Err case is normal control flow.
+    """
+    # MONADIC-BOUNDARY: JSON decode of a foreign process stream; a non-object line becomes Err.
+    parsed: object = None
+    caught: ValueError
+    try:
+        parsed = json.loads(line)
+    except (json.JSONDecodeError, ValueError) as caught:
+        return Err(caught)
+    if isinstance(parsed, dict):
+        event: JsonEvent = parsed
+        return Ok(event)
+    return Err(ValueError("event line is not a JSON object"))
+``` Reader branch becomes: `parsed: Ok[JsonEvent] | Err[ValueError] = _parse_event_line(line)` with `if isinstance(parsed, Err):` printing the raw line exactly as today, else `ev: JsonEvent = parsed.value` followed by the unchanged event handling (annotate ev_type: str, sid: str, model_info: EventModel, display: str | None, dlines: list[str], cont: str). The run_coder scan loop becomes: `parsed: Ok[JsonEvent] | Err[ValueError] = _parse_event_line(line)` with `if isinstance(parsed, Err):` running the unchanged toolResult skip plus _ERROR_PATTERNS scan (annotate p: str), else `ev: JsonEvent = parsed.value` with the unchanged error-event test. Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+5. In .LLMDD/tools/run-waves.py apply the exact signature replacements below and annotate every listed local (insert `name: Type` before first use or convert the first binding to `name: Type = ...`; loop targets get a pre-declared line directly above the loop): ```python
+def _banner_line(width: int = 63) -> str:
+def _info(msg: str) -> None:
+def _success(msg: str) -> None:
+def _fail(msg: str) -> None:
+def _warn(msg: str) -> None:
+def _header(msg: str) -> None:
+def _print_credit_table(cu_usages: dict[str, TokenUsage], label: str, colour: str = "") -> None:
+def _print_accumulated(tracker: CreditTracker) -> None:
+``` Locals: _print_credit_table gets `hdr: str`, `wt: TokenUsage = TokenUsage()` (replace the bare construction), pre-declared `cu_id: str` plus `u: TokenUsage` above its for loop, `cost_str: str`, `cost_col: str`, `model_str: str`, `total_cost_col: str`; _print_accumulated gets `a: TokenUsage = tracker.accumulated` (replace the bare binding) plus `cost_col: str`. ```python
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+``` Locals: `p: argparse.ArgumentParser = argparse.ArgumentParser(...)` (replace the bare binding). Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+6. In .LLMDD/tools/run-waves.py apply the exact replacements below for CU resolution, waves, and convergence (WaveDef, WaveRecord, ConvergenceData, and TokenReport come from cu-002): ```python
+def _cu_folder_ref(subdir: Path) -> Path | None:
+def build_cu_map(itr_path: Path) -> dict[str, Path]:
+def resolve_cu_file(cu_id: str, cu_map: dict[str, Path], itr_path: Path) -> Path | None:
+def detect_waves(itr_path: Path, waves_file: str | None) -> list[WaveDef]:
+def load_convergence(path: Path) -> ConvergenceData:
+def save_convergence(path: Path, data: ConvergenceData) -> None:
+``` Locals: _cu_folder_ref pre-declares `f: Path` above its for loop; build_cu_map uses `cu_map: dict[str, Path] = {}`, pre-declared `f: Path`, `cu_id: str | None`, `sub: Path`, `ref: Path | None`; resolve_cu_file uses `direct: Path`, `subdir: Path`, `ref: Path | None`, `nested: Path`; detect_waves uses `p: Path = Path(waves_file)`, `loaded: list[WaveDef] = json.loads(p.read_text())` (boundary Any narrowed at once), `cu_map: dict[str, Path] = build_cu_map(itr_path)`, `cu_ids: list[str] = sorted(cu_map.keys())`; load_convergence uses `data: ConvergenceData = json.loads(path.read_text())`; update_convergence gains `-> None` with `data: ConvergenceData = load_convergence(path)`, its `credits` parameter becomes `credits: dict[str, TokenReport]`, and every other parameter keeps its current annotation. Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+7. In .LLMDD/tools/run-waves.py annotate _stream_process_json without touching its logic: parameter `log_fh: typing.TextIO`; pre-declare `proc: subprocess.Popen` above the _popen match, `_done: threading.Event`, `last_activity: list[datetime]`, `t: threading.Thread`, `idle_secs: float` at their first bindings (`_done: threading.Event = threading.Event()`, `last_activity: list[datetime] = [datetime.now()]`, `t: threading.Thread = threading.Thread(target=_reader, daemon=True)`); inside _reader annotate `raw: bytes`, `line: str`, and reuse the step-4 parsed/ev names; pre-declare `e: Exception` above each match on an Err arm. Exact signature fence: ```python
+def _stream_process_json(cmd: list[str], log_fh: typing.TextIO, colour: str, prefix: str, timeout: int, work_dir: Path, token_usage: TokenUsage) -> Ok[int] | Err[Exception]:
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+8. In .LLMDD/tools/run-waves.py annotate _format_event without touching its logic: signature `def _format_event(ev: JsonEvent, colour: str) -> str | None:`; locals `t: str = ev.get("type", "")`, `tok: StepTokens`, `cost: float`, `reason: str` (from _extract_step_tokens), `parts: list[str] = []`, `token_str: str`, `model: EventModel`, `name: str`, `provider: str`, `part: EventPart`, `text: str`, `tool: str`, `result: EventResult`. ```python
+def _format_event(ev: JsonEvent, colour: str) -> str | None:
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+9. In .LLMDD/tools/run-waves.py annotate run_coder without touching its logic: pre-declare `colour_code: str` plus `colour_label: str` above the tuple unpack, then `prefix: str`, `combined_usage: TokenUsage = TokenUsage()`, `model_used: str`, `stream_rc: int`, `prompt: str` (replace bare bindings), `model_idx: int` plus `model: str` above the fallback for loop, `log_file: Path`, `attempt_usage: TokenUsage`, `cmd: list[str]`, `log_fh: typing.TextIO`, `rc: int`, `e: Exception` above each match, `text: str`, `is_refusal: bool`, `is_error_lines: bool` above the log-read match, `line: str`, `ev: JsonEvent`, `p: str` in the scan loop, `is_error: bool`, `is_timeout: bool`, `diff_args: list[str]`, `diff_out: str`, `succeeded: bool`, `reason: str`, `coder_feedback: Path`, `feedback_content: str`, `log_model_info: Path`, `fc: str` above the files loop, `line2: str = _usage_line(combined_usage)` for the trailing summary line (rename, since `line` is taken). Convert the construction site to `fallback_chain: ModelFallbackChain = ModelFallbackChain(coder_model, tuple(coder_fallbacks))`. ```python
+fallback_chain: ModelFallbackChain = ModelFallbackChain(coder_model, tuple(coder_fallbacks))
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+10. In .LLMDD/tools/run-waves.py annotate run_code_lead, run_per_cu_lead, _is_escalated, and check_escalations without touching logic: run_code_lead pre-declares `rc: int`, `e: Exception`, `log_fh: typing.TextIO` above its matches and uses `line: str = _usage_line(usage)` plus annotates `log_file: Path`, `colour: str`, `prefix: str`, `usage: TokenUsage = TokenUsage()`, `is_final: bool`, `commit_instruction: str`, `prompt: str`, `cmd: list[str]`; run_per_cu_lead annotates the same logger names plus `log_file: Path`, `colour: str`, `prefix: str`, `prompt: str`, `cmd: list[str]`; _is_escalated uses `fb: Path` plus pre-declared `text: str` above its match; check_escalations uses `count: int = 0`, pre-declared `cu_id: str` above its for loop, `fb: Path`, `text: str`. Exact fences: ```python
+line: str = _usage_line(usage)
+``` ```python
+count: int = 0
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+11. In .LLMDD/tools/run-waves.py annotate run_wave_parallel, main_async, and main without touching logic: run_wave_parallel uses `wave_files_changed: dict[str, list[str]] = {}` (already annotated, keep), `all_passed: bool = True`, `loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()`, pre-declared `stash_ref: str`, `e: Exception` above each match, `pool: concurrent.futures.ThreadPoolExecutor` on the with line (`with concurrent.futures.ThreadPoolExecutor(...) as pool:` gains `pool: concurrent.futures.ThreadPoolExecutor` declared directly above the with statement), `coder_futures: list[tuple[str, Path, asyncio.Future[Ok[CoderOutput] | Err[Exception]]]] = []`, pre-declared `idx: int`, `cu_id: str`, `cu_file: Path`, `coder_colour: tuple[str, str]`, `fallback_chain: ModelFallbackChain`, `future: asyncio.Future[Ok[CoderOutput] | Err[Exception]]`, `files: list[str]`, `usage: TokenUsage`, `model: str`, `rc: int`, `escalated_cus: list[str] = []`, `_leftover: Path` for the ignored third tuple element (rename the throwaway `_`), pre-declared `text: str`, `lead_rc: int`, `lead_usage: TokenUsage`, `all_changed: list[str]`, `diff_out: str`; main_async annotates `itr_path: Path`, `app_name: str`, `work_dir: Path`, `project_dir: Path | None = None`, `start: Path`, `search: Path`, `parent: Path`, `feedback_dir: Path`, `log_dir: Path`, `convergence_file: Path`, `cu_map: dict[str, Path]`, `waves: list[WaveDef]`, `num_waves: int`, `tracker: CreditTracker = CreditTracker()`, `wave_def: WaveDef`, `wave_num: int`, `wave_cus: list[str]`, `description: str`, `wc: WaveCredits`, `cu_files: list[tuple[str, Path]] = []`, `cu_file: Path | None`, `pre_wave_ref: str | None`, `wave_files_changed: dict[str, list[str]]`, `all_passed: bool`, `lead_rc: int`, `lead_usage: TokenUsage`, `lead_ok: bool`, `lead_files: set[str]`, `existing: set[str]`, `escalations: int`, `credits_data: dict[str, TokenReport]`, `convergence: ConvergenceData`, `total_escalations: int`, `failed_waves: int`, `w: WaveRecord`, `files: list[str]`, `unique_all: set[str] = set()`, `status_colour: str`, and renames the search-loop `for _ in range(10):` target to pre-declared `depth: int`; main becomes `def main(argv: list[str] | None = None) -> None:` with `args: argparse.Namespace = parse_args(argv)`. ```python
+def main(argv: list[str] | None = None) -> None:
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` prints nothing and exits 0.
+12. In .LLMDD/tools/run-waves.py run the full static discipline probes below and confirm each expectation: ```text
+python3 -m py_compile .LLMDD/tools/run-waves.py
+grep -n "Any" .LLMDD/tools/run-waves.py
+grep -n "try:" .LLMDD/tools/run-waves.py
+grep -n "slots=True" .LLMDD/tools/run-waves.py
+``` Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` exits 0; `grep -n "Any"` prints no import and no annotation; every remaining try carries a MONADIC-BOUNDARY marker (six wrapper sites from cu-002 plus the _parse_event_line translator from step 4); slots=True is present on all seven dataclasses.
+Do NOT touch: lines 1-394 above the `# u2500u2500 Formatting helpers` banner (cu-002 owns that region); .LLMDD/tools/test_synopsis_budget.py; .LLMDD/tools/validate-steps.py; dtr-builder/src/test/resources/fixtures/src/util.py; any Scala source; any ITR frame or feedback file.
+Stop when py_compile plus the full-file probes are green and every proof in cu-004 scope is reachable; no logic or message change is in scope.

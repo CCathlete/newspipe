@@ -1,0 +1,91 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. Add the shared-vocabulary import to .LLMDD/tools/run-waves.py, beside the existing imports at the top of the file. Sequence is already imported from typing by this module, so no typing change is needed:
+
+```python
+from cu_scope import NoTouch, is_touched, parse_no_touch
+```
+
+Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py`
+
+2. Read the no-touch set for a CU before its Coder starts. Add this helper immediately after the _COMPONENT_FILES definition near line 671, so it sits with the other CU file resolution code. Sequence and Ok and Err and typing and Path are all already available in this module:
+
+```python
+def _cu_no_touch(cu_dir: Path) -> NoTouch:
+    """Return the no-touch set declared by one CU frame folder."""
+    steps: Path = cu_dir / "IMPLEMENTATION_STEPS.itr"
+    opened: Ok[typing.TextIO] | Err[Exception] = _open_file(steps)
+    if isinstance(opened, Err):
+        return parse_no_touch("")
+    handle: typing.TextIO = opened.value
+    text: str = handle.read()
+    handle.close()
+    return parse_no_touch(text)
+```
+
+Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py`
+
+3. Thread the parsed set into run_coder. Replace the existing signature at line 989 so no_touch is an explicit parameter rather than a global, keeping the existing return type and the existing stash_ref default:
+
+```python
+def run_coder(cu_file: Path, cu_id: str, fallback_chain: ModelFallbackChain,
+              feedback_dir: Path, log_dir: Path, timeout: int,
+              project_dir: Path, coder_colour: tuple[str, str],
+              no_touch: NoTouch, stash_ref: str = "") -> Ok[CoderOutput] | Err[Exception]:
+```
+
+At the single call site that starts a Coder, populate it from the CU frame folder. Replace the existing run_coder invocation with the same call plus one positional argument, inserted immediately before the existing stash_ref argument:
+
+```python
+        no_touch: NoTouch = _cu_no_touch(cu_frame_dir) if cu_frame_dir else parse_no_touch("")
+```
+
+Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py`
+
+4. Compare files_changed against the no-touch set at the point in run_coder where the diff is already computed, immediately after the existing files_changed assignment at line 1129 and before the succeeded determination at line 1132. This is the measurement that already exists; this step only adds the comparison that was missing. Return the existing failure value rather than a new one so the caller already handles it:
+
+```python
+        declared: NoTouch = no_touch
+        if declared.entries:
+            breaches: Sequence[str] = [
+                f for f in files_changed if is_touched(declared.patterns, f)]
+            if breaches:
+                _fail(f"CU {cu_id} breached its own no-touch list on {len(breaches)} path(s):")
+                for breached in breaches:
+                    _fail(f"    {breached}")
+                return Err(RuntimeError(f"{cu_id} touched its no-touch list"))
+```
+
+Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py`
+
+5. Prove the runtime matcher and the design-time parser agree on the same shipped frame, so the two tools cannot drift apart:
+
+```sh
+cd /home/kcat/Repos/llm-driven-design
+python3 - <<'PY'
+import sys
+sys.path.insert(0, ".LLMDD/tools")
+from cu_scope import parse_no_touch, is_touched
+base = ".LLMDD/ITRS/bugfix-feature-5-enforce-advisor-read-only-approval"
+parsed = parse_no_touch(open(f"{base}/cu-003/IMPLEMENTATION_STEPS.itr").read())
+assert not parsed.unparsed, parsed.unparsed
+assert is_touched(parsed.patterns, "itr-compiler/src/main/scala/A.scala")
+assert is_touched(parsed.patterns, ".opencode/agents/llmdd/advisor.md")
+assert not is_touched(parsed.patterns, "README.md")
+print("RUNNER_PARSER_AGREE")
+PY
+```
+
+Prove: `RUNNER_PARSER_AGREE` is printed and the exit status is 0.
+
+6. Prove wave planning is unaffected by the new parameter, since the dry run resolves every CU without dispatching a Coder:
+
+```sh
+cd /home/kcat/Repos/llm-driven-design
+python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/bugfix-feature-7-enforce-cu-boundaries --app repo --waves .LLMDD/ITRS/bugfix-feature-7-enforce-cu-boundaries/waves.json --dry-run
+```
+
+Prove: `--dry-run` exits 0 and the plan lists cu-001, cu-002 and cu-003.
+
+Do NOT touch: .LLMDD/tools/validate-steps.py, .LLMDD/tools/cu_scope.py, .LLMDD/tools/check-advisor-approval.py, .LLMDD/tools/next-spec-id.py, .LLMDD/prompts/llm-driven-design-sys-prompt.itr.md, .LLMDD/agents, .LLMDD/skills, any ITR frame file, any DTR file, any Scala source.
+Stop when steps 1 through 6 are green and a Coder run whose diff touches a no-touch path exits non-zero naming that path, while a conforming run still passes and still reports files_changed as before. cu-003 builds on this CU and must not begin before it lands.

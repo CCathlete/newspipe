@@ -1,0 +1,6 @@
+# CU-ID: legend
+# CU-TYPE: LegendCU
+# TIMESTAMP: 2026-10-11T18:04:58.347907942Z
+# DTR-COORDINATES: 
+
+Legend for feat-4. Ok[T]/Err[E]: slotted frozen monadic Result pair; Ok carries value: T, Err carries error: E. CoderOutput: slotted frozen run record (rc, files_changed, usage, model_used). ModelFallbackChain: frozen slotted fallback order. TokenUsage/WaveCredits/CreditTracker: slotted mutable accumulators (frozen-deviation justification recorded in cu-002). JsonEvent/EventPart/StepTokens/TokenCache/TokenReport/WaveDef/WaveRecord/ConvergenceData: TypedDict/TypeAlias custom types replacing bare dict/Any. MONADIC-BOUNDARY: marker comment above each kept try site proving it is a foreign-boundary translator. C: ANSI colour namespace (plain class, annotated, disable-justification recorded).

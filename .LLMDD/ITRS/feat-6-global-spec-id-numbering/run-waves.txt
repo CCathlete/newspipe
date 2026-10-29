@@ -1,0 +1,1 @@
+python3 .LLMDD/tools/run-waves.py --itr .LLMDD/ITRS/feat-6-global-spec-id-numbering --app repo --waves .LLMDD/ITRS/feat-6-global-spec-id-numbering/waves.json

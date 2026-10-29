@@ -1,2 +1,2 @@
-bug=9
-feature=10
+bug=12
+feature=9

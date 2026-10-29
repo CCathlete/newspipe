@@ -1,0 +1,20 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-23T11:16:07.417144926Z
+# DTR-COORDINATES: 
+
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-10-23T10:40:00.000000000Z
+# DTR-COORDINATES: 
+
+Hexagonal architecture. Domain innermost, application defines ports, infrastructure provides adapters. Layer order DOMAIN, APPLICATION, INFRASTRUCTURE, CONTROL. No cross-layer dependencies. Port flow outbound to inbound. Severity: every CU is CRITICAL unless the CU content downgrades it explicitly.
+
+IMPLEMENTATION_STEPS:
+1. Apply arch to the feature scope.
+
+Prove: echo ok
+
+Do NOT touch: nothing
+
+Stop when: arch recorded

@@ -1,0 +1,5 @@
+FEATURES_IMPLEMENTED=feat-6-global-spec-id-numbering
+MAX_ATTEMPTS=3
+CUS=arch,legend,cu-001,cu-002,cu-003
+ENFORCED_BY=itr-compiler
+SUMMARY=Global per-repo spec numbering: a ref-aware allocator replaces branch-scoped directory scans.

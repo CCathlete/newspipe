@@ -1,0 +1,5 @@
+# REQUIREMENTS: cu-005
+# TIMESTAMP: 2026-10-09
+
+Executable proof for every feat-1 acceptance criterion (T1-T6 from the
+feature spec), runnable by the code lead in E2E verify.

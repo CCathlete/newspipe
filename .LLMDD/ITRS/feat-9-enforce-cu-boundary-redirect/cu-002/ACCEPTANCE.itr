@@ -1,0 +1,4 @@
+# ACCEPTANCE: cu-002
+
+1. Tests exist and pass.
+2. `cd /home/kcat/Repos/llm-driven-design && python3 -m unittest discover -s .LLMDD/tests -v` exits 0.

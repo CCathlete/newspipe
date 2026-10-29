@@ -1,0 +1,7 @@
+# ACCEPTANCE: cu-002
+# TIMESTAMP: 2026-10-09
+
+T2 — batch omitting one component fails non-zero naming the component.
+T3 — missing MAX_ATTEMPTS fails non-zero naming it.
+T4 — hand-placed override file survives --force recompile byte-for-byte.
+T7 — missing/empty implementation summary fails non-zero naming the summary.

@@ -1,0 +1,8 @@
+# ACCEPTANCE: cu-002
+
+T3 criterion 4, positive half. A conforming run still passes and files_changed is still reported, so the check is stricter rather than merely different.
+Prove: `--dry-run` exits 0.
+T3 criterion 4, negative half. A run whose diff touches a no-touch path fails the CU non-zero, and a glob clause such as any Scala source is matched and not only an exact path.
+Prove: `python3 -m py_compile .LLMDD/tools/run-waves.py` exits 0 and the step 4 block sits between the existing files_changed assignment and the succeeded determination.
+T5 shared-parser agreement between the runner and the validator.
+Prove: the step 5 command prints RUNNER_PARSER_AGREE.
