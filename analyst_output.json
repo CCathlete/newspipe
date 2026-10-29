@@ -1,0 +1,9 @@
+{
+  "summary": "US wheat farmers, particularly in Kansas, face drought and geopolitical chaos despite record-high wheat prices. Rising diesel costs, erratic weather that destroyed spring crops, and export uncertainties create financial risk for farmers while threatening global food price stability.",
+  "countries": ["United States", "Portugal"],
+  "geoArea": "Americas",
+  "topics": ["wheat", "drought", "geopolitics", "farming", "food prices", "El Niño", "agriculture", "exports"],
+  "actors": ["Merrill Nielsen", "Joao Lampreia", "Dan Basse"],
+  "urgency": "medium",
+  "language": "en"
+}

@@ -1,0 +1,9 @@
+{
+  "summary": "Precious metal prices have declined significantly from their peaks amid a confluence of higher interest rates, large budget deficits, persistent inflation, and heightened geopolitical risk. Despite gold falling over 20% and silver, platinum, and palladium dropping more than 40% from January 2026 highs, prices remain 24-100% above early 2025 levels. Four key forces--fiscal deficits, above-target inflation, Middle East and Eastern Europe conflicts, and central bank gold buying--are preventing even steeper declines.",
+  "countries": ["US", "CN", "JP", "GB", "FR", "BR", "KR", "IL", "IR", "RU", "UA", "NO"],
+  "geoArea": "Global",
+  "topics": ["precious metals", "interest rates", "budget deficits", "inflation", "geopolitics"],
+  "actors": ["CME Group", "Erik Norland", "Federal Reserve", "Kevin Warsh", "European Central Bank", "Congressional Budget Office"],
+  "urgency": "medium",
+  "language": "en"
+}

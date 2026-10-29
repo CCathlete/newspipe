@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
 final class AppContainer(env: EnvConfig):
+  private val models: List[String] = env.opencodeModel :: env.opencodeFallbackModels
   val spark: SparkSession = SparkSession.builder()
     .appName("newspipe-enrichment")
     .master(env.sparkMaster)
@@ -22,15 +23,15 @@ final class AppContainer(env: EnvConfig):
     .config("spark.hadoop.fs.s3a.secret.key", env.s3SecretKey)
     .getOrCreate()
   val consumer = new KafkaRawConsumer(env.kafkaBootstrap, env.rawTopic, env.groupId)
-  val enrich = new OpenCodeCliClient(env.opencodeModel, FiniteDuration(env.opencodeTimeoutSeconds, TimeUnit.SECONDS))
+  val enrich = new OpenCodeCliClient(FiniteDuration(env.opencodeTimeoutSeconds, TimeUnit.SECONDS))
   val sink = new DeltaMergeSink(spark, env.bronzePath)
-  val service = new EnrichmentService(consumer, enrich, sink, env.opencodeWorkers, env.opencodeMaxAttempts)
+  val service = new EnrichmentService(consumer, enrich, sink, models, env.opencodeWorkers, env.opencodeMaxAttempts)
   val readiness: ReadinessGate = new ReadinessGate(
     List(
       new TcpKafkaReadinessProbe(env.kafkaBootstrap, 3000),
       new HttpObjectStoreReadinessProbe(env.s3Endpoint, env.s3Bucket, 3000),
       new OpenCodeCliReadinessProbe("opencode"),
-      new OpenCodeModelReadinessProbe(env.opencodeModel, FiniteDuration(30, TimeUnit.SECONDS))
+      new OpenCodeModelReadinessProbe(models, FiniteDuration(30, TimeUnit.SECONDS))
     ),
     maxWait = 60.seconds,
     interval = 2.seconds,

@@ -1,0 +1,9 @@
+{
+  "summary": "The EU has unveiled its first Arctic strategy since Russia's invasion of Ukraine, shifting from multilateral cooperation to a security-focused approach. The new strategy prioritizes security and resilience while reducing emphasis on climate change and multilateralism, reorienting toward partnerships with like-minded nations such as the US, UK, Norway, Iceland, and Canada.",
+  "countries": ["Denmark", "Norway", "Iceland", "Canada", "United Kingdom", "Russia", "United States"],
+  "geoArea": "Europe",
+  "topics": ["Arctic strategy", "geopolitics", "security", "climate change", "multilateralism", "EU foreign policy"],
+  "actors": ["European Union", "Russia", "United States", "Canada", "Norway", "Iceland", "United Kingdom", "Denmark"],
+  "urgency": "medium",
+  "language": "en"
+}

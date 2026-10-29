@@ -1,0 +1,9 @@
+{
+  "summary": "Even close U.S. allies are moving gold out of New York, weighing geopolitical risk more heavily when deciding where to hold reserves. Central banks including the Netherlands, France, Germany, and Italy have recently repatriated or relocated significant gold holdings, driven by concerns over U.S. custodianship, trade disputes, and the 2022 freezing of Russian assets.",
+  "countries": ["Netherlands", "United States", "Canada", "United Kingdom", "France", "Germany", "Italy", "India", "Serbia", "Austria", "Poland", "Russia", "Venezuela"],
+  "geoArea": "Europe",
+  "topics": ["gold", "central-banks", "geopolitics", "reserve-storage", "repatriation", "geopolitical-risk"],
+  "actors": ["Vahan P. Roth", "Dutch central bank (DNB)", "Banque de France", "Bundesbank", "Italian central bank", "Geopolitical Intelligence Services AG", "Nicolas Maduro's government", "Bank of England", "U.S. President Donald Trump"],
+  "urgency": "medium",
+  "language": "en-US"
+}

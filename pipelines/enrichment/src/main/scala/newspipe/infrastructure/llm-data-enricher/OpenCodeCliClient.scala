@@ -10,15 +10,12 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
-final class OpenCodeCliClient(model: String, timeout: FiniteDuration, binary: String = "opencode") extends EnrichmentPort:
+final class OpenCodeCliClient(timeout: FiniteDuration, binary: String = "opencode") extends EnrichmentPort:
 
-  def enrich(item: RssItem): Either[Throwable, Enrichment] =
+  def enrich(item: RssItem, model: String): Either[Throwable, Enrichment] =
     Try {
       val prompt = OpenCodeCliClient.promptFor(item)
-      val proc = new ProcessBuilder(binary, "run", "--format", "json", "--model", model, prompt)
-        .redirectErrorStream(false)
-        .redirectInput(ProcessBuilder.Redirect.from(new java.io.File("/dev/null")))
-        .start()
+      val proc = OpenCodeCliClient.processBuilder(binary, model, prompt).start()
       val startNanos = System.nanoTime()
       val finished = proc.waitFor(timeout.toMillis, TimeUnit.MILLISECONDS)
       val elapsedSecs = (System.nanoTime() - startNanos) / 1000000000L
@@ -32,6 +29,11 @@ final class OpenCodeCliClient(model: String, timeout: FiniteDuration, binary: St
     }.toEither
 
 object OpenCodeCliClient:
+  def processBuilder(binary: String, model: String, prompt: String): ProcessBuilder =
+    new ProcessBuilder(binary, "run", "--format", "json", "--model", model, prompt)
+      .redirectErrorStream(false)
+      .redirectInput(ProcessBuilder.Redirect.from(new java.io.File("/dev/null")))
+
   def killTree(proc: Process): Unit =
     proc.descendants().forEach(_.destroyForcibly())
     proc.destroyForcibly()

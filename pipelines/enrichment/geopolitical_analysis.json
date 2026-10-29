@@ -1,0 +1,9 @@
+{
+  "summary": "The article examines how professional gaming/esports has become a new arena of geopolitical competition. Saudi Arabia is using gaming investments for economic diversification away from oil dependence, while China and other states leverage games for soft power cultural export. Esports are also becoming subject to real-world sanctions and disputes involving Russia, Ukraine, Iran, and India."
+  "countries": ["Saudi Arabia", "China", "Indonesia", "India", "Russia", "Ukraine", "Iran", "Yemen"],
+  "geoArea": "Global",
+  "topics": ["esports", "geopolitics", "soft power", "economic diversification", "sanctions"],
+  "actors": ["Saudi Government", "Savvy Games Group", "ESL Gaming", "Tencent", "Moonton", "Emmanuel Macron", "Mohammed bin Salman", "India", "Russia", "Ukraine", "Iran", "Yemen Houthi rebels"],
+  "urgency": "medium",
+  "language": "en"
+}

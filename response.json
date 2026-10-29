@@ -1,0 +1,9 @@
+{
+  "summary": "The article examines how Middle East geopolitical tensions, particularly the Iran-Gulf conflict and actions affecting Qatar's helium production, are reshaping global helium supply chains. With Qatar supplying roughly 30% of world high-purity helium, disruptions from regional conflict threaten semiconductor, AI, and data center industries. The piece highlights the need for supply diversification and resilient logistics amid ongoing instability.",
+  "countries": ["Qatar", "Iran", "United States"],
+  "geoArea": "Middle East",
+  "topics": ["helium", "geopolitics", "supply chain", "Middle East conflict", "semiconductor", "Qatar production"],
+  "actors": ["gasworld", "Phil Kornbluth", "Kornbluth Helium Consulting", "Air Liquide SA", "Moody's Ratings", "Samsung", "SK Hynix", "Qatargas"],
+  "urgency": "high",
+  "language": "en"
+}

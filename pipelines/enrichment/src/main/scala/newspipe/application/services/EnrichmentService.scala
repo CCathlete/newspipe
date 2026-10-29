@@ -17,10 +17,15 @@ final class EnrichmentService(
     consumer: RawConsumer,
     enrich: EnrichmentPort,
     sink: BronzeMergeSink,
+    models: List[String],
     workers: Int,
     maxAttempts: Int
 ) extends LazyLogging:
   private val RetryPauseMillis: Long = 2000L
+  private val chain: List[String] =
+    val configured: List[String] = models.map(_.trim).filter(_.nonEmpty).distinct
+    if configured.isEmpty then throw new IllegalArgumentException("no enrichment model configured")
+    else configured
   private val pool: ExecutorService = Executors.newFixedThreadPool(math.max(1, workers))
   private given ExecutionContext = ExecutionContext.fromExecutorService(pool)
 
@@ -45,13 +50,17 @@ final class EnrichmentService(
     PollReport(merged, units.size, failed)
 
   private def attempt(item: RssItem): Either[Throwable, Enrichment] =
+    val total: Int = math.max(1, maxAttempts)
     @tailrec
     def loop(remaining: Int): Either[Throwable, Enrichment] =
-      enrich.enrich(item) match
+      val used: Int = total - remaining
+      val attemptNo: Int = used + 1
+      val model: String = chain(used % chain.size)
+      enrich.enrich(item, model) match
         case Right(en) => Right(en)
         case Left(err) if remaining > 1 =>
-          logger.warn(s"enrichment attempt ${maxAttempts - remaining + 1} of $maxAttempts failed for ${item.link}: ${err.getMessage}")
+          logger.warn(s"enrichment attempt $attemptNo of $total failed for ${item.link} with $model: ${err.getMessage}")
           Thread.sleep(RetryPauseMillis)
           loop(remaining - 1)
         case Left(err) => Left(err)
-    loop(math.max(1, maxAttempts))
+    loop(total)

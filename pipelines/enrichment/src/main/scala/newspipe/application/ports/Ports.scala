@@ -6,7 +6,7 @@ trait RssSource:
   def fetch(): List[RssItem]
 
 trait EnrichmentPort:
-  def enrich(item: RssItem): Either[Throwable, Enrichment]
+  def enrich(item: RssItem, model: String): Either[Throwable, Enrichment]
 
 trait BronzeSink:
   def write(units: List[BronzeUnit]): Int
