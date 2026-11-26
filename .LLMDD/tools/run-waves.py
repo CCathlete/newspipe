@@ -143,6 +143,7 @@ class WaveRecord(TypedDict):
     escalations: int
     coder_status: int
     lead_status: int
+    lead_repairs: list[str]
     files_changed: dict[str, list[str]]
     credits: dict[str, TokenReport]
 class ConvergenceData(TypedDict):
@@ -951,7 +952,8 @@ def coder_writes(log_prefix: str, log_dir: Path, project_dir: Path) -> CoderWrit
 
 
 def wave_writes(project_dir: Path, base_ref: str,
-                baseline_dirty: frozenset[str]) -> Sequence[str]:
+                baseline_dirty: frozenset[str],
+                prior_written: frozenset[str] = frozenset()) -> Sequence[str]:
     changed: list[str] = []
     match _git_run("diff", "--name-only", base_ref, cwd=project_dir):
         case Ok(out):
@@ -964,7 +966,7 @@ def wave_writes(project_dir: Path, base_ref: str,
         case Err(_):
             pass
     unique: frozenset[str] = frozenset(path for path in changed if path)
-    return tuple(sorted(unique - baseline_dirty))
+    return tuple(sorted(unique - baseline_dirty - prior_written))
 
 
 def attribute_writes(wave_paths: Sequence[str],
@@ -1618,6 +1620,7 @@ def save_convergence(path: Path, data: ConvergenceData) -> None:
 
 def update_convergence(path: Path, wave_num: int, wave_cus: list[str],
                        escalations: int, coder_ok: bool, lead_ok: bool,
+                       lead_repairs: Sequence[str],
                        files_changed: dict[str, list[str]],
                        credits: dict[str, TokenReport]) -> None:
     data: ConvergenceData = load_convergence(path)
@@ -1626,11 +1629,31 @@ def update_convergence(path: Path, wave_num: int, wave_cus: list[str],
         "escalations": escalations,
         "coder_status": 0 if coder_ok else 1,
         "lead_status": 0 if lead_ok else 1,
+        "lead_repairs": list(lead_repairs),
         "files_changed": files_changed,
         "credits": credits,
     })
     data["status"] = "RUNNING"
     save_convergence(path, data)
+
+
+def final_status(waves: Sequence[WaveRecord]) -> str:
+    """Derive terminal wave status from coder outcomes and escalations only.
+
+    Lead repairs are recorded on each wave record but never fail a wave: the
+    code lead is mandated to repair cross-CU defects, including writes to a
+    CU's Do NOT touch paths.
+    """
+    total_escalations: int = 0
+    failed_waves: int = 0
+    wave: WaveRecord
+    for wave in waves:
+        total_escalations += wave["escalations"]
+        if wave["coder_status"] != 0 or wave["lead_status"] != 0:
+            failed_waves += 1
+    if total_escalations == 0 and failed_waves == 0:
+        return "CONVERGED"
+    return "NEEDS_ATTENTION"
 
 
 # ── CU boundary enforcement ─────────────────────────────────────────
@@ -1741,6 +1764,19 @@ def _runner_relative_roots(project_dir: Path, dirs: Sequence[Path]) -> tuple[str
     return tuple(found)
 
 
+def _without_runner_path_strings(paths: Sequence[str],
+                                 roots: Sequence[str]) -> tuple[str, ...]:
+    """Drop runner bookkeeping paths from a flat sequence of repo-relative paths.
+
+    Leads write verification and commit-message files into the runner's own
+    feedback/log directories. Those are protocol artifacts, not CU write
+    targets, so they must not be held against a CU's no-touch guard.
+    """
+    return tuple(
+        path for path in paths
+        if not any(path == root or path.startswith(root + "/") for root in roots))
+
+
 def _without_runner_paths(per_cu: Sequence[CoderWrites],
                           roots: Sequence[str]) -> tuple[CoderWrites, ...]:
     """Drop runner bookkeeping paths from per-CU write attribution.
@@ -1751,12 +1787,10 @@ def _without_runner_paths(per_cu: Sequence[CoderWrites],
     """
     kept: list[CoderWrites] = []
     writes: CoderWrites
-    path: str
     for writes in per_cu:
-        paths: tuple[str, ...] = tuple(
-            path for path in writes.paths
-            if not any(path == root or path.startswith(root + "/") for root in roots))
-        kept.append(CoderWrites(cu_id=writes.cu_id, paths=paths))
+        kept.append(CoderWrites(
+            cu_id=writes.cu_id,
+            paths=_without_runner_path_strings(writes.paths, roots)))
     return tuple(kept)
 
 
@@ -1764,11 +1798,12 @@ def enforce_boundary(per_cu: Sequence[CoderWrites], project_dir: Path,
                      base_ref: str, baseline_dirty: frozenset[str],
                      guards: dict[str, NoTouch],
                      feedback_dir: Path,
-                     log_dir: Path) -> tuple[Sequence[BoundaryBreach], Sequence[str]]:
+                     log_dir: Path,
+                     prior_written: frozenset[str] = frozenset()) -> tuple[Sequence[BoundaryBreach], Sequence[str]]:
     """Measure the wave, attribute it to CUs, and apply every rule."""
     scoped: tuple[CoderWrites, ...] = _without_runner_paths(
         per_cu, _runner_relative_roots(project_dir, (feedback_dir, log_dir)))
-    wave_paths: Sequence[str] = wave_writes(project_dir, base_ref, baseline_dirty)
+    wave_paths: Sequence[str] = wave_writes(project_dir, base_ref, baseline_dirty, prior_written)
     attributed: WaveWrites = attribute_writes(wave_paths, scoped)
     breaches: Sequence[BoundaryBreach] = boundary_breaches(attributed, guards)
     if breaches:
@@ -1949,6 +1984,7 @@ async def run_wave_parallel(
     max_fix_iterations: int,
     no_per_cu_lead: bool,
     baseline_dirty: frozenset[str],
+    prior_written: frozenset[str],
 ) -> tuple[dict[str, list[str]], bool, Sequence[str]]:
     """Run all CUs in a wave in parallel via ThreadPoolExecutor.
 
@@ -2025,7 +2061,7 @@ async def run_wave_parallel(
     breaches: Sequence[BoundaryBreach]
     written: Sequence[str]
     breaches, written = enforce_boundary(
-        per_cu_writes, project_dir, stash_ref, baseline_dirty, guards, feedback_dir, log_dir)
+        per_cu_writes, project_dir, stash_ref, baseline_dirty, guards, feedback_dir, log_dir, prior_written)
 
     breached_cus: set[str] = set()
     b: BoundaryBreach
@@ -2081,7 +2117,7 @@ async def run_wave_parallel(
                 breaches_c: Sequence[BoundaryBreach]
                 written_c: Sequence[str]
                 breaches_c, written_c = enforce_boundary(
-                    per_cu_writes_c, project_dir, stash_ref, baseline_dirty, guards, feedback_dir, log_dir)
+                    per_cu_writes_c, project_dir, stash_ref, baseline_dirty, guards, feedback_dir, log_dir, prior_written)
                 if not breaches_c:
                     break
                 still: bool = False
@@ -2095,7 +2131,7 @@ async def run_wave_parallel(
                 fut_cc: asyncio.Future[Ok[CoderOutput] | Err[Exception]] = loop.run_in_executor(
                     cpool, _run_coder_correction, cu_file_c3, cu_corr,
                     model_by_cu[cu_corr], breaches_c, feedback_dir, log_dir,
-                    1800, project_dir, colour_by_cu.get(cu_corr, C.BR_CYN), f"[{cu_corr}]")
+                    1800, project_dir, colour_by_cu.get(cu_corr, C.BR_CYAN), f"[{cu_corr}]")
                 res_cc: Ok[CoderOutput] | Err[Exception] = await future_result(fut_cc)
                 e_c: Exception
                 match res_cc:
@@ -2113,7 +2149,7 @@ async def run_wave_parallel(
                 breaches_c2: Sequence[BoundaryBreach]
                 written_c2: Sequence[str]
                 breaches_c2, written_c2 = enforce_boundary(
-                    per_cu_writes_c2, project_dir, stash_ref, baseline_dirty, guards, feedback_dir, log_dir)
+                    per_cu_writes_c2, project_dir, stash_ref, baseline_dirty, guards, feedback_dir, log_dir, prior_written)
                 still2: bool = False
                 bb2: BoundaryBreach
                 for bb2 in breaches_c2:
@@ -2128,7 +2164,7 @@ async def run_wave_parallel(
     for wc_id, wc_file in cu_files:
         per_cu_writes.append(coder_writes(wc_id, log_dir, project_dir))
     breaches, written = enforce_boundary(
-        per_cu_writes, project_dir, stash_ref, baseline_dirty, guards, feedback_dir, log_dir)
+        per_cu_writes, project_dir, stash_ref, baseline_dirty, guards, feedback_dir, log_dir, prior_written)
 
     if breaches:
         all_passed = False
@@ -2183,7 +2219,9 @@ async def run_wave_parallel(
             continue
         raw_lead: CoderWrites = coder_writes(f"lead-{lead_cu}", log_dir, project_dir)
         owned: Sequence[BoundaryBreach] = _owned_breaches(
-            CoderWrites(cu_id=lead_cu, paths=raw_lead.paths), guards)
+            CoderWrites(cu_id=lead_cu, paths=_without_runner_path_strings(
+                raw_lead.paths,
+                _runner_relative_roots(project_dir, (feedback_dir, log_dir)))), guards)
         for breach in owned:
             if breach.rule == "no-touch":
                 guard_breaches.append(
@@ -2355,7 +2393,6 @@ async def main_async(args: argparse.Namespace) -> int:
         wave_files_changed: dict[str, list[str]]
         all_passed: bool
         written: Sequence[str]
-        run_written: set[str]
         wave_files_changed, all_passed, written = await run_wave_parallel(
             cu_files, wc, tracker,
             feedback_dir, log_dir, project_dir,
@@ -2366,6 +2403,7 @@ async def main_async(args: argparse.Namespace) -> int:
             args.max_fix_iterations,
             args.no_per_cu_lead,
             baseline_dirty,
+            frozenset(run_written),
         )
         run_written.update(written)
 
@@ -2403,8 +2441,9 @@ async def main_async(args: argparse.Namespace) -> int:
         lead_ok: bool = lead_rc == 0
 
         escalated_ids: set[str] = _escalated_in(wave_cus, feedback_dir)
-        wave_lead_paths: Sequence[str] = coder_writes(
-            f"lead-wave-{wave_num}", log_dir, project_dir).paths
+        wave_lead_paths: Sequence[str] = _without_runner_path_strings(
+            coder_writes(f"lead-wave-{wave_num}", log_dir, project_dir).paths,
+            _runner_relative_roots(project_dir, (feedback_dir, log_dir)))
         lead_guards: dict[str, NoTouch] = {}
         guard_name: str
         guard_path: Path
@@ -2414,9 +2453,10 @@ async def main_async(args: argparse.Namespace) -> int:
                     _cu_no_touch(guard_path), project_dir)
         lead_breaches: Sequence[BoundaryBreach] = _paths_against(
             wave_lead_paths, lead_guards, f"lead-wave-{wave_num}")
+        lead_repairs: Sequence[str] = tuple(breach.path for breach in lead_breaches)
         if lead_breaches:
             report_breaches(lead_breaches, feedback_dir)
-            all_passed = False
+            _info(f"Wave {wave_num}: lead repaired {len(lead_repairs)} no-touch path(s); recorded, not failed")
 
         # After wave lead, merge files committed by wave lead into file tracking
         diff_out: str
@@ -2446,7 +2486,7 @@ async def main_async(args: argparse.Namespace) -> int:
         credits_data["lead"] = lead_usage.dict()
         update_convergence(
             convergence_file, wave_num, wave_cus,
-            escalations, all_passed, lead_ok,
+            escalations, all_passed, lead_ok, lead_repairs,
             wave_files_changed, credits_data,
         )
 
@@ -2463,21 +2503,15 @@ async def main_async(args: argparse.Namespace) -> int:
 
     convergence: ConvergenceData = load_convergence(convergence_file)
     total_escalations: int = 0
-    failed_waves: int = 0
     w: WaveRecord
     for w in convergence["waves"]:
         total_escalations += w["escalations"]
-        if w["coder_status"] != 0 or w["lead_status"] != 0:
-            failed_waves += 1
     unique_all: set[str] = set()
     for w in convergence["waves"]:
         for files in w.get("files_changed", {}).values():
             unique_all.update(files)
 
-    if total_escalations == 0 and failed_waves == 0:
-        convergence["status"] = "CONVERGED"
-    else:
-        convergence["status"] = "NEEDS_ATTENTION"
+    convergence["status"] = final_status(convergence["waves"])
     save_convergence(convergence_file, convergence)
 
     status_colour: str = C.BR_GREEN if convergence["status"] == "CONVERGED" else C.BR_RED

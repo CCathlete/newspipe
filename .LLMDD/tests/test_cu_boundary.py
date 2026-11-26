@@ -349,5 +349,53 @@ class TestCUProductionGate(unittest.TestCase):
         self.assertEqual(proc2.stdout.strip(), b"", "no unstaged changes")
 
 
+class TestPriorWrittenExclusion(unittest.TestCase):
+    def test_wave_writes_drops_prior_written(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root: Path = Path(raw)
+            git: list[str] = ["git", "-C", str(root)]
+            subprocess.run(git + ["init", "-q"], check=True)
+            (root / "tracked.txt").write_text("one\n")
+            subprocess.run(git + ["add", "tracked.txt"], check=True)
+            subprocess.run(
+                git + ["-c", "user.email=a@b.c", "-c", "user.name=t",
+                       "commit", "-q", "-m", "base"], check=True)
+            (root / "tracked.txt").write_text("two\n")
+            (root / "created.txt").write_text("new\n")
+            found: Sequence[str] = RUNNER.wave_writes(
+                root, "HEAD", frozenset(), frozenset({"tracked.txt"}))
+            self.assertNotIn("tracked.txt", found)
+            self.assertIn("created.txt", found)
+
+    def test_enforce_boundary_ignores_prior_written_guard(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root: Path = Path(raw)
+            git: list[str] = ["git", "-C", str(root)]
+            subprocess.run(git + ["init", "-q"], check=True)
+            (root / "guarded.txt").write_text("one\n")
+            subprocess.run(git + ["add", "guarded.txt"], check=True)
+            subprocess.run(
+                git + ["-c", "user.email=a@b.c", "-c", "user.name=t",
+                       "commit", "-q", "-m", "base"], check=True)
+            (root / "guarded.txt").write_text("two\n")
+            feedback: Path = root / "feedback"
+            logs: Path = root / "logs"
+            feedback.mkdir()
+            logs.mkdir()
+            guards: dict[str, object] = {
+                "cu-004": parse_no_touch(
+                    "Do NOT touch: guarded.txt\nStop when x\n"),
+            }
+            writes: Sequence[RUNNER.CoderWrites] = (RUNNER.CoderWrites(cu_id="cu-004", paths=()),)
+            clear: Sequence[RUNNER.BoundaryBreach] = RUNNER.enforce_boundary(
+                writes, root, "HEAD", frozenset(), guards, feedback, logs,
+                frozenset({"guarded.txt"}))[0]
+            self.assertEqual(clear, ())
+            phantom: Sequence[RUNNER.BoundaryBreach] = RUNNER.enforce_boundary(
+                writes, root, "HEAD", frozenset(), guards, feedback, logs)[0]
+            self.assertEqual(len(phantom), 1)
+            self.assertEqual(phantom[0].rule, "unattributed:cu-004")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -28,6 +28,10 @@ content — never write application code yourself. You are currently in v8.
 
 ## Rules
 
+- **RULE.ADV.CONCISE** — keep responses short by default. Answer directly in one or two sentences where possible; use a compact summary plus the exact command or decision needed. Expand only when the Designer asks for detail or the task (e.g. a CU draft) inherently requires it.
+
+- **RULE.ADV.SPEC_EXPLICIT_ONLY** — open a new spec file (feature or bug) only when the Designer explicitly requests it. Otherwise assume the work belongs in a new phase of an existing, recent feature or bugfix spec and propose that instead.
+
 This agent is governed by the **system tensor** at
 `.LLMDD/prompts/llm-driven-design-sys-prompt.itr.md`. Read this file at session
 start — every `RULE.ADV.*`, `ARCH.*` (including `ARCH.PYTHON.*`), and `WORKFLOW.*` entry in that file is a
