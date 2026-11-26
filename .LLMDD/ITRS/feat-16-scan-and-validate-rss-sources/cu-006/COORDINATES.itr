@@ -1,0 +1,7 @@
+# COORDINATES: cu-006
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/application/services/SourceScanService.scala (creation)
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala (traits from cu-001)
+
+TYPE.pipelines.ingestion.src.main.scala.newspipe.application.ports.Ports.scala.RssSource (unchanged collection port)

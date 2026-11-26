@@ -1,0 +1,11 @@
+# COORDINATES: cu-009
+
+FILE.pipelines/ingestion/src/test/scala/newspipe/SourceManifestSpec.scala (creation)
+
+FILE.pipelines/ingestion/src/test/scala/newspipe/FeedProbeSpec.scala (creation)
+
+FILE.pipelines/ingestion/src/test/scala/newspipe/FeedValidatorSpec.scala (creation)
+
+FILE.pipelines/ingestion/src/test/scala/newspipe/ValidationStoreSpec.scala (creation)
+
+FILE.pipelines/ingestion/src/test/resources/fixture-feed.xml (existing fixture reused)

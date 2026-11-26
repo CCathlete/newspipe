@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-007
+
+Add the collection-side adapter that implements the existing RssSource port using only usable feed URLs. This keeps relevance classification and IngestionService untouched while making the validated result visible to collection.

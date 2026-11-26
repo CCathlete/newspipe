@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-009
+
+Add deterministic unit tests for manifest ingestion, HTTP probing, feed validation and result persistence. All tests use local files, inline XML and a local HttpServer; no live internet and no LLM call.

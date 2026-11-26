@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-004
+
+Implement deterministic RSS/Atom identification and validation with Rome, including autodiscovery from HTML link metadata. Classify usable feeds, temporary failures, invalid feeds and feeds needing investigation, and attach reason codes and diagnostics.

@@ -1,0 +1,13 @@
+# COORDINATES: cu-008
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala (extended)
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala (extended)
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala (extended)
+
+FILE.conf/ingestion.conf (extended)
+
+FILE.pipelines/ingestion/src/test/scala/newspipe/EnvPrecedenceSpec.scala (existing fixture, unchanged)
+
+FILE.scripts/newspipe (launcher, must stay byte-identical)

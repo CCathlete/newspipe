@@ -1,0 +1,23 @@
+# CU-ID: legend
+# CU-TYPE: LegendCU
+# TIMESTAMP: 2026-11-26T12:54:27.761371522Z
+# DTR-COORDINATES: 
+
+Legend for feat-16-scan-and-validate-rss-sources.
+
+CU IDs: cu-001 through cu-011, executed in the wave order in waves.json.
+
+SECTIONS: REQUIREMENTS (what the CU delivers), COORDINATES (exact DTR keys, absent key means creation), IMPLEMENTATION_STEPS (numbered, fenced, proved), ACCEPTANCE (spec test IDs with commands and expected results).
+
+STATUS values: COMPLETED, BLOCKED, ESCALATED. SEVERITY values: CRITICAL, MAJOR, MINOR, TRIVIAL.
+
+ValidationStatus values: Usable, TemporarilyUnavailable, Invalid, NeedsInvestigation.
+
+Reason codes: ok, http-<code>, probe-error, discovery-probe-error, html-autodiscovery, html-not-feed, empty-body, parse-error, not-rss-atom, empty-feed, empty-entries, missing-metadata.
+
+Prove: a command under each step; a step without a passing Prove is not done.
+
+Do NOT touch: an explicit per-step list; violating it is a CRITICAL finding.
+
+Stop when: the step's Prove command has the stated output and the named next CU owns the remainder.
+

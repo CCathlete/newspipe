@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-010
+
+Add integration and scale tests proving failure isolation, prior-result reuse, usable-only exposure, bounded concurrency and a 1000-candidate manifest. Fakes are local implementations of the cu-001 ports; the real Rome validator from cu-004 is used.

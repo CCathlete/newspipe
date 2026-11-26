@@ -1,0 +1,33 @@
+# CU-ID: arch
+# CU-TYPE: ArchCU
+# TIMESTAMP: 2026-11-26T12:54:27.759609297Z
+# DTR-COORDINATES: 
+
+Architecture rules for the newspipe RSS source scanning and validation module.
+
+LAYER.ORDER: domain > application > infrastructure > control. Dependencies point inward only. New domain models live in domain/models; ports and the scan orchestration live in application; HTTP, Rome parsing, manifest and result adapters live in infrastructure; wiring and Main live in control.
+
+ARCH.HEX: application/ports/Ports.scala owns every boundary. Application services depend on traits, never on adapters. The existing RssSource port remains the collection boundary: validated feeds reach IngestionService through a new RssSource implementation, not through a new pipeline.
+
+ARCH.DI: every adapter instance is constructed in control/dependencyInjection/AppContainer.scala. No service locator, no global mutable singleton, no companion-object state.
+
+ARCH.DIP: high-level SourceScanService defines the work; infrastructure adapters implement SourceManifestReader, FeedProbe, FeedValidator and ValidationResultStore.
+
+ARCH.NO_CROSS_LAYER: domain imports no circe, Rome, HTTP, Spark or Kafka. Application imports domain plus scala/java stdlib and logging. Infrastructure imports application and domain. Control imports all layers.
+
+ARCH.DOTENV.MERGE: every new setting resolves process environment, then discovered .env, then conf/ingestion.conf. .env is read only and never written or committed.
+
+ARCH.NO_NEW_INFRA: no queue, database, framework, daemon, cron entry or external scheduler. Results persist as one JSON file under the pipeline's gitignored target/ directory. LLM calls stay out of ingestion; enrichment keeps its nvidia model chain and its own future batching work.
+
+APP.LANGUAGE: Scala 3.3.4 on JDK 21 with sbt. ARCH.PYTHON.* does not apply to this feature.
+
+ARCH.SEVERITY: CRITICAL, MAJOR, MINOR, TRIVIAL. CRITICAL and MAJOR stop the chain.
+
+STATUS: every Coder reports COMPLETED, BLOCKED or ESCALATED with a self-assessed SEVERITY in its feedback file.
+
+Prove: each implementation step carries the exact command and expected output that demonstrates the step landed.
+
+Do NOT touch: pipelines/enrichment, conf/enrichment.conf, the relevance-classification code, Bronze/Silver/Gold schema, scripts/newspipe, and .env.
+
+Stop when: all CU proves are green and no forbidden file has changed.
+

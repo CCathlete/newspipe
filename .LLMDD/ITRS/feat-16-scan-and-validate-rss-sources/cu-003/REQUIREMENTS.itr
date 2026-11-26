@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-003
+
+Implement deterministic HTTP probing with redirects, status capture, content-type capture, timeouts, connection-failure capture and per-instance URL deduplication. A failed probe is returned as data so one bad endpoint never aborts a batch.

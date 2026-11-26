@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-002
+
+- Spec criterion 2 manifest ingestion and provenance: proved by `SourceManifestSpec` in cu-009.
+
+- No new dependency: `cd pipelines/ingestion && sbt compile` passes with the existing build.sbt.

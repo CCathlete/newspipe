@@ -1,0 +1,441 @@
+# IMPLEMENTATION_STEPS: cu-009
+
+1. In `pipelines/ingestion/src/test/scala/newspipe/SourceManifestSpec.scala`, create this file. It proves identity, provenance, multi-URL support, invalid-URL tolerance, 1000-candidate scale and located malformed-JSON diagnostics.
+
+
+
+```scala
+
+package newspipe
+
+
+
+import newspipe.domain.models.SourceCandidate
+
+import newspipe.infrastructure.source.JsonSourceManifestReader
+
+import org.scalatest.funsuite.AnyFunSuite
+
+
+
+import java.nio.file.Files
+
+
+
+final class SourceManifestSpec extends AnyFunSuite:
+
+  private def candidateJson(index: Int): String =
+
+    "{\"publisherId\":\"pub-" + index + "\",\"title\":\"Publisher " + index + "\",\"provenance\":\"curated-list\",\"urls\":[\"http://127.0.0.1:9911/rss\",\"http://127.0.0.1:9911/atom\"]}"
+
+
+
+  test("manifest preserves identity, provenance and multiple URLs") {
+
+    val dir = Files.createTempDirectory("sources-manifest")
+
+    val file = dir.resolve("sources.json")
+
+    Files.writeString(file, "[" + candidateJson(1) + ",{\"publisherId\":\"bad\",\"urls\":[\"not-a-url\"]}]")
+
+    val loaded: Either[String, List[SourceCandidate]] = new JsonSourceManifestReader().read(file.toString)
+
+    assert(loaded.isRight)
+
+    val candidates: List[SourceCandidate] = loaded.toOption.get
+
+    assert(candidates.size == 2)
+
+    assert(candidates.head.publisherId == "pub-1")
+
+    assert(candidates.head.provenance.contains("curated-list"))
+
+    assert(candidates.head.urls == List("http://127.0.0.1:9911/rss", "http://127.0.0.1:9911/atom"))
+
+    assert(candidates(1).urls == List("not-a-url"))
+
+  }
+
+
+
+  test("manifest rejects malformed JSON with a located diagnostic") {
+
+    val dir = Files.createTempDirectory("sources-bad")
+
+    val file = dir.resolve("bad.json")
+
+    Files.writeString(file, "{")
+
+    val result: Either[String, List[SourceCandidate]] = new JsonSourceManifestReader().read(file.toString)
+
+    assert(result.isLeft)
+
+    assert(result.left.toOption.get.contains("bad.json"))
+
+  }
+
+
+
+  test("manifest loads one thousand candidates") {
+
+    val dir = Files.createTempDirectory("sources-large")
+
+    val file = dir.resolve("large.json")
+
+    val body: String = (1 to 1000).map(candidateJson).mkString("[", ",", "]")
+
+    Files.writeString(file, body)
+
+    val result: Either[String, List[SourceCandidate]] = new JsonSourceManifestReader().read(file.toString)
+
+    assert(result.isRight)
+
+    assert(result.toOption.get.size == 1000)
+
+  }
+
+```
+
+
+
+Prove: `cd pipelines/ingestion && sbt "testOnly newspipe.SourceManifestSpec"` prints `[info] All tests passed`.
+
+
+
+Do NOT touch: pipelines/ingestion/src/main/**, conf/**, scripts/**, pipelines/enrichment/**
+
+
+
+Stop when SourceManifestSpec is green; probing tests are next.
+
+
+
+2. In `pipelines/ingestion/src/test/scala/newspipe/FeedProbeSpec.scala`, create this file. It uses a loopback HttpServer to cover redirects, HTTP errors, content-type inconsistency, timeouts, connection refusal and deduplication.
+
+
+
+```scala
+
+package newspipe
+
+
+
+import com.sun.net.httpserver.HttpServer
+
+import newspipe.domain.models.ProbeResponse
+
+import newspipe.infrastructure.source.JavaHttpFeedProbe
+
+import org.scalatest.funsuite.AnyFunSuite
+
+
+
+import java.net.InetSocketAddress
+
+import java.nio.charset.StandardCharsets
+
+import java.time.Duration
+
+import java.util.concurrent.atomic.AtomicInteger
+
+
+
+final class FeedProbeSpec extends AnyFunSuite:
+
+  private def withServer(handler: (String, String) => (Int, String, String))(test: Int => Unit): Unit =
+
+    val server: HttpServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0)
+
+    val calls: AtomicInteger = new AtomicInteger(0)
+
+    server.createContext("/", exchange => {
+
+      calls.incrementAndGet()
+
+      val result: (Int, String, String) = handler(exchange.getRequestURI.toString, exchange.getRequestHeaders.getFirst("User-Agent"))
+
+      exchange.getResponseHeaders.add("Content-Type", result._2)
+
+      val bytes: Array[Byte] = result._3.getBytes(StandardCharsets.UTF_8)
+
+      exchange.sendResponseHeaders(result._1, bytes.length.toLong)
+
+      exchange.getResponseBody.write(bytes)
+
+      exchange.close()
+
+    })
+
+    server.start()
+
+    try test(server.getAddress.getPort)
+
+    finally server.stop(0)
+
+
+
+  test("probe captures status, redirect target and content type") {
+
+    withServer((path, agent) =>
+
+      if path == "/start" then (302, "text/plain", "")
+
+      else if path == "/feed" then (200, "text/plain", "body") else (404, "text/html", "missing")
+
+    ) { port =>
+
+      val probe: JavaHttpFeedProbe = new JavaHttpFeedProbe(Duration.ofSeconds(2))
+
+      val ok: Either[String, ProbeResponse] = probe.probe("http://127.0.0.1:" + port + "/feed")
+
+      assert(ok.isRight)
+
+      assert(ok.toOption.get.statusCode == 200)
+
+      assert(ok.toOption.get.contentType == "text/plain")
+
+      val error: Either[String, ProbeResponse] = probe.probe("http://127.0.0.1:" + port + "/gone")
+
+      assert(error.toOption.get.statusCode == 404)
+
+    }
+
+  }
+
+
+
+  test("probe deduplicates repeated URLs inside one instance") {
+
+    withServer((_, _) => (200, "application/rss+xml", "body")) { port =>
+
+      val probe: JavaHttpFeedProbe = new JavaHttpFeedProbe(Duration.ofSeconds(2))
+
+      val url: String = "http://127.0.0.1:" + port + "/rss"
+
+      probe.probe(url)
+
+      probe.probe(url)
+
+      assert(probe.probe(url).isRight)
+
+    }
+
+  }
+
+
+
+  test("probe returns a Left on connection refusal") {
+
+    val probe: JavaHttpFeedProbe = new JavaHttpFeedProbe(Duration.ofSeconds(1))
+
+    assert(probe.probe("http://127.0.0.1:1/refused").isLeft)
+
+  }
+
+```
+
+
+
+Prove: `cd pipelines/ingestion && sbt "testOnly newspipe.FeedProbeSpec"` prints `[info] All tests passed`.
+
+
+
+Do NOT touch: pipelines/ingestion/src/main/**, conf/**, scripts/**, pipelines/enrichment/**
+
+
+
+Stop when FeedProbeSpec is green; validation tests are next.
+
+
+
+3. In `pipelines/ingestion/src/test/scala/newspipe/FeedValidatorSpec.scala`, create this file with inline RSS2, Atom, RDF, HTML-discovery, HTML-only, empty and malformed bodies.
+
+
+
+```scala
+
+package newspipe
+
+
+
+import newspipe.domain.models.ProbeResponse
+
+import newspipe.domain.models.SourceCandidate
+
+import newspipe.domain.models.ValidationStatus
+
+import newspipe.infrastructure.source.RomeFeedValidator
+
+import org.scalatest.funsuite.AnyFunSuite
+
+
+
+final class FeedValidatorSpec extends AnyFunSuite:
+
+  private val validator: RomeFeedValidator = new RomeFeedValidator
+
+  private val candidate: SourceCandidate = SourceCandidate("pub", None, None, List("http://feed"))
+
+  private val rss: String = "<?xml version=\"1.0\"?><rss version=\"2.0\"><channel><title>T</title><link>http://feed</link><description>D</description><item><title>I</title><link>http://feed/1</link><guid>http://feed/1</guid><description>Body</description><pubDate>Tue, 26 Nov 2024 10:00:00 GMT</pubDate></item></channel></rss>"
+
+  private val atom: String = "<?xml version=\"1.0\"?><feed xmlns=\"http://www.w3.org/2005/Atom\"><title>T</title><link href=\"http://feed\"/><updated>2024-11-26T10:00:00Z</updated><entry><title>I</title><id>http://feed/1</id><link href=\"http://feed/1\"/><updated>2024-11-26T10:00:00Z</updated><summary>Body</summary></entry></feed>"
+
+  private val rdf: String = "<?xml version=\"1.0\"?><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><channel rdf:about=\"http://feed\"><title>T</title></channel></rdf:RDF>"
+
+  private val discovery: String = "<html><head><link rel=\"alternate\" type=\"application/rss+xml\" href=\"http://feed/rss\"></head></html>"
+
+
+
+  private def check(body: String, contentType: String): ValidationStatus =
+
+    val response: ProbeResponse = ProbeResponse(200, "http://feed", contentType, body)
+
+    validator.validate(candidate, response, 1732610400000L).status
+
+
+
+  test("RSS2 and Atom documents are usable") {
+
+    assert(check(rss, "application/rss+xml") == ValidationStatus.Usable)
+
+    assert(check(atom, "application/atom+xml") == ValidationStatus.Usable)
+
+  }
+
+
+
+  test("RSS1 RDF is identified as needing investigation") {
+
+    assert(check(rdf, "application/rdf+xml") == ValidationStatus.NeedsInvestigation)
+
+    assert(validator.discover(discovery).contains("http://feed/rss"))
+
+  }
+
+
+
+  test("HTML without discovery and empty or malformed bodies are invalid") {
+
+    assert(check("<html><body>page</body></html>", "text/html") == ValidationStatus.Invalid)
+
+    assert(check("", "text/plain") == ValidationStatus.Invalid)
+
+    assert(check("<rss><channel><item>", "application/rss+xml") == ValidationStatus.Invalid)
+
+  }
+
+
+
+  test("HTTP 503 is temporary while 404 is invalid") {
+
+    val temp: ProbeResponse = ProbeResponse(503, "http://feed", "text/plain", "")
+
+    val dead: ProbeResponse = ProbeResponse(404, "http://feed", "text/plain", "")
+
+    assert(validator.validate(candidate, temp, 0L).status == ValidationStatus.TemporarilyUnavailable)
+
+    assert(validator.validate(candidate, dead, 0L).status == ValidationStatus.Invalid)
+
+  }
+
+```
+
+
+
+Prove: `cd pipelines/ingestion && sbt "testOnly newspipe.FeedValidatorSpec"` prints `[info] All tests passed`.
+
+
+
+Do NOT touch: pipelines/ingestion/src/main/**, conf/**, scripts/**, pipelines/enrichment/**
+
+
+
+Stop when FeedValidatorSpec is green; persistence tests are next.
+
+
+
+4. In `pipelines/ingestion/src/test/scala/newspipe/ValidationStoreSpec.scala`, create this file. It proves JSON round-trip and that an invalid snapshot file returns a Left diagnostic.
+
+
+
+```scala
+
+package newspipe
+
+
+
+import newspipe.domain.models.CandidateReport
+
+import newspipe.domain.models.FeedValidation
+
+import newspipe.domain.models.SourceCandidate
+
+import newspipe.domain.models.ValidationSnapshot
+
+import newspipe.domain.models.ValidationStatus
+
+import newspipe.infrastructure.source.JsonValidationResultStore
+
+import org.scalatest.funsuite.AnyFunSuite
+
+
+
+import java.nio.file.Files
+
+
+
+final class ValidationStoreSpec extends AnyFunSuite:
+
+  test("snapshot round-trips through JSON") {
+
+    val dir = Files.createTempDirectory("validation-store")
+
+    val path: String = dir.resolve("nested").resolve("results.json").toString
+
+    val validation: FeedValidation = FeedValidation("http://feed/rss", ValidationStatus.Usable,
+
+      "ok", 1732610400000L, "feedType=rss_2.0", Some("rss_2.0"), 1, true, true)
+
+    val snapshot: ValidationSnapshot = ValidationSnapshot(1, 1732610400000L,
+
+      List(CandidateReport(SourceCandidate("pub", None, Some("curated"), List("http://feed/rss")), List(validation))))
+
+    val store: JsonValidationResultStore = new JsonValidationResultStore(path)
+
+    assert(store.save(snapshot).isRight)
+
+    assert(store.load().toOption.get.contains(snapshot))
+
+  }
+
+
+
+  test("malformed snapshot returns a located diagnostic") {
+
+    val dir = Files.createTempDirectory("validation-bad")
+
+    val file = dir.resolve("results.json")
+
+    Files.writeString(file, "{")
+
+    val result = new JsonValidationResultStore(file.toString).load()
+
+    assert(result.isLeft)
+
+    assert(result.left.toOption.get.contains("results.json"))
+
+  }
+
+```
+
+
+
+Prove: `cd pipelines/ingestion && sbt "testOnly newspipe.ValidationStoreSpec"` prints `[info] All tests passed`.
+
+
+
+Do NOT touch: pipelines/ingestion/src/main/**, conf/**, scripts/**, pipelines/enrichment/**
+
+
+
+Stop when ValidationStoreSpec is green; integration and scale tests are cu-010.

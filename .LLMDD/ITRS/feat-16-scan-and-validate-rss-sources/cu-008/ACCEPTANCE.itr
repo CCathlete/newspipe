@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-008
+
+- Spec criteria 4 and 8 validation runs inside NewsPipe execution with no external scheduler: `grep -n 'scanner.runOnce' pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala` prints one line and `git diff --name-only -- scripts/newspipe` prints no paths.
+
+- Spec criterion 7 only usable feeds reach collection: `grep -n 'validatedService(scanReport.usableUrls)' pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala` prints one line.

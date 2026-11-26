@@ -1,0 +1,187 @@
+# IMPLEMENTATION_STEPS: cu-001
+
+1. In `pipelines/ingestion/src/main/scala/newspipe/domain/models/SourceValidationModels.scala`, create the complete file below. It defines status and record types and the circe codecs used by the manifest reader and result store. `checkedAtMillis` and `generatedAtMillis` are Long epoch milliseconds so no Java-time codec is needed.
+
+
+
+```scala
+
+package newspipe.domain.models
+
+
+
+import io.circe.Decoder
+
+import io.circe.Encoder
+
+import io.circe.generic.semiauto.deriveDecoder
+
+import io.circe.generic.semiauto.deriveEncoder
+
+
+
+enum ValidationStatus:
+
+  case Usable, TemporarilyUnavailable, Invalid, NeedsInvestigation
+
+
+
+final case class SourceCandidate(
+
+    publisherId: String,
+
+    title: Option[String],
+
+    provenance: Option[String],
+
+    urls: List[String]
+
+)
+
+
+
+final case class ProbeResponse(
+
+    statusCode: Int,
+
+    finalUrl: String,
+
+    contentType: String,
+
+    body: String
+
+)
+
+
+
+final case class FeedValidation(
+
+    url: String,
+
+    status: ValidationStatus,
+
+    reason: String,
+
+    checkedAtMillis: Long,
+
+    detail: String,
+
+    feedType: Option[String],
+
+    entryCount: Int,
+
+    hasDates: Boolean,
+
+    hasIds: Boolean
+
+)
+
+
+
+final case class CandidateReport(candidate: SourceCandidate, validations: List[FeedValidation])
+
+
+
+final case class ValidationSnapshot(
+
+    version: Int,
+
+    generatedAtMillis: Long,
+
+    reports: List[CandidateReport]
+
+)
+
+
+
+object SourceValidationModels:
+
+  given Encoder[ValidationStatus] = Encoder.encodeString.contramap(_.toString)
+
+  given Decoder[ValidationStatus] = Decoder.decodeString.emap { value =>
+
+    ValidationStatus.values.find(_.toString == value).toRight("unknown validation status: " + value)
+
+  }
+
+  given Encoder[SourceCandidate] = deriveEncoder
+
+  given Decoder[SourceCandidate] = deriveDecoder
+
+  given Encoder[FeedValidation] = deriveEncoder
+
+  given Decoder[FeedValidation] = deriveDecoder
+
+  given Encoder[CandidateReport] = deriveEncoder
+
+  given Decoder[CandidateReport] = deriveDecoder
+
+  given Encoder[ValidationSnapshot] = deriveEncoder
+
+  given Decoder[ValidationSnapshot] = deriveDecoder
+
+```
+
+
+
+Prove: `cd pipelines/ingestion && sbt compile` prints `[success] Compiled` and no error about SourceValidationModels.
+
+
+
+Do NOT touch: pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala, pipelines/ingestion/src/main/scala/newspipe/infrastructure/**, pipelines/ingestion/src/test/**, conf/**, scripts/**, pipelines/enrichment/**
+
+
+
+Stop when the model file compiles; the port additions belong to the next step.
+
+
+
+2. In `pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala`, replace the import line and append exactly the four traits below after `trait ObjectStoreReadinessProbe`. Keep `RssSource`, `BronzeSink`, `RawPublisher`, `ProbeResult` and `DependencyProbe` byte-identical.
+
+
+
+```scala
+
+import newspipe.domain.models.{BronzeUnit, FeedValidation, ProbeResponse, RssItem, SourceCandidate, ValidationSnapshot}
+
+
+
+trait SourceManifestReader:
+
+  def read(path: String): Either[String, List[SourceCandidate]]
+
+
+
+trait FeedProbe:
+
+  def probe(url: String): Either[String, ProbeResponse]
+
+
+
+trait FeedValidator:
+
+  def validate(candidate: SourceCandidate, response: ProbeResponse, nowMillis: Long): FeedValidation
+
+  def discover(body: String): Option[String]
+
+
+
+trait ValidationResultStore:
+
+  def load(): Either[String, Option[ValidationSnapshot]]
+
+  def save(snapshot: ValidationSnapshot): Either[String, Unit]
+
+```
+
+
+
+Prove: `cd pipelines/ingestion && sbt compile` prints `[success] Compiled`; `grep -c 'trait SourceManifestReader' pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala` prints `1`.
+
+
+
+Do NOT touch: pipelines/ingestion/src/main/scala/newspipe/application/services/IngestionService.scala, pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala, pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala, pipelines/enrichment/**
+
+
+
+Stop when both new files compile; adapter implementations are cu-002 through cu-005.

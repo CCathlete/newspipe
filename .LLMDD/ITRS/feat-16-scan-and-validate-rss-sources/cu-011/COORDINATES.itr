@@ -1,0 +1,17 @@
+# COORDINATES: cu-011
+
+FILE..LLMDD/ITRS/feat-16-scan-and-validate-rss-sources/e2e-verification.txt (creation)
+
+FILE.pipelines/ingestion/src/test/scala/newspipe/SourceManifestSpec.scala
+
+FILE.pipelines/ingestion/src/test/scala/newspipe/FeedProbeSpec.scala
+
+FILE.pipelines/ingestion/src/test/scala/newspipe/FeedValidatorSpec.scala
+
+FILE.pipelines/ingestion/src/test/scala/newspipe/ValidationStoreSpec.scala
+
+FILE.pipelines/ingestion/src/test/scala/newspipe/SourceScanServiceSpec.scala
+
+FILE.pipelines/ingestion/src/test/scala/newspipe/SourceValidationScaleSpec.scala
+
+FILE.pipelines/ingestion/src/test/scala/newspipe/SourceValidationIntegrationSpec.scala

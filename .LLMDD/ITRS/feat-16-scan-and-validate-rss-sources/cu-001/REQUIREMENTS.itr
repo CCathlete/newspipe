@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-001
+
+Create the domain vocabulary for source validation and add the four boundaries the scanner needs to Ports.scala. This is the only CU that defines validation statuses, candidate identity, probe responses, per-URL validation records, and the persisted snapshot. All later CUs compile against these exact types.

@@ -1,0 +1,7 @@
+# COORDINATES: cu-001
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala (existing extension point)
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/domain/models/SourceValidationModels.scala (creation)
+
+TYPE.pipelines.ingestion.src.main.scala.newspipe.application.ports.Ports.scala.RssSource (existing collection port, unchanged)

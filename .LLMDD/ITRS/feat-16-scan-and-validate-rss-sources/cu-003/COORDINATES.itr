@@ -1,0 +1,5 @@
+# COORDINATES: cu-003
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/source/JavaHttpFeedProbe.scala (creation)
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/rss/RomeRssClient.scala (existing HttpClient pattern reused)

@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-006
+
+- Spec criteria 1, 3, 6 and 10 manifest ingestion, failure isolation, persistence reuse and scale: proved by `SourceScanServiceSpec` and `SourceValidationScaleSpec` in cu-010.
+
+- Spec criterion 7 usable-only exposure: `ScanReport.usableUrls` is the sole input to the collection adapter in cu-008.

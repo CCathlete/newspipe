@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-006
+
+Orchestrate manifest reading, prior-result reuse, bounded-parallel probing, autodiscovery follow-up, validation and snapshot persistence. The service returns a ScanReport whose usableUrls are the only feeds the collection path may fetch.

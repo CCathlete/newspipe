@@ -1,0 +1,5 @@
+# COORDINATES: cu-005
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/source/JsonValidationResultStore.scala (creation)
+
+FILE.conf/ingestion.conf (existing config file, extended in cu-008)

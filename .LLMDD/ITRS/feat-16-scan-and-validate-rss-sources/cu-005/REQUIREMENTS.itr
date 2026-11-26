@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-005
+
+Persist validation results as one JSON snapshot so an unchanged re-run can reuse usable results without re-probing. No database, queue or new framework is introduced; the default path is under the pipeline's gitignored target/ tree.

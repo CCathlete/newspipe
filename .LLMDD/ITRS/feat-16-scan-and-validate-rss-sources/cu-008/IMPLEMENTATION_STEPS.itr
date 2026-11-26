@@ -1,0 +1,247 @@
+# IMPLEMENTATION_STEPS: cu-008
+
+1. In `conf/ingestion.conf`, append this block inside `newspipe { ... }` after the `spark` section. Do not change any existing key.
+
+
+
+```hocon
+
+  source-scan {
+
+    manifest-path = "conf/sources.json"
+
+    results-path = "target/source-validation/source-validation.json"
+
+    probe-timeout-seconds = 10
+
+    workers = 8
+
+    reprobe = false
+
+  }
+
+```
+
+
+
+Prove: `grep -c 'source-scan' conf/ingestion.conf` prints `1`; `cd pipelines/ingestion && sbt compile` prints `[success] Compiled`.
+
+
+
+Do NOT touch: conf/feeds.conf, conf/enrichment.conf, .env, scripts/newspipe, pipelines/enrichment/**
+
+
+
+Stop when the config key exists; Env fields are the next step.
+
+
+
+2. In `pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/Env.scala`, add the five fields to `EnvConfig` and five `pick` expressions to `load(cfg, dot)`. Use `hasPath` fallbacks because `EnvPrecedenceSpec` builds a smaller Config fixture. `.env` remains read only.
+
+
+
+```scala
+
+    sourceManifestPath: String,
+
+    validationStorePath: String,
+
+    probeTimeoutSeconds: Long,
+
+    scanWorkers: Int,
+
+    reprobeSources: Boolean
+
+```
+
+
+
+```scala
+
+      sourceManifestPath = pick("NEWSPIPE_SOURCE_MANIFEST_PATH",
+
+        if cfg.hasPath("source-scan.manifest-path") then cfg.getString("source-scan.manifest-path") else "conf/sources.json"),
+
+      validationStorePath = pick("NEWSPIPE_VALIDATION_STORE_PATH",
+
+        if cfg.hasPath("source-scan.results-path") then cfg.getString("source-scan.results-path") else "target/source-validation/source-validation.json"),
+
+      probeTimeoutSeconds = pickLong("NEWSPIPE_PROBE_TIMEOUT_SECONDS",
+
+        if cfg.hasPath("source-scan.probe-timeout-seconds") then cfg.getLong("source-scan.probe-timeout-seconds") else 10L),
+
+      scanWorkers = pickLong("NEWSPIPE_SCAN_WORKERS",
+
+        if cfg.hasPath("source-scan.workers") then cfg.getLong("source-scan.workers") else 8L).toInt,
+
+      reprobeSources = pickBool("NEWSPIPE_REPROBE_SOURCES",
+
+        if cfg.hasPath("source-scan.reprobe") then cfg.getBoolean("source-scan.reprobe") else false)
+
+```
+
+
+
+Prove: `cd pipelines/ingestion && sbt "testOnly newspipe.EnvPrecedenceSpec"` prints `[info] All tests passed`.
+
+
+
+Do NOT touch: pipelines/ingestion/src/main/scala/newspipe/infrastructure/env/DotEnv.scala, pipelines/ingestion/src/main/scala/newspipe/infrastructure/conf/ConfLoader.scala, .env, pipelines/enrichment/**
+
+
+
+Stop when EnvPrecedenceSpec is green; AppContainer wiring is next.
+
+
+
+3. In `pipelines/ingestion/src/main/scala/newspipe/control/dependencyInjection/AppContainer.scala`, add the imports and adapter fields, expose `sink`/`raw`, add `scan()`, and replace `val service` with a factory taking usable URLs. Keep `rss`, `spark`, `readiness` and `close()` unchanged except for scanner shutdown.
+
+
+
+```scala
+
+import newspipe.application.services.ScanReport
+
+import newspipe.application.services.SourceScanService
+
+import newspipe.application.ports.FeedProbe
+
+import newspipe.application.ports.FeedValidator
+
+import newspipe.application.ports.SourceManifestReader
+
+import newspipe.application.ports.ValidationResultStore
+
+import newspipe.infrastructure.rss.ValidatedRssSource
+
+import newspipe.infrastructure.source.JavaHttpFeedProbe
+
+import newspipe.infrastructure.source.JsonSourceManifestReader
+
+import newspipe.infrastructure.source.JsonValidationResultStore
+
+import newspipe.infrastructure.source.RomeFeedValidator
+
+```
+
+
+
+```scala
+
+  val manifestReader: SourceManifestReader = new JsonSourceManifestReader
+
+  val feedProbe: FeedProbe = new JavaHttpFeedProbe(Duration.ofSeconds(env.probeTimeoutSeconds))
+
+  val feedValidator: FeedValidator = new RomeFeedValidator
+
+  val resultStore: ValidationResultStore = new JsonValidationResultStore(env.validationStorePath)
+
+  val scanner: SourceScanService = new SourceScanService(
+
+    manifestReader, feedProbe, feedValidator, resultStore,
+
+    env.sourceManifestPath, env.scanWorkers, env.reprobeSources
+
+  )
+
+
+
+  def scan(): Either[String, ScanReport] = scanner.runOnce()
+
+
+
+  def validatedService(usableUrls: List[String]): IngestionService =
+
+    new IngestionService(new ValidatedRssSource(usableUrls), sink, raw)
+
+```
+
+
+
+```scala
+
+  def close(): Unit =
+
+    scanner.close()
+
+    raw.close()
+
+    spark.stop()
+
+```
+
+
+
+Prove: `cd pipelines/ingestion && sbt compile` prints `[success] Compiled`.
+
+
+
+Do NOT touch: pipelines/ingestion/src/main/scala/newspipe/application/services/IngestionService.scala, pipelines/enrichment/**
+
+
+
+Stop when AppContainer compiles; Main is the last code step.
+
+
+
+4. In `pipelines/ingestion/src/main/scala/newspipe/control/entryPoint/Main.scala`, add imports for `RssSource` and `ScanReport`, and replace the poll setup and loop with the scanned-service version below. Keep shutdown hook and readiness gate intact.
+
+
+
+```scala
+
+import newspipe.application.ports.RssSource
+
+import newspipe.application.services.IngestionService
+
+import newspipe.application.services.ScanReport
+
+```
+
+
+
+```scala
+
+    val scanReport: ScanReport = app.scan() match
+
+      case Right(report) => report
+
+      case Left(error) => throw new RuntimeException("source scan failed: " + error)
+
+    logger.info("source scan: candidates=" + scanReport.candidates + " usable=" + scanReport.usable +
+
+      " unavailable=" + scanReport.unavailable + " invalid=" + scanReport.invalid +
+
+      " investigation=" + scanReport.investigation)
+
+    val service: IngestionService = app.validatedService(scanReport.usableUrls)
+
+    val rss: RssSource = new newspipe.infrastructure.rss.ValidatedRssSource(scanReport.usableUrls)
+
+    logger.info("newspipe-ingestion polling " + rss.getClass.getSimpleName + " with " + scanReport.usable + " validated feeds every " + poll)
+
+    while true do
+
+      try
+
+        val n = service.runOnce(Instant.now())
+
+        logger.info("poll wrote " + n + " bronze units")
+
+      catch case e: Exception => logger.error("poll iteration failed", e)
+
+      Thread.sleep(poll.toMillis)
+
+```
+
+
+
+Prove: `cd pipelines/ingestion && sbt compile` prints `[success] Compiled`; `git diff --name-only -- scripts/newspipe conf/enrichment.conf pipelines/enrichment` prints no paths.
+
+
+
+Do NOT touch: scripts/newspipe, .env, conf/enrichment.conf, pipelines/enrichment/**
+
+
+
+Stop when ingestion compiles and the forbidden paths are unchanged; tests are cu-009 through cu-011.

@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-008
+
+Wire the scanner into NewsPipe's existing startup and make the collection service read validated feeds only. Add configuration with the established environment > .env > conf precedence, using safe fallbacks so existing configuration fixtures keep compiling.

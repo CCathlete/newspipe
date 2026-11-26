@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-011
+
+- Spec criteria 1 through 11: full `sbt test` in both pipelines is green and the report records each criterion.
+
+- Spec criterion 9 no LLM in scanning: the grep above prints no lines from ingestion main sources.

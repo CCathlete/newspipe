@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-011
+
+Run the full verification set for feat-16 and record the result. This CU changes no application code; it proves all acceptance criteria with the exact commands from the feature spec and writes the E2E report under the feature's ITR directory.

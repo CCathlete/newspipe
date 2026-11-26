@@ -1,0 +1,7 @@
+# COORDINATES: cu-007
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/rss/ValidatedRssSource.scala (creation)
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/rss/RomeRssClient.scala (delegated parser)
+
+TYPE.pipelines.ingestion.src.main.scala.newspipe.application.ports.Ports.scala.RssSource (implemented, unchanged)

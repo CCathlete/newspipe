@@ -1,0 +1,7 @@
+# ACCEPTANCE: cu-001
+
+- Spec criterion 3 status vocabulary: `grep -c 'case Usable, TemporarilyUnavailable, Invalid, NeedsInvestigation' pipelines/ingestion/src/main/scala/newspipe/domain/models/SourceValidationModels.scala` prints `1`.
+
+- Spec criteria 1, 6, 7 boundary contract: `cd pipelines/ingestion && sbt compile` zero errors.
+
+- Spec criterion 9 no AI: `grep -RIn 'opencode' pipelines/ingestion/src/main/scala/newspipe/domain/models pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala` prints no lines.

@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-005
+
+- Spec criterion 6 persistence and diagnostics: proved by `ValidationStoreSpec` and `SourceScanServiceSpec` in cu-009/cu-010.
+
+- Spec criterion 8 no extra service: the adapter only reads and writes a local file; no scheduler code exists in this file.

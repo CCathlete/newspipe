@@ -1,0 +1,59 @@
+# IMPLEMENTATION_STEPS: cu-011
+
+1. In `.LLMDD/ITRS/feat-16-scan-and-validate-rss-sources/e2e-verification.txt`, first run the full regression commands from the repo root, then write the report. Expected results: both sbt runs end with `[success]`, all seven new specs print `[info] All tests passed`, `git diff --name-only -- pipelines/enrichment conf/enrichment.conf scripts/newspipe .env` prints no paths, and `grep -RIn 'opencode' pipelines/ingestion/src/main` prints no lines.
+
+
+
+```bash
+
+cd pipelines/ingestion && sbt compile && sbt test
+
+cd ../enrichment && sbt compile && sbt test
+
+git diff --name-only -- pipelines/enrichment conf/enrichment.conf scripts/newspipe .env
+
+grep -RIn 'opencode' pipelines/ingestion/src/main || true
+
+```
+
+
+
+```text
+
+feat-16-scan-and-validate-rss-sources E2E verification
+
+Status: PASS
+
+Criterion 1 manifest and boundary: SourceManifestSpec PASS
+
+Criterion 2 probing and deduplication: FeedProbeSpec PASS
+
+Criterion 3 feed identification and statuses: FeedValidatorSpec PASS
+
+Criterion 4 lifecycle inside NewsPipe: AppContainer.scan and no launcher diff
+
+Criterion 5 persistence and reuse: ValidationStoreSpec and SourceScanServiceSpec PASS
+
+Criterion 6 usable-only collection: SourceValidationIntegrationSpec PASS
+
+Criterion 7 classification untouched: git diff on pipelines/enrichment empty
+
+Criterion 8 determinism: no opencode import in ingestion main
+
+Criterion 9 scale: SourceValidationScaleSpec PASS
+
+Criterion 10 regression: ingestion and enrichment sbt compile/test PASS
+
+```
+
+
+
+Prove: `cat .LLMDD/ITRS/feat-16-scan-and-validate-rss-sources/e2e-verification.txt` prints the block above with `Status: PASS`.
+
+
+
+Do NOT touch: pipelines/ingestion/src/main/**, conf/**, scripts/**, .env, pipelines/enrichment/**
+
+
+
+Stop when all listed commands have the stated output and the report says PASS; the Designer then starts run-waves.py.

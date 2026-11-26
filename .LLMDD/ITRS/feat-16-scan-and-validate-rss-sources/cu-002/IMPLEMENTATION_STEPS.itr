@@ -1,0 +1,59 @@
+# IMPLEMENTATION_STEPS: cu-002
+
+1. In `pipelines/ingestion/src/main/scala/newspipe/infrastructure/source/JsonSourceManifestReader.scala`, create this file. It reads one JSON array of candidate objects; missing `title` or `provenance` decode as None through circe's Option decoder.
+
+
+
+```scala
+
+package newspipe.infrastructure.source
+
+
+
+import io.circe.parser.parse
+
+import newspipe.application.ports.SourceManifestReader
+
+import newspipe.domain.models.SourceCandidate
+
+import newspipe.domain.models.SourceValidationModels.given
+
+
+
+import java.nio.file.Files
+
+import java.nio.file.Path
+
+
+
+final class JsonSourceManifestReader extends SourceManifestReader:
+
+  def read(path: String): Either[String, List[SourceCandidate]] =
+
+    val file: Path = Path.of(path)
+
+    if !Files.isRegularFile(file) then Left("manifest not found: " + path)
+
+    else
+
+      val raw: String = Files.readString(file)
+
+      parse(raw).left.map(_.getMessage).flatMap { json =>
+
+        json.as[List[SourceCandidate]].left.map(error => "manifest " + path + ": " + error.getMessage)
+
+      }
+
+```
+
+
+
+Prove: `cd pipelines/ingestion && sbt compile` prints `[success] Compiled`.
+
+
+
+Do NOT touch: pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala, pipelines/ingestion/src/main/scala/newspipe/domain/models/SourceValidationModels.scala, pipelines/ingestion/src/main/scala/newspipe/infrastructure/source/JavaHttpFeedProbe.scala, pipelines/ingestion/src/main/scala/newspipe/infrastructure/source/RomeFeedValidator.scala, pipelines/ingestion/src/main/scala/newspipe/infrastructure/source/JsonValidationResultStore.scala, conf/feeds.conf, pipelines/ingestion/src/test/**
+
+
+
+Stop when the reader compiles; tests are cu-009.

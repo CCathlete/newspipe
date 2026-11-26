@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-004
+
+- Spec criteria 3, 4 and 5 statuses, feed identification and diagnostics: proved by `FeedValidatorSpec` in cu-009.
+
+- Spec criterion 9 no LLM: `grep -n 'opencode' pipelines/ingestion/src/main/scala/newspipe/infrastructure/source/RomeFeedValidator.scala` prints no lines.

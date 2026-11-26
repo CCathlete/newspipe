@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-003
+
+- Spec criterion 3 errors, redirects, timeouts and deduplication: proved by `FeedProbeSpec` in cu-009.
+
+- Spec criterion 10 bounded retries: the probe sends exactly one request per distinct URL per instance; no internal retry loop exists.

@@ -1,0 +1,3 @@
+# REQUIREMENTS: cu-002
+
+Implement deterministic JSON manifest ingestion. The reader preserves publisher identity, provenance and every candidate URL, accepts invalid URLs as data, and reports a located diagnostic for malformed JSON. JSON is the chosen declarative format; no YAML library is introduced.

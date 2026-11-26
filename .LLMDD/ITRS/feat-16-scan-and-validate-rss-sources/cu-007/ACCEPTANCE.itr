@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-007
+
+- Spec criterion 7 collection consumes only usable feeds: `ValidatedRssSource` is constructed only from `ScanReport.usableUrls` in cu-008.
+
+- Spec criterion 8 NewsPipe lifecycle: this adapter has no timer, daemon or scheduler.

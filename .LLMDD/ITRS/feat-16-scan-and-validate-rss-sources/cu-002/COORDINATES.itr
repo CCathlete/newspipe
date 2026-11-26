@@ -1,0 +1,7 @@
+# COORDINATES: cu-002
+
+FILE.pipelines/ingestion/src/main/scala/newspipe/infrastructure/source/JsonSourceManifestReader.scala (creation)
+
+FILE.pipelines/ingestion/build.sbt (existing circe dependencies reused)
+
+TYPE.pipelines.ingestion.src.main.scala.newspipe.application.ports.Ports.scala.RssSource (unchanged collection port)

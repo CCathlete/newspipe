@@ -1,0 +1,27 @@
+[
+  {
+    "wave": 1,
+    "description": "Domain vocabulary and four application ports. Every later CU compiles against these exact types, so this is the sole serial prerequisite.",
+    "cus": ["cu-001"]
+  },
+  {
+    "wave": 2,
+    "description": "Independent infrastructure adapters plus the collection-side port adapter: JSON manifest reader, HTTP probe, Rome validator, result store and ValidatedRssSource. Each writes a distinct file and only depends on wave 1.",
+    "cus": ["cu-002", "cu-003", "cu-004", "cu-005", "cu-007"]
+  },
+  {
+    "wave": 3,
+    "description": "Application orchestration and unit tests of the wave-2 adapters. SourceScanService depends on the adapters; the four unit specs depend on the same adapters and write separate test files.",
+    "cus": ["cu-006", "cu-009"]
+  },
+  {
+    "wave": 4,
+    "description": "Configuration and startup wiring plus integration/scale tests. Both depend on the wave-3 service and wave-2 adapter, and write disjoint files.",
+    "cus": ["cu-008", "cu-010"]
+  },
+  {
+    "wave": 5,
+    "description": "Final end-to-end verification alone: full ingestion and enrichment sbt compile/test, forbidden-path diff and no-opencode grep, recorded in the feature ITR report.",
+    "cus": ["cu-011"]
+  }
+]

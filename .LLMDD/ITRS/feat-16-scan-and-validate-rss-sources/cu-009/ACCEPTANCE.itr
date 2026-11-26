@@ -1,0 +1,5 @@
+# ACCEPTANCE: cu-009
+
+- Spec criteria 2, 3, 4, 5 and 6: the four specs above pass with `cd pipelines/ingestion && sbt test` and zero failures.
+
+- Spec criterion 9 deterministic: every test uses inline XML, temp files or a loopback server; no opencode process is spawned.

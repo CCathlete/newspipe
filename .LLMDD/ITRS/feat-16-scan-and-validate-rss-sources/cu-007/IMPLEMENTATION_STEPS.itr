@@ -1,0 +1,43 @@
+# IMPLEMENTATION_STEPS: cu-007
+
+1. In `pipelines/ingestion/src/main/scala/newspipe/infrastructure/rss/ValidatedRssSource.scala`, create this file. It delegates to RomeRssClient with the validated URL list and adds no parsing or network logic of its own.
+
+
+
+```scala
+
+package newspipe.infrastructure.rss
+
+
+
+import newspipe.application.ports.RssSource
+
+import newspipe.domain.models.RssItem
+
+
+
+import java.time.Duration
+
+
+
+final class ValidatedRssSource(usableUrls: List[String], timeout: Duration = Duration.ofSeconds(20)) extends RssSource:
+
+  private val delegate: RomeRssClient = new RomeRssClient(usableUrls, timeout)
+
+
+
+  def fetch(): List[RssItem] = delegate.fetch()
+
+```
+
+
+
+Prove: `cd pipelines/ingestion && sbt compile` prints `[success] Compiled`.
+
+
+
+Do NOT touch: pipelines/ingestion/src/main/scala/newspipe/application/ports/Ports.scala, pipelines/ingestion/src/main/scala/newspipe/application/services/IngestionService.scala, pipelines/ingestion/src/main/scala/newspipe/infrastructure/rss/RomeRssClient.scala, pipelines/ingestion/src/main/scala/newspipe/application/services/SourceScanService.scala, conf/**, pipelines/enrichment/**, pipelines/ingestion/src/test/**
+
+
+
+Stop when the adapter compiles; AppContainer wiring is cu-008.
