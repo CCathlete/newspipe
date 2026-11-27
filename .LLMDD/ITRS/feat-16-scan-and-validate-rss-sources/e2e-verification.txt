@@ -1,0 +1,23 @@
+feat-16-scan-and-validate-rss-sources E2E verification
+
+Status: PASS
+
+Criterion 1 manifest and boundary: SourceManifestSpec PASS
+
+Criterion 2 probing and deduplication: FeedProbeSpec PASS
+
+Criterion 3 feed identification and statuses: FeedValidatorSpec PASS
+
+Criterion 4 lifecycle inside NewsPipe: AppContainer.scan and no launcher diff
+
+Criterion 5 persistence and reuse: ValidationStoreSpec and SourceScanServiceSpec PASS
+
+Criterion 6 usable-only collection: SourceValidationIntegrationSpec PASS
+
+Criterion 7 classification untouched: git diff on pipelines/enrichment empty
+
+Criterion 8 determinism: no opencode import in ingestion main
+
+Criterion 9 scale: SourceValidationScaleSpec PASS
+
+Criterion 10 regression: ingestion and enrichment sbt compile/test PASS

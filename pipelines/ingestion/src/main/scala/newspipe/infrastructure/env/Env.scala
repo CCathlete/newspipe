@@ -17,7 +17,12 @@ final case class EnvConfig(
     s3PathStyle: Boolean,
     s3AccessKey: String,
     s3SecretKey: String,
-    s3Bucket: String
+    s3Bucket: String,
+    sourceManifestPath: String,
+    validationStorePath: String,
+    probeTimeoutSeconds: Long,
+    scanWorkers: Int,
+    reprobeSources: Boolean
 )
 
 object Env:
@@ -51,5 +56,15 @@ object Env:
       s3PathStyle = pickBool("NEWSPIPE_S3_PATH_STYLE", cfg.getBoolean("s3.path-style-access")),
       s3AccessKey = pick("NEWSPIPE_S3_ACCESS_KEY", cfg.getString("s3.access-key")),
       s3SecretKey = pick("NEWSPIPE_S3_SECRET_KEY", cfg.getString("s3.secret-key")),
-      s3Bucket = pick("NEWSPIPE_BRONZE_BUCKET", cfg.getString("s3.bucket"))
+      s3Bucket = pick("NEWSPIPE_BRONZE_BUCKET", cfg.getString("s3.bucket")),
+      sourceManifestPath = pick("NEWSPIPE_SOURCE_MANIFEST_PATH",
+        if cfg.hasPath("source-scan.manifest-path") then cfg.getString("source-scan.manifest-path") else "conf/sources.json"),
+      validationStorePath = pick("NEWSPIPE_VALIDATION_STORE_PATH",
+        if cfg.hasPath("source-scan.results-path") then cfg.getString("source-scan.results-path") else "target/source-validation/source-validation.json"),
+      probeTimeoutSeconds = pickLong("NEWSPIPE_PROBE_TIMEOUT_SECONDS",
+        if cfg.hasPath("source-scan.probe-timeout-seconds") then cfg.getLong("source-scan.probe-timeout-seconds") else 10L),
+      scanWorkers = pickLong("NEWSPIPE_SCAN_WORKERS",
+        if cfg.hasPath("source-scan.workers") then cfg.getLong("source-scan.workers") else 8L).toInt,
+      reprobeSources = pickBool("NEWSPIPE_REPROBE_SOURCES",
+        if cfg.hasPath("source-scan.reprobe") then cfg.getBoolean("source-scan.reprobe") else false)
     )

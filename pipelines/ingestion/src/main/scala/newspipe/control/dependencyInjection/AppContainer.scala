@@ -1,11 +1,26 @@
 package newspipe.control.dependencyInjection
 
-import newspipe.application.services.{IngestionService, ReadinessGate}
+import newspipe.application.services.IngestionService
+import newspipe.application.services.ReadinessGate
+import newspipe.application.services.ScanReport
+import newspipe.application.services.SourceScanService
+import newspipe.application.ports.FeedProbe
+import newspipe.application.ports.FeedValidator
+import newspipe.application.ports.SourceManifestReader
+import newspipe.application.ports.ValidationResultStore
+import newspipe.infrastructure.rss.ValidatedRssSource
+import newspipe.infrastructure.source.JavaHttpFeedProbe
+import newspipe.infrastructure.source.JsonSourceManifestReader
+import newspipe.infrastructure.source.JsonValidationResultStore
+import newspipe.infrastructure.source.RomeFeedValidator
+
 import newspipe.infrastructure.bronze.{DeltaBronzeSink, HttpObjectStoreReadinessProbe}
 import newspipe.infrastructure.env.EnvConfig
 import newspipe.infrastructure.messagequeue.{KafkaRawPublisher, TcpKafkaReadinessProbe}
 import newspipe.infrastructure.rss.RomeRssClient
 import org.apache.spark.sql.SparkSession
+
+import java.time.Duration
 
 import scala.concurrent.duration.*
 
@@ -23,7 +38,6 @@ final class AppContainer(env: EnvConfig):
   val rss = new RomeRssClient(env.feeds)
   val sink = new DeltaBronzeSink(spark, env.bronzePath)
   val raw = new KafkaRawPublisher(env.kafkaBootstrap, env.rawTopic)
-  val service = new IngestionService(rss, sink, raw)
   val readiness: ReadinessGate = new ReadinessGate(
     List(
       new TcpKafkaReadinessProbe(env.kafkaBootstrap, 3000),
@@ -34,6 +48,31 @@ final class AppContainer(env: EnvConfig):
     sleep = d => Thread.sleep(d.toMillis)
   )
 
+  val manifestReader: SourceManifestReader = new JsonSourceManifestReader
+
+  val feedProbe: FeedProbe = new JavaHttpFeedProbe(Duration.ofSeconds(env.probeTimeoutSeconds))
+
+  val feedValidator: FeedValidator = new RomeFeedValidator
+
+  val resultStore: ValidationResultStore = new JsonValidationResultStore(env.validationStorePath)
+
+  val scanner: SourceScanService = new SourceScanService(
+
+    manifestReader, feedProbe, feedValidator, resultStore,
+
+    env.sourceManifestPath, env.scanWorkers, env.reprobeSources
+
+  )
+
+
+  def scan(): Either[String, ScanReport] = scanner.runOnce()
+
+
+  def validatedService(usableUrls: List[String]): IngestionService =
+
+    new IngestionService(new ValidatedRssSource(usableUrls), sink, raw)
+
   def close(): Unit =
+    scanner.close()
     raw.close()
     spark.stop()

@@ -1,0 +1,107 @@
+package newspipe.application.services
+
+import com.typesafe.scalalogging.LazyLogging
+
+import newspipe.application.ports.FeedProbe
+
+import newspipe.application.ports.FeedValidator
+
+import newspipe.application.ports.SourceManifestReader
+
+import newspipe.application.ports.ValidationResultStore
+
+import newspipe.domain.models.CandidateReport
+
+import newspipe.domain.models.FeedValidation
+
+import newspipe.domain.models.SourceCandidate
+
+import newspipe.domain.models.ValidationSnapshot
+
+import newspipe.domain.models.ValidationStatus
+
+import java.time.Instant
+
+import java.util.concurrent.ExecutorService
+
+import java.util.concurrent.Executors
+
+import java.util.concurrent.TimeUnit
+
+import scala.concurrent.Await
+
+import scala.concurrent.ExecutionContext
+
+import scala.concurrent.Future
+
+import scala.concurrent.duration.Duration
+
+final case class ScanReport(
+    usableUrls: List[String],
+    candidates: Int,
+    usable: Int,
+    unavailable: Int,
+    invalid: Int,
+    investigation: Int
+)
+
+final class SourceScanService(
+    reader: SourceManifestReader,
+    probe: FeedProbe,
+    validator: FeedValidator,
+    store: ValidationResultStore,
+    manifestPath: String,
+    workers: Int,
+    reprobe: Boolean
+) extends LazyLogging:
+
+  private val pool: ExecutorService = Executors.newFixedThreadPool(math.max(1, workers))
+
+  private given ExecutionContext = ExecutionContext.fromExecutorService(pool)
+
+  def close(): Unit =
+    pool.shutdown()
+    pool.awaitTermination(30, TimeUnit.SECONDS)
+    ()
+
+  def runOnce(): Either[String, ScanReport] =
+    reader.read(manifestPath).flatMap { candidates =>
+      val prior: Map[String, List[FeedValidation]] = store.load() match
+        case Right(Some(snapshot)) => snapshot.reports.map(report => report.candidate.publisherId -> report.validations).toMap
+        case _ => Map.empty[String, List[FeedValidation]]
+      val now: Long = Instant.now().toEpochMilli
+      val futures: List[Future[CandidateReport]] = candidates.map(candidate => Future(scanCandidate(candidate, prior, now)))
+      val reports: List[CandidateReport] = Await.result(Future.sequence(futures), Duration.Inf)
+      val snapshot: ValidationSnapshot = ValidationSnapshot(1, now, reports)
+      store.save(snapshot).map { _ =>
+        val all: List[FeedValidation] = reports.flatMap(_.validations)
+        ScanReport(
+          usableUrls = all.filter(_.status == ValidationStatus.Usable).map(_.url).distinct,
+          candidates = reports.size,
+          usable = all.count(_.status == ValidationStatus.Usable),
+          unavailable = all.count(_.status == ValidationStatus.TemporarilyUnavailable),
+          invalid = all.count(_.status == ValidationStatus.Invalid),
+          investigation = all.count(_.status == ValidationStatus.NeedsInvestigation)
+        )
+      }
+    }
+
+  private def scanCandidate(candidate: SourceCandidate, prior: Map[String, List[FeedValidation]], now: Long): CandidateReport =
+    prior.get(candidate.publisherId) match
+      case Some(existing) if !reprobe && existing.exists(_.status == ValidationStatus.Usable) =>
+        CandidateReport(candidate, existing)
+      case _ =>
+        val validations: List[FeedValidation] = candidate.urls.flatMap { url =>
+          probe.probe(url) match
+            case Left(error) => List(FeedValidation(url, ValidationStatus.TemporarilyUnavailable,
+              "probe-error", now, error, None, 0, false, false))
+            case Right(response) =>
+              val first: FeedValidation = validator.validate(candidate, response, now)
+              if first.reason == "html-autodiscovery" then
+                probe.probe(first.url) match
+                  case Left(error) => List(FeedValidation(first.url, ValidationStatus.TemporarilyUnavailable,
+                    "discovery-probe-error", now, error, None, 0, false, false))
+                  case Right(discovered) => List(validator.validate(candidate, discovered, now))
+              else List(first)
+        }
+        CandidateReport(candidate, validations)
